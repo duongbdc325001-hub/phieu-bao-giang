@@ -75,8 +75,7 @@ const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean
   if (isSub) {
     return {
       card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
-      topBadge: 'text-amber-800 font-bold',
-      classText: 'text-amber-950',
+      textMain: 'text-amber-950',
     }
   }
 
@@ -86,23 +85,20 @@ const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean
   if (s.includes('lý') || s.includes('vật lí') || s.includes('hóa') || s.includes('sinh') || s.includes('tin') || c.includes('LÍ') || c.includes('HÓA') || c.includes('SINH') || c.includes('TIN')) {
     return {
       card: 'bg-blue-50/90 border-blue-300 text-blue-950 hover:ring-blue-400 shadow-2xs',
-      topBadge: 'text-blue-700 font-bold',
-      classText: 'text-blue-950',
+      textMain: 'text-blue-950',
     }
   }
 
   if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
     return {
       card: 'bg-purple-50/90 border-purple-300 text-purple-950 hover:ring-purple-400 shadow-2xs',
-      topBadge: 'text-purple-700 font-bold',
-      classText: 'text-purple-950',
+      textMain: 'text-purple-950',
     }
   }
 
   return {
     card: 'bg-emerald-50/60 border-emerald-300 text-slate-900 hover:ring-emerald-400 shadow-2xs',
-    topBadge: 'text-emerald-800 font-bold',
-    classText: 'text-slate-900',
+    textMain: 'text-slate-900',
   }
 }
 
@@ -320,19 +316,19 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* BẢNG LƯỚI TKB: GIỮ NGUYÊN BỀ NGANG, THU HẸP BỀ DỌC 40% */}
+      {/* BẢNG LƯỚI TKB: THU HẸP BỀ NGANG CÁC CỘT CHO GỌN GÀNG */}
       <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider">
               <tr>
-                <th className="p-3 border-r-2 border-slate-300 text-center w-20 text-slate-600">TIẾT</th>
+                <th className="p-3 border-r-2 border-slate-300 text-center w-16 text-slate-600">TIẾT</th>
                 {DAYS.map((d) => {
                   const isCurrentDay = d.id === 5 
                   return (
                     <th 
                       key={d.id} 
-                      className={`p-3 border-r-2 border-slate-300 text-center w-40 ${
+                      className={`p-2.5 border-r-2 border-slate-300 text-center w-28 ${
                         isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
                       }`}
                     >
@@ -356,25 +352,26 @@ export default function SchedulePage() {
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
                     const lessonNum = slot?.sub_lesson_order || period
                     const theme = getSlotColorTheme(subject, classCode, isSub)
-                    const subPrefix = (subject || 'Toán').substring(0, 3).toUpperCase()
+
+                    // Viết tắt môn: Toán -> T, HĐTN -> Lớp, v.v... Nếu là HĐTN thì hiển thị luôn tên lớp thay vì chữ TrN
+                    const subPrefix = (subject || 'Toán').trim().toLowerCase()
+                    let displaySub = (subject || 'Toán').substring(0, 3).toUpperCase()
+                    if (subPrefix.includes('hđtn') || subPrefix.includes('trải nghiệm') || subPrefix === 'trn') {
+                      displaySub = (classCode || '').toUpperCase()
+                    }
+
+                    // Định dạng theo yêu cầu: [Môn]-[Lớp]-[Tiết] (vd: TrN-12SỬ-1)
+                    const cellText = `${displaySub}-${(classCode || '').toUpperCase()}-${lessonNum}`
 
                     return (
                       <td key={day.id} className="p-1 border-r-2 border-slate-200 text-center align-middle h-14 relative group">
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`px-2 py-1 rounded-xl border-2 flex items-center justify-between relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
+                            className={`px-1.5 py-1.5 rounded-xl border-2 flex items-center justify-center relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
                           >
-                            <span className={`text-[10px] font-bold ${theme.topBadge}`}>
-                              {subPrefix}-{lessonNum}
-                            </span>
-
-                            <span className={`font-black text-base tracking-tight ${theme.classText}`}>
-                              {classCode}
-                            </span>
-
-                            <span className="text-[9px] text-slate-400 font-medium">
-                              {isSub ? 'Thay' : ''}
+                            <span className={`font-black text-[11px] tracking-tight ${theme.textMain} truncate`}>
+                              {cellText}
                             </span>
 
                             <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/95 p-0.5 rounded shadow-xs">
