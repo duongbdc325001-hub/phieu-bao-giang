@@ -14,8 +14,7 @@ import {
   X,
   Check,
   BookmarkCheck,
-  Layers,
-  ChevronDown
+  Layers
 } from 'lucide-react'
 
 interface ClassItem {
@@ -51,11 +50,11 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy' },
 ]
 
-// DANH MỤC ĐẦY ĐỦ CÁC MÔN HỌC
+// 15 MÔN HỌC CHUẨN THPT
 const ALL_SUBJECTS = [
   'Toán',
-  'HĐTN',
   'GDĐP',
+  'HĐTN',
   'Ngữ văn',
   'Tiếng Anh',
   'Vật lí',
@@ -70,15 +69,58 @@ const ALL_SUBJECTS = [
   'GDQP & AN'
 ]
 
-// DANH SÁCH 41 LỚP ĐẦY ĐỦ CỦA CẢ 3 KHỐI 10, 11, 12
-const ALL_41_CLASSES = [
-  // Khối 12 (14 lớp)
-  '12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ', '12HÓA', '12SINH', '12VĂN', '12SỬ', '12ĐỊA', '12ANH', '12NGA',
-  // Khối 11 (14 lớp)
-  '11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA',
-  // Khối 10 (13 lớp)
-  '10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA'
-]
+// ĐẦY ĐỦ 41 LỚP THEO 3 KHỐI
+const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ', '12HÓA', '12SINH', '12VĂN', '12SỬ', '12ĐỊA', '12ANH', '12NGA']
+const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
+const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
+
+// BẢNG MÀU KHOA HỌC DÀNH CHO CÁC MÔN
+const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
+  if (isSub) {
+    return {
+      card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
+      periodBadge: 'bg-amber-100 text-amber-900',
+      classText: 'text-amber-950',
+      subjectBadge: 'bg-amber-200/80 text-amber-950',
+    }
+  }
+
+  const s = (subject || '').trim().toLowerCase()
+
+  if (s.includes('toán') || s === 't') {
+    return {
+      card: 'bg-emerald-50/80 border-emerald-300 text-emerald-950 hover:ring-emerald-400',
+      periodBadge: 'bg-emerald-100 text-emerald-800',
+      classText: 'text-emerald-950',
+      subjectBadge: 'bg-emerald-200/80 text-emerald-900',
+    }
+  }
+
+  if (s.includes('gdđp') || s.includes('địa phương')) {
+    return {
+      card: 'bg-purple-50/80 border-purple-300 text-purple-950 hover:ring-purple-400',
+      periodBadge: 'bg-purple-100 text-purple-800',
+      classText: 'text-purple-950',
+      subjectBadge: 'bg-purple-200/80 text-purple-900',
+    }
+  }
+
+  if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
+    return {
+      card: 'bg-sky-50/80 border-sky-300 text-sky-950 hover:ring-sky-400',
+      periodBadge: 'bg-sky-100 text-sky-800',
+      classText: 'text-sky-950',
+      subjectBadge: 'bg-sky-200/80 text-sky-900',
+    }
+  }
+
+  return {
+    card: 'bg-slate-50 border-slate-300 text-slate-800 hover:ring-slate-400',
+    periodBadge: 'bg-slate-200 text-slate-700',
+    classText: 'text-slate-900',
+    subjectBadge: 'bg-slate-200 text-slate-800',
+  }
+}
 
 export default function SchedulePage() {
   const supabase = createClient()
@@ -87,7 +129,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false)
   const [selectedWeek, setSelectedWeek] = useState<number>(0)
 
-  // Modal thêm/sửa tiết
+  // Modal xếp tiết
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
   const [modalDay, setModalDay] = useState(2)
@@ -96,7 +138,7 @@ export default function SchedulePage() {
   const [modalSubject, setModalSubject] = useState('Toán')
   const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
 
-  // Chế độ dạy thay
+  // Dạy thay
   const [isSubstitute, setIsSubstitute] = useState(false)
   const [subTeacherName, setSubTeacherName] = useState('')
   const [subLessonOrder, setSubLessonOrder] = useState<number>(1)
@@ -168,7 +210,7 @@ export default function SchedulePage() {
       setSubLessonName(existingSlot.sub_lesson_name || '')
     } else {
       setEditingSlotId(null)
-      setModalClassCode(ALL_41_CLASSES[0])
+      setModalClassCode('12SỬ')
       setModalSubject('Toán')
       setModalApplyAllWeeks(selectedWeek === 0)
       setIsSubstitute(false)
@@ -182,7 +224,7 @@ export default function SchedulePage() {
 
   const handleSaveSlot = async () => {
     if (!modalClassCode.trim()) {
-      alert('Vui lòng chọn mã lớp!')
+      alert('Vui lòng chọn lớp!')
       return
     }
 
@@ -271,7 +313,7 @@ export default function SchedulePage() {
         <div>
           <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quản lý lịch dạy cố định cả năm, lịch dạy riêng từng tuần và xếp lịch dạy thay
+            Phân loại màu sắc trực quan và xếp lịch dạy học
           </p>
         </div>
 
@@ -319,44 +361,46 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* THANH THỐNG KÊ SỐ TIẾT TRÊN ĐẦU */}
+      {/* THANH THỐNG KÊ KÈM MÀU MÔN */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="bg-emerald-50/90 border border-emerald-200 p-2.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-2xl flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-emerald-800 uppercase block">Tổng số tiết</span>
-            <span className="text-lg font-black text-emerald-950">{totalSlotsCount} tiết</span>
+            <span className="text-[10px] font-bold text-emerald-800 uppercase block">Toán ({currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'Toán').length}t)</span>
+            <span className="text-lg font-black text-emerald-950">{totalSlotsCount} tiết tổng</span>
           </div>
-          <BookmarkCheck className="w-5 h-5 text-emerald-600 opacity-80" />
+          <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-xs" />
         </div>
 
-        <div className="bg-white border border-slate-200 p-2.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-purple-50 border border-purple-200 p-2.5 rounded-2xl flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Tiết cố định</span>
-            <span className="text-lg font-black text-slate-800">{fixedSlots.length} tiết</span>
-          </div>
-          <Layers className="w-5 h-5 text-slate-400 opacity-80" />
-        </div>
-
-        <div className="bg-amber-50/90 border border-amber-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-amber-800 uppercase block">Dạy thay tuần</span>
-            <span className="text-lg font-black text-amber-950">{substituteSlotsCount} tiết</span>
-          </div>
-          <UserCheck className="w-5 h-5 text-amber-600 opacity-80" />
-        </div>
-
-        <div className="bg-white border border-slate-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Đang xem</span>
-            <span className="text-xs font-black text-blue-700">
-              {selectedWeek === 0 ? 'Lịch Cố Định' : `Tuần ${selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}`}
+            <span className="text-[10px] font-bold text-purple-800 uppercase block">GDĐP</span>
+            <span className="text-lg font-black text-purple-950">
+              {currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'GDĐP').length} tiết
             </span>
           </div>
-          <Calendar className="w-5 h-5 text-blue-500 opacity-80" />
+          <div className="w-4 h-4 rounded-full bg-purple-500 shadow-xs" />
+        </div>
+
+        <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-sky-800 uppercase block">HĐTN</span>
+            <span className="text-lg font-black text-sky-950">
+              {currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'HĐTN').length} tiết
+            </span>
+          </div>
+          <div className="w-4 h-4 rounded-full bg-sky-500 shadow-xs" />
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-amber-800 uppercase block">Dạy thay</span>
+            <span className="text-lg font-black text-amber-950">{substituteSlotsCount} tiết</span>
+          </div>
+          <div className="w-4 h-4 rounded-full bg-amber-500 shadow-xs" />
         </div>
       </div>
 
-      {/* BẢNG LƯỚI THỜI KHÓA BIỂU */}
+      {/* BẢNG THỜI KHÓA BIỂU */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -380,41 +424,44 @@ export default function SchedulePage() {
                     const slot = getSlot(day.id, period)
                     const isSub = slot?.is_substitute
                     const isWeekSpecific = slot && slot.week_number && slot.week_number > 0
+                    const subject = isSub ? slot.sub_subject : slot?.classes?.subject
+                    const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
+                    const theme = getSlotColorTheme(subject, isSub)
 
                     return (
                       <td key={day.id} className="p-2 border-r text-center align-middle h-24 relative group">
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`p-2 rounded-xl border flex flex-col items-center justify-center relative shadow-2xs cursor-pointer transition hover:ring-2 ${
-                              isSub
-                                ? 'bg-amber-50 border-amber-300 text-amber-900 hover:ring-amber-400'
-                                : isWeekSpecific
-                                ? 'bg-blue-50 border-blue-200 text-blue-900 hover:ring-blue-400'
-                                : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:ring-emerald-400'
-                            }`}
+                            className={`p-2 rounded-xl border-2 flex flex-col items-center justify-between relative shadow-xs cursor-pointer transition hover:scale-[1.02] hover:shadow-md ${theme.card}`}
                           >
-                            <div className="flex items-center gap-1 mb-1">
-                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-white/90 text-slate-700 border border-slate-200/80 shadow-2xs">
+                            <div className="w-full flex items-center justify-between gap-1 mb-1">
+                              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded shadow-2xs ${theme.periodBadge}`}>
                                 Tiết {period}
                               </span>
+
                               {isSub ? (
-                                <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded leading-tight">
-                                  Dạy thay ({slot.sub_teacher_name || 'GV'})
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 border border-amber-300">
+                                  Dạy thay
                                 </span>
                               ) : isWeekSpecific ? (
-                                <span className="text-[9px] font-black bg-blue-200 text-blue-900 px-1.5 py-0.2 rounded leading-tight">
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-200 text-blue-900">
                                   Tuần {slot.week_number}
                                 </span>
                               ) : null}
                             </div>
 
-                            <span className="font-black text-sm text-slate-900 leading-tight">
-                              {isSub ? slot.sub_class_code : slot.classes?.code}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-600 uppercase mt-0.5">
-                              {isSub ? slot.sub_subject : slot.classes?.subject}
-                            </span>
+                            <div className="my-0.5">
+                              <span className={`font-black text-sm tracking-wide ${theme.classText}`}>
+                                {classCode}
+                              </span>
+                            </div>
+
+                            <div className="w-full flex items-center justify-center">
+                              <span className={`text-[10px] font-bold px-2 py-0.2 rounded-md uppercase ${theme.subjectBadge}`}>
+                                {subject === 'Toán' ? 'Toán' : subject}
+                              </span>
+                            </div>
 
                             <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                               <button
@@ -423,7 +470,7 @@ export default function SchedulePage() {
                                   openModal(day.id, period, slot)
                                 }}
                                 title="Sửa tiết"
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded transition cursor-pointer"
+                                className="p-1 text-slate-500 hover:text-blue-600 hover:bg-white rounded transition cursor-pointer"
                               >
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -433,7 +480,7 @@ export default function SchedulePage() {
                                   handleDeleteSlot(slot.id)
                                 }}
                                 title="Xóa tiết"
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded transition cursor-pointer"
+                                className="p-1 text-slate-500 hover:text-rose-600 hover:bg-white rounded transition cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -458,7 +505,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* MODAL THÊM / SỬA TIẾT: NATIVE SELECT 41 LỚP VÀ TẤT CẢ MÔN HỌC */}
+      {/* MODAL THÊM / SỬA TIẾT — ĐẢM BẢO CHẮC CHẮN XỔ RA 41 LỚP VÀ 15 MÔN */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
@@ -466,7 +513,7 @@ export default function SchedulePage() {
               <h2 className="text-sm font-bold text-slate-900">
                 {editingSlotId ? 'Cập Nhật Tiết Dạy' : 'Thêm Tiết Dạy'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -491,56 +538,50 @@ export default function SchedulePage() {
                 </label>
               </div>
 
-              {/* 1. HỘP CHỌN MÃ LỚP: XỔ RA ĐẦY ĐỦ 41 LỚP */}
+              {/* 1. HỘP CHỌN MÃ LỚP THUẦN TÚY: BẤM VÀO LÀ BUNG 41 LỚP NGAY */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Mã lớp (Chọn trong 41 lớp):
                 </label>
-                <div className="relative">
-                  <select
-                    value={modalClassCode}
-                    onChange={(e) => setModalClassCode(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-2xs"
-                  >
-                    <optgroup label="Khối 12 (14 lớp)">
-                      {ALL_41_CLASSES.filter(c => c.startsWith('12')).map(code => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Khối 11 (14 lớp)">
-                      {ALL_41_CLASSES.filter(c => c.startsWith('11')).map(code => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Khối 10 (13 lớp)">
-                      {ALL_41_CLASSES.filter(c => c.startsWith('10')).map(code => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <select
+                  value={modalClassCode}
+                  onChange={(e) => setModalClassCode(e.target.value)}
+                  className="w-full bg-white border-2 border-slate-300 rounded-xl p-2.5 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer shadow-xs"
+                >
+                  <optgroup label="-- KHỐI 12 (14 LỚP) --">
+                    {CLASSES_K12.map((code) => (
+                      <option key={code} value={code}>Lớp {code}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="-- KHỐI 11 (14 LỚP) --">
+                    {CLASSES_K11.map((code) => (
+                      <option key={code} value={code}>Lớp {code}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="-- KHỐI 10 (13 LỚP) --">
+                    {CLASSES_K10.map((code) => (
+                      <option key={code} value={code}>Lớp {code}</option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
 
-              {/* 2. HỘP CHỌN PHÂN MÔN: XỔ RA TẤT CẢ CÁC MÔN HỌC */}
+              {/* 2. HỘP CHỌN PHÂN MÔN THUẦN TÚY: BẤM VÀO LÀ BUNG 15 MÔN NGAY */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Phân môn (Tất cả các môn):
+                  Phân môn (Chọn trong 15 môn):
                 </label>
-                <div className="relative">
-                  <select
-                    value={modalSubject}
-                    onChange={(e) => setModalSubject(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-2xs"
-                  >
-                    {ALL_SUBJECTS.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <select
+                  value={modalSubject}
+                  onChange={(e) => setModalSubject(e.target.value)}
+                  className="w-full bg-white border-2 border-slate-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer shadow-xs"
+                >
+                  {ALL_SUBJECTS.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* THÔNG TIN DẠY THAY */}
