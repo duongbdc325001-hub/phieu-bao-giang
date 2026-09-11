@@ -78,7 +78,6 @@ interface LessonOverride {
   override_lesson_order: number
 }
 
-// MỐC KHAI GIẢNG: TUẦN 1 BẮT ĐẦU TỪ THỨ HAI 07/09/2026
 const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0)
 
 const DAYS = [
@@ -203,7 +202,6 @@ export default function ReportsPage() {
       ) || firstSlot.classes
 
       const grade = extractGradeFromCode(clsCode, actualClass?.grade)
-
       let validLessons: CurriculumItem[] = []
 
       if (actualClass?.template_id) {
@@ -237,7 +235,6 @@ export default function ReportsPage() {
       }
 
       validLessons.sort((a, b) => a.lesson_order - b.lesson_order)
-
       const periodsPerWeek = classSlots.length
       if (periodsPerWeek === 0) return
 
@@ -347,7 +344,7 @@ export default function ReportsPage() {
   const reportData = calculateReportRows()
   const totalSlotsCount = reportData.reduce((acc, curr) => acc + curr.slots.length, 0)
 
-  // XUẤT WORD MẪU C2 TRỰC TIẾP TẠI CHỖ
+  // XUẤT WORD MẪU C2
   const handleExportWord = async () => {
     if (reportData.length === 0) {
       alert('Tuần này chưa có tiết dạy để xuất!')
@@ -355,7 +352,6 @@ export default function ReportsPage() {
     }
 
     setExportingWord(true)
-
     try {
       const tableRows: TableRow[] = [
         new TableRow({
@@ -428,48 +424,23 @@ export default function ReportsPage() {
           rowCells.push(
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: slot.subjectClass, size: 20 })],
-                }),
-              ],
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: slot.subjectClass, size: 20 })] })],
             }),
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: String(slot.period), size: 20 })],
-                }),
-              ],
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(slot.period), size: 20 })] })],
             }),
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.LEFT,
-                  children: [new TextRun({ text: slot.lessonName || '', size: 20 })],
-                }),
-              ],
+              children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: slot.lessonName || '', size: 20 })] })],
             }),
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: String(slot.lessonOrder), size: 20 })],
-                }),
-              ],
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(slot.lessonOrder), size: 20 })] })],
             }),
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: noteText, italics: true, size: 18 })],
-                }),
-              ],
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: noteText, italics: true, size: 18 })] })],
             })
           )
 
@@ -492,7 +463,6 @@ export default function ReportsPage() {
       const doc = new Document({
         sections: [
           {
-            properties: {},
             children: [
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
@@ -510,33 +480,15 @@ export default function ReportsPage() {
                       new TableCell({
                         width: { size: 52, type: WidthType.PERCENTAGE },
                         children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', size: 19 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [
-                              new TextRun({
-                                text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ',
-                                bold: true,
-                                size: 19,
-                              }),
-                            ],
-                          }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', size: 19 })] }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ', bold: true, size: 19 })] }),
                         ],
                       }),
                       new TableCell({
                         width: { size: 48, type: WidthType.PERCENTAGE },
                         children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 19 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 19, underline: {} })],
-                          }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 19 })] }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 19, underline: {} })] }),
                         ],
                       }),
                     ],
@@ -567,60 +519,6 @@ export default function ReportsPage() {
                 width: { size: 100, type: WidthType.PERCENTAGE },
                 rows: tableRows,
               }),
-
-              new Paragraph({ text: '', spacing: { before: 250 } }),
-
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: {
-                  top: { style: BorderStyle.NONE },
-                  bottom: { style: BorderStyle.NONE },
-                  left: { style: BorderStyle.NONE },
-                  right: { style: BorderStyle.NONE },
-                  insideHorizontal: { style: BorderStyle.NONE },
-                  insideVertical: { style: BorderStyle.NONE },
-                },
-                rows: [
-                  new TableRow({
-                    children: [
-                      new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: 'KIỂM TRA CỦA HIỆU TRƯỞNG', bold: true, size: 20 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: `Ngày ${fromD < 10 ? '0' + fromD : fromD} tháng ${fromM < 10 ? '0' + fromM : fromM} năm ${fromY}`, size: 18 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: '(Ký, ghi rõ họ tên và đóng dấu)', italics: true, size: 17 })],
-                          }),
-                        ],
-                      }),
-                      new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: 'KIỂM TRA CỦA TTCM', bold: true, size: 20 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: `Ngày ${toD < 10 ? '0' + toD : toD} tháng ${toM < 10 ? '0' + toM : toM} năm ${toY}`, size: 18 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: '(Ký và ghi rõ họ tên)', italics: true, size: 17 })],
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
-              }),
             ],
           },
         ],
@@ -635,7 +533,7 @@ export default function ReportsPage() {
     }
   }
 
-  // XUẤT EXCEL TRỰC TIẾP TẠI CHỖ
+  // XUẤT EXCEL
   const handleExportExcel = () => {
     if (reportData.length === 0) {
       alert('Tuần này chưa có tiết dạy để xuất!')
@@ -707,24 +605,24 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
+    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 font-sans pb-10">
+      {/* THANH ĐIỀU HƯỚNG TRÊN CÙNG */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center border-b pb-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Lịch Báo Giảng Tuần</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Tự động đồng bộ số tiết PPCT và tên bài dạy theo Thời khóa biểu (Mốc 07/09/2026)
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 leading-tight">Lịch Báo Giảng</h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+            Đồng bộ bài dạy theo TKB (Tuần 1 từ 07/09/2026)
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* BỘ CHỌN TUẦN */}
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            <span className="text-xs font-bold text-slate-500 uppercase">Tuần Dạy:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* CHỌN TUẦN */}
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="font-black text-emerald-700 bg-transparent text-sm focus:outline-none cursor-pointer"
+              className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
               {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
@@ -734,23 +632,21 @@ export default function ReportsPage() {
             </select>
           </div>
 
-          {/* NÚT XUẤT WORD TRỰC TIẾP */}
+          {/* NÚT XUẤT WORD */}
           <button
             onClick={handleExportWord}
             disabled={exportingWord || loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
-            title="Xuất tệp Word (.docx) chuẩn phôi Mẫu C2 cho tuần này"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>{exportingWord ? 'Đang tạo Word...' : 'Xuất Word'}</span>
+            <span>{exportingWord ? 'Đang xuất...' : 'Xuất Word'}</span>
           </button>
 
-          {/* NÚT TẢI EXCEL TRỰC TIẾP */}
+          {/* NÚT TẢI EXCEL */}
           <button
             onClick={handleExportExcel}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
-            title="Tải về tệp Excel (.xlsx) cho tuần này"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Tải Excel</span>
@@ -760,28 +656,119 @@ export default function ReportsPage() {
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Làm mới
           </button>
         </div>
       </div>
 
-      {/* BẢNG BÁO GIẢNG */}
-      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-        <div className="p-3.5 bg-slate-50 border-b flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            <span className="font-bold text-slate-800 text-sm uppercase tracking-wide">
-              PHIẾU BÁO GIẢNG TUẦN {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}
-            </span>
-          </div>
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-full border border-emerald-200">
-            Tổng: {totalSlotsCount} tiết / tuần
-          </span>
-        </div>
+      {/* THÔNG TIN TỔNG SỐ TIẾT */}
+      <div className="flex justify-between items-center bg-emerald-50/80 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs">
+        <span className="font-bold text-emerald-900">
+          Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}
+        </span>
+        <span className="font-black text-emerald-800">
+          Tổng: {totalSlotsCount} tiết dạy
+        </span>
+      </div>
 
+      {/* ================= GIAO DIỆN DI ĐỘNG: DẠNG THẺ (CARDS) ================= */}
+      <div className="block md:hidden space-y-3">
+        {reportData.length === 0 ? (
+          <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border text-xs">
+            Tuần này chưa có tiết dạy nào trên Thời khóa biểu.
+          </div>
+        ) : (
+          reportData.map((group) => (
+            <div key={group.day.id} className="bg-white rounded-2xl border shadow-2xs overflow-hidden">
+              {/* TIÊU ĐỀ THỨ VÀ NGÀY */}
+              <div className="bg-slate-100/90 px-3.5 py-2 border-b flex justify-between items-center">
+                <span className="font-black text-slate-900 text-sm">{group.day.name}</span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  {getFormattedDate(group.day.offset)}
+                </span>
+              </div>
+
+              {/* DANH SÁCH CÁC TIẾT TRONG NGÀY */}
+              <div className="divide-y text-xs">
+                {group.slots.map((slot: any) => {
+                  const hasLesson = slot.lessonName && slot.lessonName.trim() !== ''
+
+                  return (
+                    <div key={`${slot.day}_${slot.period}`} className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-xs">
+                            T{slot.period}
+                          </span>
+                          <span className="font-black text-slate-900 text-xs">
+                            {slot.subjectClass}
+                          </span>
+                        </div>
+
+                        {/* NÚT ĐIỀU CHỈNH TIẾT TRÊN MOBILE */}
+                        <button
+                          onClick={() => {
+                            setEditingSlot({
+                              entry: slot.entry,
+                              slotOrderInWeek: slot.slotOrderInWeek,
+                              currentLessonOrder: Number(slot.lessonOrder) || 1,
+                              isOverridden: slot.isOverridden,
+                            })
+                            setTargetLessonOrder(Number(slot.lessonOrder) || 1)
+                          }}
+                          className={`px-2 py-1 rounded-lg text-xs font-black inline-flex items-center gap-1 cursor-pointer transition ${
+                            slot.isOverridden
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          <span>Tiết {slot.lessonOrder}</span>
+                          <ArrowLeftRight className="w-3 h-3 opacity-60" />
+                        </button>
+                      </div>
+
+                      {/* TÊN BÀI DẠY */}
+                      <div className="text-slate-800 font-medium pl-8 text-[11px]">
+                        {hasLesson ? (
+                          <span>{slot.lessonName}</span>
+                        ) : (
+                          <Link
+                            href="/dashboard/curriculum"
+                            className="inline-flex items-center gap-1 text-amber-700 font-bold hover:underline"
+                          >
+                            <AlertCircle className="w-3 h-3 text-amber-600" />
+                            <span>Chưa có bài dạy (Bấm để gán PPCT)</span>
+                          </Link>
+                        )}
+                      </div>
+
+                      {/* GHI CHÚ NẾU CÓ */}
+                      {(slot.isSubstitute || slot.isOverridden) && (
+                        <div className="pl-8 pt-0.5">
+                          {slot.isSubstitute ? (
+                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                              Dạy thay {slot.subTeacher ? `(${slot.subTeacher})` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                              Đã đảo tiết
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ================= GIAO DIỆN LAPTOP/MÁY TÍNH: BẢNG TRUYỀN THỐNG ================= */}
+      <div className="hidden md:block bg-white rounded-2xl border shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead className="bg-slate-100 text-slate-700 font-bold border-b uppercase tracking-wider">
@@ -838,7 +825,6 @@ export default function ReportsPage() {
                             <Link
                               href="/dashboard/curriculum"
                               className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-1 rounded-md transition font-semibold"
-                              title="Lớp này chưa có bài dạy trong PPCT, bấm để cấu hình"
                             >
                               <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                               <span>Chưa có PPCT — Bấm để gán</span>
@@ -857,7 +843,6 @@ export default function ReportsPage() {
                               })
                               setTargetLessonOrder(Number(slot.lessonOrder) || 1)
                             }}
-                            title="Bấm để điều chỉnh (đảo) số tiết"
                             className={`px-2 py-0.5 rounded-md inline-flex items-center gap-1 hover:ring-2 hover:ring-blue-400 transition cursor-pointer ${
                               slot.isOverridden
                                 ? 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -894,13 +879,13 @@ export default function ReportsPage() {
 
       {/* POPUP ĐIỀU CHỈNH SỐ TIẾT */}
       {editingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl border">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-bold text-slate-800 text-xs uppercase">
                 Điều chỉnh số tiết PPCT
               </span>
-              <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -918,12 +903,12 @@ export default function ReportsPage() {
                   max={150}
                   value={targetLessonOrder}
                   onChange={(e) => setTargetLessonOrder(Number(e.target.value))}
-                  className="w-20 p-1.5 border rounded-lg font-black text-center text-blue-800 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-20 p-2 border rounded-xl font-black text-center text-blue-800 text-base focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   onClick={handleSaveOverride}
                   disabled={loading}
-                  className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Lưu
                 </button>
@@ -932,9 +917,9 @@ export default function ReportsPage() {
                     onClick={handleResetOverride}
                     disabled={loading}
                     title="Về tiến độ gốc"
-                    className="p-1.5 border rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer"
+                    className="p-2 border rounded-xl hover:bg-slate-50 text-slate-600 cursor-pointer"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-4 h-4" />
                   </button>
                 )}
               </div>

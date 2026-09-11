@@ -58,19 +58,28 @@ export default function ClassesManagementPage() {
       .order('grade', { ascending: false })
     if (tData) setTemplates(tData)
 
-    // 2. Tải TKB để tính số tiết / tuần
+    // 2. Tải TKB để tính số tiết / tuần và lấy danh sách class_id thực tế
     const { data: sData } = await supabase
       .from('schedule_entries')
       .select('id, class_id, week_number, is_substitute')
     if (sData) setSchedule(sData)
 
-    // 3. Tải danh sách Lớp học
-    const { data: cData } = await supabase
-      .from('classes')
-      .select('*')
-      .order('subject', { ascending: true })
-      .order('code', { ascending: true })
-    if (cData) setClasses(cData)
+    // 3. LỌC CHUẨN: CHỈ LẤY CÁC LỚP CÓ MẶT TRONG THỜI KHÓA BIỂU
+    const activeClassIds = Array.from(
+      new Set((sData || []).map((s) => s.class_id).filter(Boolean))
+    )
+
+    if (activeClassIds.length > 0) {
+      const { data: cData } = await supabase
+        .from('classes')
+        .select('*')
+        .in('id', activeClassIds)
+        .order('subject', { ascending: true })
+        .order('code', { ascending: true })
+      if (cData) setClasses(cData)
+    } else {
+      setClasses([])
+    }
 
     setLoading(false)
   }
@@ -92,13 +101,11 @@ export default function ClassesManagementPage() {
     const tplId = newTemplateId === '' ? null : newTemplateId
 
     try {
-      // Cập nhật bảng classes
       await supabase
         .from('classes')
         .update({ template_id: tplId })
         .eq('id', classId)
 
-      // Đồng bộ bản ghi bài dạy sang curriculum_items
       await supabase.from('curriculum_items').delete().eq('class_id', classId)
 
       if (tplId) {
@@ -137,7 +144,7 @@ export default function ClassesManagementPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Quản Lý Lớp Học</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Danh mục các lớp giảng dạy trên TKB — Phân định môn học và gán khung PPCT tương ứng
+            Danh mục các lớp giảng dạy theo Thời khóa biểu — Phân định môn học và gán khung PPCT tương ứng
           </p>
         </div>
 
@@ -147,7 +154,7 @@ export default function ClassesManagementPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border"
           >
             <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-            Nạp Thêm Khung PPCT
+            Phân Phối Chương Trình
           </Link>
 
           <button
@@ -166,7 +173,7 @@ export default function ClassesManagementPage() {
         <div className="bg-white p-4 rounded-2xl border shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase block">Tổng Lớp Giảng Dạy</span>
-            <span className="text-2xl font-black text-slate-800">{classes.length}</span>
+            <span className="text-2xl font-black text-slate-800">{classes.length} lớp</span>
           </div>
           <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
             <Users className="w-5 h-5" />
@@ -211,7 +218,7 @@ export default function ClassesManagementPage() {
                 <th className="p-3 border-r text-center w-14">STT</th>
                 <th className="p-3 border-r text-center w-28">Mã Lớp</th>
                 <th className="p-3 border-r text-center w-36">Phân Môn</th>
-                <th className="p-3 border-r text-center w-28">Số Tiết TKB</th>
+                <th className="p-3 border-r text-center w-32">Số Tiết TKB</th>
                 <th className="p-3 border-r">Khung PPCT Đang Áp Dụng</th>
                 <th className="p-3 text-center w-32">Thao Tác</th>
               </tr>
@@ -220,7 +227,7 @@ export default function ClassesManagementPage() {
               {classes.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center text-slate-400">
-                    Chưa có lớp nào. Hãy vào mục <strong>"Thời khóa biểu"</strong> để nhập lịch trước.
+                    Chưa có lớp nào trong Thời khóa biểu.
                   </td>
                 </tr>
               ) : (
@@ -249,7 +256,7 @@ export default function ClassesManagementPage() {
 
                       <td className="p-3 border-r text-center font-black text-slate-800">
                         {periodsCount > 0 ? (
-                          <span>{periodsCount} tiết / tuần</span>
+                          <span className="text-emerald-700 font-bold">{periodsCount} tiết / tuần</span>
                         ) : (
                           <span className="text-slate-400 italic">Chưa xếp tiết</span>
                         )}
