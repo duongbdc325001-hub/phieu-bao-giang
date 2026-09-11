@@ -71,6 +71,25 @@ const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ'
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
+// SỬA LỖI 1: TOÁN VIẾT TẮT LÀ 'T', CÁC MÔN KHÁC CHUẨN XÁC
+const getSubjectShortCode = (sub: string) => {
+  const s = (sub || '').trim().toLowerCase()
+  if (s.includes('toán') || s === 't') return 'T'
+  if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') return 'TrN'
+  if (s.includes('gdđp') || s.includes('địa phương') || s.includes('gđđ')) return 'GDĐP'
+  if (s.includes('ngữ văn') || s === 'văn') return 'Văn'
+  if (s.includes('tiếng anh') || s === 'anh') return 'Anh'
+  if (s.includes('vật lí') || s === 'lý') return 'Lí'
+  if (s.includes('hóa')) return 'Hóa'
+  if (s.includes('sinh')) return 'Sinh'
+  if (s.includes('lịch sử') || s === 'sử') return 'Sử'
+  if (s.includes('địa')) return 'Địa'
+  if (s.includes('kinh tế') || s.includes('kt&pl')) return 'KTPL'
+  if (s.includes('tin')) return 'Tin'
+  if (s.includes('công nghệ')) return 'CN'
+  return (sub || '').substring(0, 3).toUpperCase()
+}
+
 const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean) => {
   if (isSub) {
     return {
@@ -270,7 +289,6 @@ export default function SchedulePage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 gap-2.5">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu Giảng Dạy</h1>
@@ -316,7 +334,6 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* BẢNG LƯỚI TKB: THU HẸP BỀ NGANG CÁC CỘT CHO GỌN GÀNG */}
       <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -353,15 +370,8 @@ export default function SchedulePage() {
                     const lessonNum = slot?.sub_lesson_order || period
                     const theme = getSlotColorTheme(subject, classCode, isSub)
 
-                    // Viết tắt môn: Toán -> T, HĐTN -> Lớp, v.v... Nếu là HĐTN thì hiển thị luôn tên lớp thay vì chữ TrN
-                    const subPrefix = (subject || 'Toán').trim().toLowerCase()
-                    let displaySub = (subject || 'Toán').substring(0, 3).toUpperCase()
-                    if (subPrefix.includes('hđtn') || subPrefix.includes('trải nghiệm') || subPrefix === 'trn') {
-                      displaySub = (classCode || '').toUpperCase()
-                    }
-
-                    // Định dạng theo yêu cầu: [Môn]-[Lớp]-[Tiết] (vd: TrN-12SỬ-1)
-                    const cellText = `${displaySub}-${(classCode || '').toUpperCase()}-${lessonNum}`
+                    const shortSub = getSubjectShortCode(subject)
+                    const cellText = `${shortSub}-${(classCode || '').toUpperCase()}-${lessonNum}`
 
                     return (
                       <td key={day.id} className="p-1 border-r-2 border-slate-200 text-center align-middle h-14 relative group">
