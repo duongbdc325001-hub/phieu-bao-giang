@@ -49,7 +49,7 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy' },
 ]
 
-// 15 MÔN HỌC CHUẨN
+// 15 MÔN HỌC CHUẨN THPT
 const ALL_SUBJECTS = [
   'Toán',
   'GDĐP',
@@ -68,11 +68,12 @@ const ALL_SUBJECTS = [
   'GDQP & AN'
 ]
 
-// 41 LỚP THEO 3 KHỐI
+// ĐẦY ĐỦ 41 LỚP THEO 3 KHỐI
 const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ', '12HÓA', '12SINH', '12VĂN', '12SỬ', '12ĐỊA', '12ANH', '12NGA']
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
+// MÀU SẮC PHÂN LOẠI THEO PHÂN MÔN
 const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (isSub) {
     return {
@@ -127,7 +128,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false)
   const [selectedWeek, setSelectedWeek] = useState<number>(0)
 
-  // Modal
+  // Modal xếp tiết
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
   const [modalDay, setModalDay] = useState(2)
@@ -503,7 +504,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* MODAL: ĐẢM BẢO Ô MÃ LỚP VÀ PHÂN MÔN LÀ SELECT DROPDOWN NGUYÊN BẢN */}
+      {/* MODAL THÊM / SỬA TIẾT — ĐÃ THAY HOÀN TOÀN Ô INPUT BẰNG SELECT 41 LỚP VÀ 15 MÔN */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
@@ -517,6 +518,7 @@ export default function SchedulePage() {
             </div>
 
             <div className="space-y-3.5 text-xs">
+              {/* CHỌN HÌNH THỨC DẠY THAY */}
               <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
@@ -535,7 +537,7 @@ export default function SchedulePage() {
                 </label>
               </div>
 
-              {/* Ô 1: CHỌN MÃ LỚP (BẤM VÀO LÀ XỔ RA ĐỦ 41 LỚP) */}
+              {/* 1. HỘP CHỌN MÃ LỚP THUẦN TÚY: BẤM VÀO LÀ BUNG 41 LỚP */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Mã lớp (Chọn trong 41 lớp):
@@ -544,21 +546,21 @@ export default function SchedulePage() {
                   <select
                     value={modalClassCode}
                     onChange={(e) => setModalClassCode(e.target.value)}
-                    className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8"
+                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
                   >
-                    <optgroup label="Khối 12 (14 lớp)">
-                      {CLASSES_K12.map((c) => (
-                        <option key={c} value={c}>Lớp {c}</option>
+                    <optgroup label="-- KHỐI 12 (14 LỚP) --">
+                      {CLASSES_K12.map((code) => (
+                        <option key={code} value={code}>Lớp {code}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="Khối 11 (14 lớp)">
-                      {CLASSES_K11.map((c) => (
-                        <option key={c} value={c}>Lớp {c}</option>
+                    <optgroup label="-- KHỐI 11 (14 LỚP) --">
+                      {CLASSES_K11.map((code) => (
+                        <option key={code} value={code}>Lớp {code}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="Khối 10 (13 lớp)">
-                      {CLASSES_K10.map((c) => (
-                        <option key={c} value={c}>Lớp {c}</option>
+                    <optgroup label="-- KHỐI 10 (13 LỚP) --">
+                      {CLASSES_K10.map((code) => (
+                        <option key={code} value={code}>Lớp {code}</option>
                       ))}
                     </optgroup>
                   </select>
@@ -566,20 +568,20 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              {/* Ô 2: CHỌN PHÂN MÔN (BẤM VÀO LÀ XỔ RA 15 MÔN) */}
+              {/* 2. HỘP CHỌN PHÂN MÔN THUẦN TÚY: BẤM VÀO LÀ BUNG 15 MÔN */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Phân môn:
+                  Phân môn (Chọn trong 15 môn):
                 </label>
                 <div className="relative">
                   <select
                     value={modalSubject}
                     onChange={(e) => setModalSubject(e.target.value)}
-                    className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8"
+                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
                   >
-                    {ALL_SUBJECTS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                    {ALL_SUBJECTS.map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
                       </option>
                     ))}
                   </select>
@@ -587,7 +589,7 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              {/* DẠY THAY */}
+              {/* THÔNG TIN DẠY THAY */}
               {isSubstitute && (
                 <div className="space-y-2 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
                   <div>
