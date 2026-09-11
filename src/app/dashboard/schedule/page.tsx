@@ -178,6 +178,33 @@ export default function SchedulePage() {
     )
   }
 
+  // TÍNH TOÁN SỐ TIẾT TỰ ĐỘNG LŨY TIẾN THEO THỨ TỰ THỜI GIAN TRONG TUẦN CHO TỪNG MÔN & TỪNG LỚP
+  const calculateAutoLessonNumber = (currentDay: number, currentPeriod: number, targetClass: string, targetSubject: string) => {
+    const activeSlots: { day: number; period: number }[] = []
+
+    DAYS.forEach(d => {
+      [1, 2, 3, 4, 5].forEach(p => {
+        const slot = getSlot(d.id, p)
+        if (slot) {
+          const s = slot.is_substitute ? slot.sub_subject : slot.classes?.subject
+          const c = slot.is_substitute ? slot.sub_class_code : slot.classes?.code
+          if (
+            (c || '').trim().toUpperCase() === targetClass.trim().toUpperCase() &&
+            (s || '').trim().toLowerCase() === targetSubject.trim().toLowerCase()
+          ) {
+            activeSlots.push({ day: d.id, period: p })
+          }
+        }
+      })
+    })
+
+    // Sắp xếp các tiết theo thứ tự thời gian trong tuần (Thứ Hai -> Thứ Bảy, Tiết 1 -> Tiết 5)
+    activeSlots.sort((a, b) => a.day === b.day ? a.period - b.period : a.day - b.day)
+
+    const index = activeSlots.findIndex(item => item.day === currentDay && item.period === currentPeriod)
+    return index !== -1 ? index + 1 : 1
+  }
+
   const openModal = (day: number, period: number, existingSlot?: ScheduleEntry) => {
     setModalDay(day)
     setModalPeriod(period)
@@ -199,10 +226,10 @@ export default function SchedulePage() {
       setModalClassCode('12SỬ')
       setModalSubject('Toán')
       setModalApplyAllWeeks(selectedWeek === 0)
-      setModalLessonOrder(period)
+      setModalLessonOrder(1)
       setIsSubstitute(false)
       setSubTeacherName('')
-      setSubLessonOrder(period)
+      setSubLessonOrder(1)
       setSubLessonName('')
     }
 
@@ -366,14 +393,16 @@ export default function SchedulePage() {
                     const isSub = slot?.is_substitute
                     const subject = isSub ? slot.sub_subject : slot?.classes?.subject
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
-                    
-                    // Lấy chính xác số tiết PPCT riêng biệt được cấu hình trong từng tiết học của lớp đó
-                    const lessonNum = slot?.sub_lesson_order ?? period
-                    
                     const theme = getSlotColorTheme(subject, classCode, isSub)
 
                     const shortSub = getSubjectShortCode(subject)
-                    const cellText = `${shortSub}-${(classCode || '').toUpperCase()}-${lessonNum}`
+                    
+                    // Tự động tính toán số tiết lũy tiến theo đúng thứ tự trong tuần cho lớp đó
+                    const autoLessonNum = classCode && subject 
+                      ? calculateAutoLessonNumber(day.id, period, classCode, subject) 
+                      : (slot?.sub_lesson_order || period)
+
+                    const cellText = `${shortSub}-${(classCode || '').toUpperCase()}-${autoLessonNum}`
 
                     return (
                       <td key={day.id} className="p-1 border-r-2 border-slate-200 text-center align-middle h-14 relative group">
