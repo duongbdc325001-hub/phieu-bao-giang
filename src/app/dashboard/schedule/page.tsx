@@ -71,7 +71,6 @@ const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ'
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
-// SỬA LỖI 1: TOÁN VIẾT TẮT LÀ 'T', CÁC MÔN KHÁC CHUẨN XÁC
 const getSubjectShortCode = (sub: string) => {
   const s = (sub || '').trim().toLowerCase()
   if (s.includes('toán') || s === 't') return 'T'
@@ -367,7 +366,10 @@ export default function SchedulePage() {
                     const isSub = slot?.is_substitute
                     const subject = isSub ? slot.sub_subject : slot?.classes?.subject
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
-                    const lessonNum = slot?.sub_lesson_order || period
+                    
+                    // Lấy chính xác số tiết PPCT riêng biệt được cấu hình trong từng tiết học của lớp đó
+                    const lessonNum = slot?.sub_lesson_order ?? period
+                    
                     const theme = getSlotColorTheme(subject, classCode, isSub)
 
                     const shortSub = getSubjectShortCode(subject)
