@@ -26,7 +26,9 @@ import {
   RotateCcw, 
   FileText, 
   Download,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 interface ClassItem {
@@ -78,15 +80,15 @@ interface LessonOverride {
   override_lesson_order: number
 }
 
-const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0)
+const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
 
 const DAYS = [
-  { id: 2, name: 'Thứ Hai', offset: 0 },
-  { id: 3, name: 'Thứ Ba', offset: 1 },
-  { id: 4, name: 'Thứ Tư', offset: 2 },
-  { id: 5, name: 'Thứ Năm', offset: 3 },
-  { id: 6, name: 'Thứ Sáu', offset: 4 },
-  { id: 7, name: 'Thứ Bảy', offset: 5 },
+  { id: 2, name: 'Thứ Hai', short: 'T2', offset: 0 },
+  { id: 3, name: 'Thứ Ba', short: 'T3', offset: 1 },
+  { id: 4, name: 'Thứ Tư', short: 'T4', offset: 2 },
+  { id: 5, name: 'Thứ Năm', short: 'T5', offset: 3 },
+  { id: 6, name: 'Thứ Sáu', short: 'T6', offset: 4 },
+  { id: 7, name: 'Thứ Bảy', short: 'T7', offset: 5 },
 ]
 
 const getSubjectType = (raw?: string): 'TOAN' | 'TRN' | 'GDDP' | 'OTHER' => {
@@ -136,6 +138,14 @@ export default function ReportsPage() {
     return `${day}/${month}`
   }
 
+  const getWeekRangeString = () => {
+    const start = new Date(START_DATE_WEEK_1)
+    start.setDate(start.getDate() + (selectedWeek - 1) * 7)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 5)
+    return `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')} - ${String(end.getDate()).padStart(2, '0')}/${String(end.getMonth() + 1).padStart(2, '0')}/${end.getFullYear()}`
+  }
+
   const loadData = async () => {
     setLoading(true)
 
@@ -156,8 +166,8 @@ export default function ReportsPage() {
         id: item.id,
         class_id: item.class_id,
         template_id: item.template_id,
-        lesson_order: Number(item.lesson_order ?? item.order_number ?? item.order ?? 1),
-        lesson_name: item.lesson_name || item.title || item.name || '',
+        lesson_order: Number(item.lesson_order ?? item.order_number ?? 1),
+        lesson_name: item.lesson_name || item.title || '',
       }))
       setCurriculum(normalized)
     }
@@ -186,9 +196,7 @@ export default function ReportsPage() {
       const subType = getSubjectType(slot.classes?.subject)
       const groupKey = `${code}__${subType}`
 
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, [])
-      }
+      if (!groupMap.has(groupKey)) groupMap.set(groupKey, [])
       groupMap.get(groupKey)!.push(slot)
     })
 
@@ -213,16 +221,7 @@ export default function ReportsPage() {
 
       if (validLessons.length === 0 && actualClass?.id) {
         const direct = curriculum.filter((c) => c.class_id === actualClass.id)
-        const isClean = direct.every((d) => {
-          const txt = d.lesson_name.toLowerCase()
-          if (subType === 'TOAN') return !txt.includes('tọa đàm') && !txt.includes('phú thọ') && !txt.includes('hồ chí minh')
-          if (subType === 'TRN') return !txt.includes('đạo hàm') && !txt.includes('vecto') && !txt.includes('phú thọ')
-          if (subType === 'GDDP') return !txt.includes('đạo hàm') && !txt.includes('tọa đàm')
-          return true
-        })
-        if (isClean && direct.length > 0) {
-          validLessons = direct
-        }
+        if (direct.length > 0) validLessons = direct
       }
 
       if (validLessons.length === 0) {
@@ -292,6 +291,8 @@ export default function ReportsPage() {
             entry: subEntry,
             day: day.id,
             period: p,
+            subject: subEntry.sub_subject || 'Dạy thay',
+            classCode: subEntry.sub_class_code || '',
             subjectClass: `${subEntry.sub_subject || 'Dạy thay'} - ${subEntry.sub_class_code}`,
             lessonOrder: subEntry.sub_lesson_order || 1,
             lessonName: subEntry.sub_lesson_name || '',
@@ -320,6 +321,8 @@ export default function ReportsPage() {
             entry: defaultEntry,
             day: day.id,
             period: p,
+            subject,
+            classCode: code,
             subjectClass: `${subject} - ${code}`,
             lessonOrder: info ? info.order : '—',
             lessonName: info?.name || '',
@@ -344,7 +347,7 @@ export default function ReportsPage() {
   const reportData = calculateReportRows()
   const totalSlotsCount = reportData.reduce((acc, curr) => acc + curr.slots.length, 0)
 
-  // XUẤT WORD MẪU C2
+  // XUẤT WORD CHUẨN MẪU C2
   const handleExportWord = async () => {
     if (reportData.length === 0) {
       alert('Tuần này chưa có tiết dạy để xuất!')
@@ -605,109 +608,128 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 font-sans pb-10">
-      {/* THANH ĐIỀU HƯỚNG TRÊN CÙNG */}
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-between sm:items-center border-b pb-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-800 leading-tight">Lịch Báo Giảng</h1>
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-            Đồng bộ bài dạy theo TKB (Tuần 1 từ 07/09/2026)
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {/* CHỌN TUẦN */}
-          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            <select
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
+    <div className="max-w-7xl mx-auto space-y-3 font-sans pb-8">
+      {/* THANH ĐIỀU HƯỚNG TUẦN VÀ XUẤT BÁO CÁO NHẸ NHÀNG */}
+      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          {/* NÚT LÙI / TIẾN TUẦN NHANH */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setSelectedWeek((w) => Math.max(1, w - 1))}
+              disabled={selectedWeek <= 1}
+              className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
             >
-              {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
-                <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w}
-                </option>
-              ))}
-            </select>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
+              <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <select
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                className="font-black text-emerald-900 bg-transparent text-xs focus:outline-none cursor-pointer"
+              >
+                {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
+                  <option key={w} value={w}>
+                    Tuần {w < 10 ? '0' + w : w}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={() => setSelectedWeek((w) => Math.min(35, w + 1))}
+              disabled={selectedWeek >= 35}
+              className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* NÚT XUẤT WORD */}
-          <button
-            onClick={handleExportWord}
-            disabled={exportingWord || loading}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>{exportingWord ? 'Đang xuất...' : 'Xuất Word'}</span>
-          </button>
+          {/* SỐ TIẾT TRONG TUẦN */}
+          <span className="text-[11px] font-bold text-slate-500">
+            {totalSlotsCount} tiết dạy
+          </span>
+        </div>
 
-          {/* NÚT TẢI EXCEL */}
-          <button
-            onClick={handleExportExcel}
-            disabled={loading}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Tải Excel</span>
-          </button>
+        {/* THÔNG TIN KHOẢNG NGÀY & NÚT XUẤT */}
+        <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 gap-2">
+          <span className="text-[11px] text-slate-500 font-medium">
+            Áp dụng: <strong className="text-slate-700">{getWeekRangeString()}</strong>
+          </span>
 
-          {/* NÚT LÀM MỚI */}
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleExportWord}
+              disabled={exportingWord || loading}
+              className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition cursor-pointer disabled:opacity-50"
+            >
+              <FileText className="w-3 h-3" />
+              <span>{exportingWord ? 'Đang xuất...' : 'Word'}</span>
+            </button>
+
+            <button
+              onClick={handleExportExcel}
+              disabled={loading}
+              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold shadow-2xs transition cursor-pointer disabled:opacity-50"
+            >
+              <Download className="w-3 h-3" />
+              <span>Excel</span>
+            </button>
+
+            <button
+              onClick={loadData}
+              disabled={loading}
+              className="p-1 border rounded-lg hover:bg-slate-50 text-slate-500"
+              title="Làm mới"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* THÔNG TIN TỔNG SỐ TIẾT */}
-      <div className="flex justify-between items-center bg-emerald-50/80 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs">
-        <span className="font-bold text-emerald-900">
-          Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}
-        </span>
-        <span className="font-black text-emerald-800">
-          Tổng: {totalSlotsCount} tiết dạy
-        </span>
-      </div>
-
-      {/* ================= GIAO DIỆN DI ĐỘNG: DẠNG THẺ (CARDS) ================= */}
-      <div className="block md:hidden space-y-3">
+      {/* ================= GIAO DIỆN DI ĐỘNG: KHỚP 100% BỀ NGANG, GỌN ĐẸP ================= */}
+      <div className="block md:hidden space-y-2.5">
         {reportData.length === 0 ? (
           <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border text-xs">
             Tuần này chưa có tiết dạy nào trên Thời khóa biểu.
           </div>
         ) : (
           reportData.map((group) => (
-            <div key={group.day.id} className="bg-white rounded-2xl border shadow-2xs overflow-hidden">
-              {/* TIÊU ĐỀ THỨ VÀ NGÀY */}
-              <div className="bg-slate-100/90 px-3.5 py-2 border-b flex justify-between items-center">
-                <span className="font-black text-slate-900 text-sm">{group.day.name}</span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+            <div key={group.day.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+              {/* THANH TIÊU ĐỀ THỨ VÀ NGÀY */}
+              <div className="bg-[#f1f5f9] px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
+                <span className="font-black text-xs text-slate-800 tracking-wide uppercase">
+                  {group.day.name}
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
                   {getFormattedDate(group.day.offset)}
                 </span>
               </div>
 
               {/* DANH SÁCH CÁC TIẾT TRONG NGÀY */}
-              <div className="divide-y text-xs">
+              <div className="divide-y divide-slate-100 text-xs">
                 {group.slots.map((slot: any) => {
                   const hasLesson = slot.lessonName && slot.lessonName.trim() !== ''
 
                   return (
-                    <div key={`${slot.day}_${slot.period}`} className="p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-xs">
-                            T{slot.period}
+                    <div key={`${slot.day}_${slot.period}`} className="p-2.5 space-y-1.5">
+                      {/* DÒNG 1: TIẾT TKB + MÔN LỚP + NÚT ĐIỀU CHỈNH TIẾT */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-700 font-black text-[11px] flex items-center justify-center border border-slate-200">
+                            {slot.period}
                           </span>
-                          <span className="font-black text-slate-900 text-xs">
-                            {slot.subjectClass}
+                          <span className="font-black text-xs text-slate-900">
+                            {slot.classCode}
+                          </span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {slot.subject === 'Toán' ? 'Toán' : slot.subject}
                           </span>
                         </div>
 
-                        {/* NÚT ĐIỀU CHỈNH TIẾT TRÊN MOBILE */}
+                        {/* NÚT BẤM ĐẢO TIẾT */}
                         <button
                           onClick={() => {
                             setEditingSlot({
@@ -718,21 +740,21 @@ export default function ReportsPage() {
                             })
                             setTargetLessonOrder(Number(slot.lessonOrder) || 1)
                           }}
-                          className={`px-2 py-1 rounded-lg text-xs font-black inline-flex items-center gap-1 cursor-pointer transition ${
+                          className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 cursor-pointer transition ${
                             slot.isOverridden
                               ? 'bg-amber-100 text-amber-900 border border-amber-300'
                               : 'bg-blue-50 text-blue-700 border border-blue-200'
                           }`}
                         >
                           <span>Tiết {slot.lessonOrder}</span>
-                          <ArrowLeftRight className="w-3 h-3 opacity-60" />
+                          <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
                         </button>
                       </div>
 
-                      {/* TÊN BÀI DẠY */}
-                      <div className="text-slate-800 font-medium pl-8 text-[11px]">
+                      {/* DÒNG 2: TÊN BÀI DẠY */}
+                      <div className="pl-6.5 text-[11px] leading-snug">
                         {hasLesson ? (
-                          <span>{slot.lessonName}</span>
+                          <span className="text-slate-800 font-semibold">{slot.lessonName}</span>
                         ) : (
                           <Link
                             href="/dashboard/curriculum"
@@ -744,15 +766,15 @@ export default function ReportsPage() {
                         )}
                       </div>
 
-                      {/* GHI CHÚ NẾU CÓ */}
+                      {/* DÒNG 3: HUY HIỆU DẠY THAY / ĐÃ ĐẢO TIẾT NẾU CÓ */}
                       {(slot.isSubstitute || slot.isOverridden) && (
-                        <div className="pl-8 pt-0.5">
+                        <div className="pl-6.5">
                           {slot.isSubstitute ? (
-                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                            <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
                               Dạy thay {slot.subTeacher ? `(${slot.subTeacher})` : ''}
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                            <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
                               Đã đảo tiết
                             </span>
                           )}
@@ -767,7 +789,7 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* ================= GIAO DIỆN LAPTOP/MÁY TÍNH: BẢNG TRUYỀN THỐNG ================= */}
+      {/* ================= GIAO DIỆN LAPTOP: BẢNG 6 CỘT CHUẨN C2 ================= */}
       <div className="hidden md:block bg-white rounded-2xl border shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -877,7 +899,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* POPUP ĐIỀU CHỈNH SỐ TIẾT */}
+      {/* POPUP ĐIỀU CHỈNH TIẾT PPCT */}
       {editingSlot && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl border">
