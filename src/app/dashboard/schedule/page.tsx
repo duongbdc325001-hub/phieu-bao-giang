@@ -49,7 +49,6 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy', date: '12/09' },
 ]
 
-// 15 MÔN HỌC CHUẨN THPT
 const ALL_SUBJECTS = [
   'Toán',
   'GDĐP',
@@ -68,47 +67,44 @@ const ALL_SUBJECTS = [
   'GDQP & AN'
 ]
 
-// ĐẦY ĐỦ 41 LỚP THEO 3 KHỐI
 const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ', '12HÓA', '12SINH', '12VĂN', '12SỬ', '12ĐỊA', '12ANH', '12NGA']
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
-// MÀU SẮC THẺ THEO MẪU
-const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
+// PHÂN LOẠI MÀU NỀN (THÊM MÀU XANH DƯƠNG RIÊNG CHO CÁC MÔN/LỚP KHOA HỌC TỰ NHIÊN)
+const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean) => {
   if (isSub) {
     return {
-      card: 'bg-amber-50/90 border-amber-300 text-amber-950 hover:ring-amber-400',
+      card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
       topBadge: 'text-amber-800 font-bold',
       classText: 'text-amber-950',
-      subjectBadge: 'text-amber-700',
     }
   }
 
   const s = (subject || '').trim().toLowerCase()
+  const c = (classCode || '').trim().toUpperCase()
 
-  if (s.includes('toán') || s === 't') {
+  // Các lớp hoặc môn Khoa học / Tự nhiên (Lý, Hóa, Sinh, Toán, Tin)
+  if (s.includes('lý') || s.includes('vật lí') || s.includes('hóa') || s.includes('sinh') || s.includes('tin') || c.includes('LÍ') || c.includes('HÓA') || c.includes('SINH') || c.includes('TIN')) {
     return {
-      card: 'bg-white border-amber-300 text-slate-900 hover:ring-amber-400 shadow-2xs',
-      topBadge: 'text-slate-600 font-bold',
-      classText: 'text-slate-900',
-      subjectBadge: 'text-slate-600',
+      card: 'bg-blue-50/90 border-blue-300 text-blue-950 hover:ring-blue-400 shadow-2xs',
+      topBadge: 'text-blue-700 font-bold',
+      classText: 'text-blue-950',
     }
   }
 
   if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
     return {
-      card: 'bg-white border-purple-300 text-slate-900 hover:ring-purple-400 shadow-2xs',
+      card: 'bg-purple-50/90 border-purple-300 text-purple-950 hover:ring-purple-400 shadow-2xs',
       topBadge: 'text-purple-700 font-bold',
-      classText: 'text-slate-900',
-      subjectBadge: 'text-purple-700',
+      classText: 'text-purple-950',
     }
   }
 
   return {
-    card: 'bg-white border-emerald-300 text-slate-900 hover:ring-emerald-400 shadow-2xs',
-    topBadge: 'text-emerald-700 font-bold',
+    card: 'bg-emerald-50/60 border-emerald-300 text-slate-900 hover:ring-emerald-400 shadow-2xs',
+    topBadge: 'text-emerald-800 font-bold',
     classText: 'text-slate-900',
-    subjectBadge: 'text-emerald-700',
   }
 }
 
@@ -119,7 +115,6 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false)
   const [selectedWeek, setSelectedWeek] = useState<number>(1)
 
-  // Modal xếp tiết
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
   const [modalDay, setModalDay] = useState(2)
@@ -129,7 +124,6 @@ export default function SchedulePage() {
   const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
   const [modalLessonOrder, setModalLessonOrder] = useState<number>(1)
 
-  // Dạy thay
   const [isSubstitute, setIsSubstitute] = useState(false)
   const [subTeacherName, setSubTeacherName] = useState('')
   const [subLessonOrder, setSubLessonOrder] = useState<number>(1)
@@ -153,10 +147,7 @@ export default function SchedulePage() {
   }, [])
 
   const handleDownloadSampleTKB = () => {
-    const sampleTKB = [
-      { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '12A1', 'Môn': 'Toán' },
-      { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 2, 'Lớp': '12A1', 'Môn': 'Toán' },
-    ]
+    const sampleTKB = [{ 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '12A1', 'Môn': 'Toán' }]
     const ws = XLSX.utils.json_to_sheet(sampleTKB)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'TKB Mau')
@@ -283,38 +274,30 @@ export default function SchedulePage() {
     await loadData()
   }
 
-  const fixedSlots = schedule.filter((s) => !s.week_number || s.week_number === 0)
-  const currentWeekSlots = selectedWeek > 0 
-    ? [1, 2, 3, 4, 5, 6, 7].flatMap(d => [1, 2, 3, 4, 5].map(p => getSlot(d, p))).filter(Boolean)
-    : fixedSlots
-  const substituteSlotsCount = currentWeekSlots.filter((s: any) => s.is_substitute).length
-  const totalSlotsCount = currentWeekSlots.length
-
   return (
-    <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
-      {/* HEADER GIỐNG MẪU */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 gap-2.5">
+    <div className="max-w-7xl mx-auto space-y-2 font-sans pb-8">
+      {/* HEADER THU GỌN */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-2 gap-2">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu Giảng Dạy</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Mốc thời gian thực: <strong className="text-slate-700">Tuần {selectedWeek} bắt đầu từ 07/09</strong> — Tự động cập nhật theo ngày hiện tại
+          <h1 className="text-xl font-black text-slate-800">Thời Khóa Biểu Giảng Dạy</h1>
+          <p className="text-[11px] text-slate-500">
+            Tuần {selectedWeek} bắt đầu từ 07/09
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* XEM TUẦN */}
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border-2 border-emerald-600 rounded-xl shadow-xs">
-            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="text-xs font-bold text-slate-600 uppercase">Xem tuần:</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 border-2 border-emerald-600 rounded-xl shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-600 uppercase">Tuần:</span>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              <option value={0}>Lịch Cố Định (Cả năm)</option>
+              <option value={0}>Lịch Cố Định</option>
               {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w} {w === 1 ? '(Hiện tại)' : ''}
+                  Tuần {w < 10 ? '0' + w : w}
                 </option>
               ))}
             </select>
@@ -322,51 +305,42 @@ export default function SchedulePage() {
 
           <button
             onClick={handleDownloadSampleTKB}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Nhập TKB (Excel / JSON)</span>
+            <span>Nhập TKB</span>
           </button>
 
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="p-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      {/* BẢNG LƯỚI TKB CHUẨN GIAO DIỆN MẪU */}
-      <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden">
+      {/* BẢNG LƯỚI TKB THU GỌN GẠN GÀNG */}
+      <div className="bg-white rounded-xl border-2 border-slate-300 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
-            <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider">
+            <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="p-3 border-r-2 border-slate-300 text-center w-20 text-slate-600">TIẾT</th>
-                {DAYS.map((d) => {
-                  const isCurrentDay = d.id === 5 // Ví dụ Thứ Sáu 11/09
-                  return (
-                    <th 
-                      key={d.id} 
-                      className={`p-3 border-r-2 border-slate-300 text-center w-40 ${
-                        isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
-                      }`}
-                    >
-                      <div>{d.name}</div>
-                      <div className="text-[11px] font-normal text-slate-500 mt-0.5">{d.date}</div>
-                    </th>
-                  )
-                })}
+                <th className="p-2 border-r-2 border-slate-300 text-center w-16 text-slate-600">TIẾT</th>
+                {DAYS.map((d) => (
+                  <th key={d.id} className="p-2 border-r-2 border-slate-300 text-center w-36">
+                    <div>{d.name}</div>
+                    <div className="text-[10px] font-normal text-slate-400">{d.date}</div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-slate-200 text-slate-700">
               {[1, 2, 3, 4, 5].map((period) => (
                 <tr key={period} className="hover:bg-slate-50/30 transition">
-                  <td className="p-3 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50">
-                    Tiết {period}
+                  <td className="p-2 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50 text-xs">
+                    T{period}
                   </td>
                   {DAYS.map((day) => {
                     const slot = getSlot(day.id, period)
@@ -374,52 +348,41 @@ export default function SchedulePage() {
                     const subject = isSub ? slot.sub_subject : slot?.classes?.subject
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
                     const lessonNum = slot?.sub_lesson_order || period
-                    const theme = getSlotColorTheme(subject, isSub)
+                    const theme = getSlotColorTheme(subject, classCode, isSub)
                     const subPrefix = (subject || 'Toán').substring(0, 3).toUpperCase()
 
                     return (
-                      <td key={day.id} className="p-2 border-r-2 border-slate-200 text-center align-middle h-24 relative group">
+                      <td key={day.id} className="p-1.5 border-r-2 border-slate-200 text-center align-middle h-18 relative group">
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`p-2.5 rounded-xl border-2 flex flex-col items-center justify-between relative shadow-xs cursor-pointer transition hover:scale-[1.02] hover:shadow-md ${theme.card}`}
+                            className={`p-1.5 rounded-lg border-2 flex flex-col items-center justify-between relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
                           >
-                            {/* TOP: TIẾT PPCT (ví dụ: T-1, TRN-1, GDĐP-1) */}
                             <div className="w-full text-center">
-                              <span className={`text-[11px] font-bold tracking-wide ${theme.topBadge}`}>
+                              <span className={`text-[10px] tracking-wide ${theme.topBadge}`}>
                                 {subPrefix}-{lessonNum}
                               </span>
                             </div>
 
-                            {/* CENTER: TÊN LỚP (To và đậm ở giữa giống mẫu) */}
-                            <div className="my-1">
-                              <span className={`font-black text-lg tracking-tight ${theme.classText}`}>
+                            <div className="my-0.5">
+                              <span className={`font-black text-base tracking-tight ${theme.classText}`}>
                                 {classCode}
                               </span>
                             </div>
 
-                            {/* BOTTOM: THÔNG TIN PHỤ ẨN / HIỆN KHI HOVER */}
                             <div className="w-full text-center">
-                              {isSub ? (
-                                <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
-                                  Dạy thay
-                                </span>
-                              ) : (
-                                <span className="text-[9px] text-slate-400 font-medium">
-                                  {subject}
-                                </span>
-                              )}
+                              <span className="text-[9px] text-slate-500 font-medium">
+                                {isSub ? 'Dạy thay' : subject}
+                              </span>
                             </div>
 
-                            {/* NÚT THAO TÁC KHI HOVER */}
-                            <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/90 p-0.5 rounded shadow-xs">
+                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/90 p-0.5 rounded shadow-xs">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   openModal(day.id, period, slot)
                                 }}
-                                title="Sửa tiết"
-                                className="p-1 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
+                                className="p-0.5 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
                               >
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -428,8 +391,7 @@ export default function SchedulePage() {
                                   e.stopPropagation()
                                   handleDeleteSlot(slot.id)
                                 }}
-                                title="Xóa tiết"
-                                className="p-1 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
+                                className="p-0.5 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -438,10 +400,9 @@ export default function SchedulePage() {
                         ) : (
                           <button
                             onClick={() => openModal(day.id, period)}
-                            className="w-full h-full min-h-[64px] border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
-                            title={`Xếp Tiết ${period}`}
+                            className="w-full h-full min-h-[48px] border border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-lg flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </td>
@@ -457,22 +418,21 @@ export default function SchedulePage() {
       {/* MODAL THÊM / SỬA TIẾT */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-4 space-y-3 shadow-2xl border">
             <div className="flex justify-between items-center border-b pb-2">
-              <h2 className="text-sm font-bold text-slate-900">
-                {editingSlotId ? 'Cập Nhật Tiết Dạy' : 'Thêm Tiết Dạy'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
+              <h2 className="text-xs font-bold text-slate-900">
+                {editingSlotId ? 'Cập Nhật Tiết' : 'Thêm Tiết'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              {/* CHẾ ĐỘ DẠY THAY */}
-              <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
+            <div className="space-y-3 text-xs">
+              <div className="p-2 bg-slate-50 border rounded-xl">
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-amber-600" />
+                    <UserCheck className="w-3.5 h-3.5 text-amber-600" />
                     Chế độ dạy thay
                   </span>
                   <input
@@ -487,87 +447,66 @@ export default function SchedulePage() {
                 </label>
               </div>
 
-              {/* MÃ LỚP (41 LỚP) */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Mã lớp (Chọn trong 41 lớp):
-                </label>
+                <label className="block font-bold text-slate-700 mb-1">Mã lớp:</label>
                 <div className="relative">
                   <select
                     value={modalClassCode}
                     onChange={(e) => setModalClassCode(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
+                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-2xs"
                   >
-                    <optgroup label="-- KHỐI 12 (14 LỚP) --">
-                      {CLASSES_K12.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
+                    <optgroup label="-- KHỐI 12 --">
+                      {CLASSES_K12.map((code) => (<option key={code} value={code}>Lớp {code}</option>))}
                     </optgroup>
-                    <optgroup label="-- KHỐI 11 (14 LỚP) --">
-                      {CLASSES_K11.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
+                    <optgroup label="-- KHỐI 11 --">
+                      {CLASSES_K11.map((code) => (<option key={code} value={code}>Lớp {code}</option>))}
                     </optgroup>
-                    <optgroup label="-- KHỐI 10 (13 LỚP) --">
-                      {CLASSES_K10.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
+                    <optgroup label="-- KHỐI 10 --">
+                      {CLASSES_K10.map((code) => (<option key={code} value={code}>Lớp {code}</option>))}
                     </optgroup>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              {/* PHÂN MÔN (15 MÔN) */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Phân môn (Chọn trong 15 môn):
-                </label>
+                <label className="block font-bold text-slate-700 mb-1">Phân môn:</label>
                 <div className="relative">
                   <select
                     value={modalSubject}
                     onChange={(e) => setModalSubject(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
+                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-2xs"
                   >
-                    {ALL_SUBJECTS.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
+                    {ALL_SUBJECTS.map((sub) => (<option key={sub} value={sub}>{sub}</option>))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              {/* TIẾT PPCT CHO LỚP THƯỜNG */}
               {!isSubstitute && (
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Số Tiết theo PPCT (Phân phối chương trình):
-                  </label>
+                  <label className="block font-bold text-slate-700 mb-1">Số Tiết theo PPCT:</label>
                   <input
                     type="number"
                     value={modalLessonOrder}
                     onChange={(e) => setModalLessonOrder(Number(e.target.value))}
-                    className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl font-black text-emerald-700 bg-white"
+                    className="w-full px-3 py-1.5 border-2 border-slate-300 rounded-xl font-black text-emerald-700 bg-white"
                   />
                 </div>
               )}
 
-              {/* THÔNG TIN DẠY THAY */}
               {isSubstitute && (
-                <div className="space-y-2 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <div className="space-y-2 p-2 bg-amber-50 border border-amber-200 rounded-xl">
                   <div>
                     <label className="block font-bold text-amber-900 mb-1">Dạy thay cho ai:</label>
                     <input
                       type="text"
-                      placeholder="vd: Thầy Tuấn, Cô Lan..."
+                      placeholder="vd: Thầy Tuấn..."
                       value={subTeacherName}
                       onChange={(e) => setSubTeacherName(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-bold text-slate-800 bg-white"
+                      className="w-full px-3 py-1 border border-amber-300 rounded-lg bg-white"
                     />
                   </div>
-
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block font-bold text-amber-900 mb-1">Tiết PPCT:</label>
@@ -575,26 +514,25 @@ export default function SchedulePage() {
                         type="number"
                         value={subLessonOrder}
                         onChange={(e) => setSubLessonOrder(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-black text-center text-blue-700 bg-white"
+                        className="w-full px-3 py-1 border border-amber-300 rounded-lg text-center font-black bg-white"
                       />
                     </div>
                     <div className="col-span-2">
                       <label className="block font-bold text-amber-900 mb-1">Tên bài dạy:</label>
                       <input
                         type="text"
-                        placeholder="Tên bài học..."
+                        placeholder="Tên bài..."
                         value={subLessonName}
                         onChange={(e) => setSubLessonName(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-medium text-slate-800 bg-white"
+                        className="w-full px-3 py-1 border border-amber-300 rounded-lg bg-white"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* PHẠM VI ÁP DỤNG */}
               {!isSubstitute && (
-                <div className="pt-1">
+                <div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -602,28 +540,20 @@ export default function SchedulePage() {
                       onChange={(e) => setModalApplyAllWeeks(e.target.checked)}
                       className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
                     />
-                    <span className="font-bold text-slate-700">
-                      Áp dụng cố định cho tất cả các tuần
-                    </span>
+                    <span className="font-bold text-slate-700">Áp dụng cố định tất cả các tuần</span>
                   </label>
-                  {!modalApplyAllWeeks && (
-                    <p className="text-[10px] text-blue-700 mt-0.5 ml-6">
-                      Chỉ áp dụng riêng cho <strong>Tuần {selectedWeek > 0 ? selectedWeek : 1}</strong>
-                    </p>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* NÚT THAO TÁC */}
             <div className="flex justify-between items-center pt-2 border-t">
               {editingSlotId ? (
                 <button
                   type="button"
                   onClick={() => handleDeleteSlot(editingSlotId)}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                  className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                 >
-                  Xóa tiết này
+                  Xóa
                 </button>
               ) : <div />}
 
@@ -631,7 +561,7 @@ export default function SchedulePage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-1.5 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-3 py-1 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Hủy
                 </button>
@@ -639,10 +569,10 @@ export default function SchedulePage() {
                   type="button"
                   onClick={handleSaveSlot}
                   disabled={loading}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{editingSlotId ? 'Cập Nhật' : 'Lưu Tiết'}</span>
+                  <span>Lưu</span>
                 </button>
               </div>
             </div>
