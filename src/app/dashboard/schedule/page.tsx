@@ -51,6 +51,23 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy' },
 ]
 
+// Danh mục môn chuẩn
+const SUBJECT_OPTIONS = ['Toán', 'HĐTN', 'GDĐP']
+
+// Danh mục lớp mặc định trường THPT Chuyên Hoàng Văn Thụ để luôn có sẵn dữ liệu
+const DEFAULT_PRESET_CLASSES = [
+  { code: '12SỬ', subject: 'Toán' },
+  { code: '11SỬ', subject: 'Toán' },
+  { code: '11N', subject: 'Toán' },
+  { code: '10T1', subject: 'Toán' },
+  { code: '12N', subject: 'Toán' },
+  { code: '11A1', subject: 'GDĐP' },
+  { code: '11A2', subject: 'GDĐP' },
+  { code: '11Đ', subject: 'GDĐP' },
+  { code: '11P', subject: 'GDĐP' },
+  { code: '12A1', subject: 'Toán' },
+]
+
 export default function SchedulePage() {
   const supabase = createClient()
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([])
@@ -65,10 +82,10 @@ export default function SchedulePage() {
   const [modalPeriod, setModalPeriod] = useState(1)
   const [modalClassCode, setModalClassCode] = useState('')
   const [modalSubject, setModalSubject] = useState('Toán')
-  const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
+  const [scheduleType, setScheduleType] = useState<'fixed' | 'week_specific' | 'substitute'>('fixed')
+  const [isCustomClassMode, setIsCustomClassMode] = useState(false)
 
-  // Chế độ dạy thay
-  const [isSubstitute, setIsSubstitute] = useState(false)
+  // Chi tiết dạy thay
   const [subTeacherName, setSubTeacherName] = useState('')
   const [subLessonOrder, setSubLessonOrder] = useState<number>(1)
   const [subLessonName, setSubLessonName] = useState('')
@@ -122,45 +139,93 @@ export default function SchedulePage() {
     )
   }
 
+  // Tổng hợp danh sách tất cả các lớp đang có
+  const getAvailableClassOptions = () => {
+    const list: { code: string; subject: string }[] = []
+    const seen = new Set<string>()
+
+    // Từ bảng classes trong DB
+    classes.forEach((c) => {
+      if (c.code && !seen.has(c.code.toUpperCase())) {
+        seen.add(c.code.toUpperCase())
+        list.push({ code: c.code.toUpperCase(), subject: c.subject || 'Toán' })
+      }
+    })
+
+    // Từ các slot đã xếp trên TKB
+    schedule.forEach((s) => {
+      const code = (s.sub_class_code || s.classes?.code || '').toUpperCase()
+      const subject = s.sub_subject || s.classes?.subject || 'Toán'
+      if (code && !seen.has(code)) {
+        seen.add(code)
+        list.push({ code, subject })
+      }
+    })
+
+    // Từ danh sách lớp mặc định nếu chưa có
+    DEFAULT_PRESET_CLASSES.forEach((d) => {
+      if (!seen.has(d.code.toUpperCase())) {
+        seen.add(d.code.toUpperCase())
+        list.push({ code: d.code.toUpperCase(), subject: d.subject })
+      }
+    })
+
+    return list.sort((a, b) => a.code.localeCompare(b.code))
+  }
+
+  const availableClasses = getAvailableClassOptions()
+
   const openModal = (day: number, period: number, existingSlot?: ScheduleEntry) => {
     setModalDay(day)
     setModalPeriod(period)
 
     if (existingSlot) {
       setEditingSlotId(existingSlot.id)
-      setModalClassCode(existingSlot.sub_class_code || existingSlot.classes?.code || '')
-      setModalSubject(existingSlot.sub_subject || existingSlot.classes?.subject || 'Toán')
-      setModalApplyAllWeeks(existingSlot.week_number === 0 || !existingSlot.week_number)
-      setIsSubstitute(!!existingSlot.is_substitute)
+      const code = (existingSlot.sub_class_code || existingSlot.classes?.code || '').toUpperCase()
+      const sub = existingSlot.sub_subject || existingSlot.classes?.subject || 'Toán'
+      setModalClassCode(code)
+      setModalSubject(sub)
+
+      if (existingSlot.is_substitute) {
+        setScheduleType('substitute')
+      } else if (existingSlot.week_number && existingSlot.week_number > 0) {
+        setScheduleType('week_specific')
+      } else {
+        setScheduleType('fixed')
+      }
+
       setSubTeacherName(existingSlot.sub_teacher_name || '')
       setSubLessonOrder(existingSlot.sub_lesson_order || 1)
       setSubLessonName(existingSlot.sub_lesson_name || '')
+      setIsCustomClassMode(false)
     } else {
       setEditingSlotId(null)
-      setModalClassCode('')
-      setModalSubject('Toán')
-      setModalApplyAllWeeks(selectedWeek === 0)
-      setIsSubstitute(false)
+      const defaultFirstClass = availableClasses[0]?.code || '12SỬ'
+      const defaultFirstSubject = availableClasses[0]?.subject || 'Toán'
+      setModalClassCode(defaultFirstClass)
+      setModalSubject(defaultFirstSubject)
+      setScheduleType(selectedWeek === 0 ? 'fixed' : 'week_specific')
       setSubTeacherName('')
       setSubLessonOrder(1)
       setSubLessonName('')
+      setIsCustomClassMode(false)
     }
 
     setIsModalOpen(true)
   }
 
-  // Khi chọn lớp từ danh sách -> tự động điền phân môn tương ứng
-  const handleSelectClass = (code: string) => {
+  // Khi người dùng chọn một lớp từ menu chọn:
+  const handleSelectClassCode = (code: string) => {
     setModalClassCode(code)
-    const matchedClass = classes.find((c) => c.code.toUpperCase() === code.toUpperCase())
-    if (matchedClass) {
-      setModalSubject(matchedClass.subject)
+    const found = availableClasses.find((c) => c.code.toUpperCase() === code.toUpperCase())
+    if (found && found.subject) {
+      setModalSubject(found.subject)
     }
   }
 
   const handleSaveSlot = async () => {
     if (!modalClassCode.trim()) {
-      alert('Vui lòng nhập hoặc chọn mã lớp!')
+      alert('Vui lòng chọn hoặc nhập mã lớp!')
       return
     }
 
@@ -168,11 +233,12 @@ export default function SchedulePage() {
     try {
       const code = modalClassCode.trim().toUpperCase()
       const subject = modalSubject.trim()
-      const targetWeek = modalApplyAllWeeks ? 0 : (selectedWeek > 0 ? selectedWeek : 1)
+      const isSub = scheduleType === 'substitute'
+      const targetWeek = scheduleType === 'fixed' ? 0 : (selectedWeek > 0 ? selectedWeek : 1)
 
       let classId: string | null = null
 
-      if (!isSubstitute) {
+      if (!isSub) {
         let targetClass = classes.find(
           (c) => c.code.toUpperCase() === code && c.subject.toLowerCase() === subject.toLowerCase()
         )
@@ -207,13 +273,13 @@ export default function SchedulePage() {
         period_number: modalPeriod,
         session: 'Sáng',
         week_number: targetWeek,
-        is_substitute: isSubstitute,
+        is_substitute: isSub,
         class_id: classId,
-        sub_class_code: isSubstitute ? code : null,
-        sub_subject: isSubstitute ? subject : null,
-        sub_teacher_name: isSubstitute ? subTeacherName.trim() : null,
-        sub_lesson_order: isSubstitute ? Number(subLessonOrder) : null,
-        sub_lesson_name: isSubstitute ? subLessonName.trim() : null,
+        sub_class_code: isSub ? code : null,
+        sub_subject: isSub ? subject : null,
+        sub_teacher_name: isSub ? subTeacherName.trim() : null,
+        sub_lesson_order: isSub ? Number(subLessonOrder) : null,
+        sub_lesson_name: isSub ? subLessonName.trim() : null,
       }
 
       const { error: sErr } = await supabase.from('schedule_entries').insert(payload)
@@ -241,9 +307,6 @@ export default function SchedulePage() {
     : fixedSlots
   const substituteSlotsCount = currentWeekSlots.filter((s: any) => s.is_substitute).length
   const totalSlotsCount = currentWeekSlots.length
-
-  // Danh sách các mã lớp duy nhất để người dùng chọn nhanh
-  const uniqueClassCodes = Array.from(new Set(classes.map((c) => c.code))).filter(Boolean)
 
   return (
     <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
@@ -337,7 +400,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* BẢNG THỜI KHÓA BIỂU */}
+      {/* BẢNG LƯỚI THỜI KHÓA BIỂU */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -375,7 +438,7 @@ export default function SchedulePage() {
                                 : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:ring-emerald-400'
                             }`}
                           >
-                            {/* DÒNG TIẾT SỐ MẤY ĐẶT TRÊN ĐẦU */}
+                            {/* SỐ TIẾT NẰM TRÊN ĐẦU */}
                             <div className="flex items-center gap-1 mb-1">
                               <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-white/90 text-slate-700 border border-slate-200/80 shadow-2xs">
                                 Tiết {period}
@@ -401,7 +464,7 @@ export default function SchedulePage() {
                               {isSub ? slot.sub_subject : slot.classes?.subject}
                             </span>
 
-                            {/* NÚT THAO TÁC KHI HOVER */}
+                            {/* NÚT THAO TÁC */}
                             <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                               <button
                                 onClick={(e) => {
@@ -444,10 +507,10 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* MODAL THÊM / SỬA TIẾT: CHỌN LỚP & MÔN THÔNG MINH */}
+      {/* MODAL THÊM / SỬA TIẾT VỚI MENU CHỌN LỚP VÀ MÔN HOÀN CHỈNH */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl border">
             <div className="flex justify-between items-center border-b pb-2">
               <h2 className="text-sm font-bold text-slate-900">
                 {editingSlotId ? 'Cập Nhật Tiết Dạy' : 'Thêm Tiết Dạy'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
@@ -458,153 +521,139 @@ export default function SchedulePage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              {/* CHẾ ĐỘ DẠY THAY */}
-              <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-amber-600" />
-                    Chế độ dạy thay
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={isSubstitute}
-                    onChange={(e) => {
-                      setIsSubstitute(e.target.checked)
-                      if (e.target.checked) setModalApplyAllWeeks(false)
-                    }}
-                    className="w-4 h-4 rounded text-amber-600 accent-amber-600 cursor-pointer"
-                  />
-                </label>
+              {/* CHỌN HÌNH THỨC */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Loại lịch giảng dạy:</label>
+                <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('fixed')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'fixed' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Cố định
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('week_specific')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'week_specific' ? 'bg-white text-blue-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Riêng tuần
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('substitute')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'substitute' ? 'bg-white text-amber-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Dạy thay
+                  </button>
+                </div>
               </div>
 
-              {/* Ô NHẬP & CHỌN MÃ LỚP (BẤM HOẶC CHỈ CHUỘT LÀ HIỆN DANH SÁCH LỚP ĐỂ CHỌN) */}
+              {/* 1. MỤC CHỌN MÃ LỚP (HIỂN THỊ ĐẦY ĐỦ MENU CHỌN) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-slate-700">Mã lớp (vd: 12A1, 11Sử, 10T1...):</label>
-                  {uniqueClassCodes.length > 0 && (
-                    <span className="text-[10px] text-emerald-700 font-semibold">Chọn hoặc gõ trực tiếp</span>
-                  )}
+                  <label className="font-bold text-slate-700">Mã lớp:</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomClassMode(!isCustomClassMode)}
+                    className="text-[11px] text-emerald-700 hover:underline font-bold"
+                  >
+                    {isCustomClassMode ? '← Chọn từ danh sách' : '+ Nhập lớp mới'}
+                  </button>
                 </div>
 
-                <div className="relative">
+                {isCustomClassMode ? (
                   <input
                     type="text"
-                    list="classListOptions"
-                    placeholder="Nhập hoặc chọn mã lớp..."
+                    placeholder="Gõ mã lớp mới (vd: 10T2, 11L)..."
                     value={modalClassCode}
-                    onChange={(e) => handleSelectClass(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-xl font-black text-slate-900 uppercase focus:ring-2 focus:ring-emerald-500 pr-8"
+                    onChange={(e) => setModalClassCode(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 border rounded-xl font-black text-slate-900 uppercase focus:ring-2 focus:ring-emerald-500"
+                    autoFocus
                   />
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-
-                  {/* DANH SÁCH LỚP XỔ XUỐNG KHI CLICK VÀO Ô */}
-                  <datalist id="classListOptions">
-                    {uniqueClassCodes.map((code) => (
-                      <option key={code} value={code} />
-                    ))}
-                  </datalist>
-                </div>
-
-                {/* CÁC THẺ LỚP CÓ SẴN (CHỈ CẦN BẤM 1 CHẠM LÀ CHỌN XONG) */}
-                {uniqueClassCodes.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1 max-h-20 overflow-y-auto pt-0.5">
-                    {uniqueClassCodes.map((code) => (
-                      <button
-                        key={code}
-                        type="button"
-                        onClick={() => handleSelectClass(code)}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
-                          modalClassCode.toUpperCase() === code.toUpperCase()
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        {code}
-                      </button>
-                    ))}
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={modalClassCode}
+                      onChange={(e) => handleSelectClassCode(e.target.value)}
+                      className="w-full appearance-none bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer pr-8"
+                    >
+                      {availableClasses.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} ({c.subject})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 )}
               </div>
 
-              {/* Ô CHỌN PHÂN MÔN */}
+              {/* 2. MỤC CHỌN PHÂN MÔN (HIỂN THỊ ĐẦY ĐỦ MENU CHỌN) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Phân môn:</label>
                 <div className="relative">
                   <select
                     value={modalSubject}
                     onChange={(e) => setModalSubject(e.target.value)}
-                    className="w-full appearance-none px-3 py-2 border rounded-xl font-bold text-slate-800 bg-white focus:ring-2 focus:ring-emerald-500 cursor-pointer pr-8"
+                    className="w-full appearance-none bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer pr-8"
                   >
-                    <option value="Toán">Toán (T)</option>
-                    <option value="HĐTN">HĐTN (TrN)</option>
-                    <option value="GDĐP">GDĐP</option>
+                    {SUBJECT_OPTIONS.map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub === 'Toán' ? 'Toán (T)' : sub === 'HĐTN' ? 'HĐTN (TrN)' : sub}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              {/* CHI TIẾT DẠY THAY */}
-              {isSubstitute && (
-                <div className="space-y-2 pt-1 border-t border-slate-200">
+              {/* DÀNH CHO CHẾ ĐỘ DẠY THAY */}
+              {scheduleType === 'substitute' && (
+                <div className="space-y-2 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
                   <div>
-                    <label className="block font-bold text-slate-600 mb-1">Dạy thay cho ai:</label>
+                    <label className="block font-bold text-amber-900 mb-1">Dạy thay cho ai:</label>
                     <input
                       type="text"
                       placeholder="vd: Thầy Tuấn, Cô Lan..."
                       value={subTeacherName}
                       onChange={(e) => setSubTeacherName(e.target.value)}
-                      className="w-full px-3 py-1.5 border rounded-xl font-bold text-slate-800"
+                      className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-bold text-slate-800 bg-white"
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block font-bold text-slate-600 mb-1">Tiết PPCT:</label>
+                      <label className="block font-bold text-amber-900 mb-1">Tiết PPCT:</label>
                       <input
                         type="number"
                         value={subLessonOrder}
                         onChange={(e) => setSubLessonOrder(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 border rounded-xl font-black text-center text-blue-700"
+                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-black text-center text-blue-700 bg-white"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block font-bold text-slate-600 mb-1">Tên bài dạy:</label>
+                      <label className="block font-bold text-amber-900 mb-1">Tên bài dạy:</label>
                       <input
                         type="text"
-                        placeholder="Tên bài giảng..."
+                        placeholder="Tên bài học..."
                         value={subLessonName}
                         onChange={(e) => setSubLessonName(e.target.value)}
-                        className="w-full px-3 py-1.5 border rounded-xl font-medium text-slate-800"
+                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-medium text-slate-800 bg-white"
                       />
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* PHẠM VI ÁP DỤNG */}
-              {!isSubstitute && (
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={modalApplyAllWeeks}
-                      onChange={(e) => setModalApplyAllWeeks(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-700">
-                      Áp dụng cố định cho tất cả các tuần
-                    </span>
-                  </label>
-                  {!modalApplyAllWeeks && (
-                    <p className="text-[10px] text-blue-700 mt-0.5 ml-6">
-                      Chỉ áp dụng riêng cho <strong>Tuần {selectedWeek > 0 ? selectedWeek : 1}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* NÚT HỦY & LƯU TIẾT */}
+            {/* NÚT THAO TÁC */}
             <div className="flex justify-between items-center pt-2 border-t">
               {editingSlotId ? (
                 <button
@@ -631,7 +680,7 @@ export default function SchedulePage() {
                   className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Lưu Tiết</span>
+                  <span>{editingSlotId ? 'Cập Nhật' : 'Lưu Tiết'}</span>
                 </button>
               </div>
             </div>
