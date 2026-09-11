@@ -369,8 +369,8 @@ export default function SchedulePage() {
                   return (
                     <th 
                       key={d.id} 
-                      /* THU HẸP BỀ NGANG CÁC CỘT LẠI KHOẢNG 20% (w-22) */
-                      className={`p-2 border-r-2 border-slate-300 text-center w-22 ${
+                      /* THU HẸP ĐỘ RỘNG CÁC CỘT LẠI 40% (w-16) */
+                      className={`p-2 border-r-2 border-slate-300 text-center w-16 ${
                         isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
                       }`}
                     >
