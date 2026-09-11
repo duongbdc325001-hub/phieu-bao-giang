@@ -12,7 +12,9 @@ import {
   Edit3,
   UserCheck,
   X,
-  Check
+  Check,
+  BookmarkCheck,
+  Layers
 } from 'lucide-react'
 
 interface ClassItem {
@@ -62,10 +64,9 @@ export default function SchedulePage() {
   const [modalPeriod, setModalPeriod] = useState(1)
   const [modalClassCode, setModalClassCode] = useState('')
   const [modalSubject, setModalSubject] = useState('Toán')
-  const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
+  const [scheduleType, setScheduleType] = useState<'fixed' | 'week_specific' | 'substitute'>('fixed')
 
-  // Chế độ dạy thay
-  const [isSubstitute, setIsSubstitute] = useState(false)
+  // Chi tiết dạy thay
   const [subTeacherName, setSubTeacherName] = useState('')
   const [subLessonOrder, setSubLessonOrder] = useState<number>(1)
   const [subLessonName, setSubLessonName] = useState('')
@@ -107,7 +108,6 @@ export default function SchedulePage() {
     XLSX.writeFile(wb, 'Mau_Thoi_Khoa_Bieu.xlsx')
   }
 
-  // Tìm tiết ưu tiên: Tuần cụ thể (bao gồm cả dạy thay) -> Lịch cố định
   const getSlot = (day: number, period: number) => {
     if (selectedWeek > 0) {
       const weekSlot = schedule.find(
@@ -116,12 +116,11 @@ export default function SchedulePage() {
       if (weekSlot) return weekSlot
     }
     return schedule.find(
-      (s) => s.day_of_week === day && s.period_number === period && (s.week_number === 0 || !s.week_number)
+      (s) => s.day_of_week === day && s.period_number === period && (!s.week_number || s.week_number === 0)
     )
   }
 
-  // Mở modal để thêm mới hoặc sửa
-  const openEditModal = (day: number, period: number, existingSlot?: ScheduleEntry) => {
+  const openModal = (day: number, period: number, existingSlot?: ScheduleEntry) => {
     setModalDay(day)
     setModalPeriod(period)
 
@@ -129,8 +128,15 @@ export default function SchedulePage() {
       setEditingSlotId(existingSlot.id)
       setModalClassCode(existingSlot.sub_class_code || existingSlot.classes?.code || '')
       setModalSubject(existingSlot.sub_subject || existingSlot.classes?.subject || 'Toán')
-      setModalApplyAllWeeks(existingSlot.week_number === 0 || !existingSlot.week_number)
-      setIsSubstitute(!!existingSlot.is_substitute)
+
+      if (existingSlot.is_substitute) {
+        setScheduleType('substitute')
+      } else if (existingSlot.week_number && existingSlot.week_number > 0) {
+        setScheduleType('week_specific')
+      } else {
+        setScheduleType('fixed')
+      }
+
       setSubTeacherName(existingSlot.sub_teacher_name || '')
       setSubLessonOrder(existingSlot.sub_lesson_order || 1)
       setSubLessonName(existingSlot.sub_lesson_name || '')
@@ -138,8 +144,7 @@ export default function SchedulePage() {
       setEditingSlotId(null)
       setModalClassCode('')
       setModalSubject('Toán')
-      setModalApplyAllWeeks(selectedWeek === 0)
-      setIsSubstitute(false)
+      setScheduleType(selectedWeek === 0 ? 'fixed' : 'week_specific')
       setSubTeacherName('')
       setSubLessonOrder(1)
       setSubLessonName('')
@@ -148,10 +153,9 @@ export default function SchedulePage() {
     setIsModalOpen(true)
   }
 
-  // Lưu hoặc Cập nhật tiết
   const handleSaveSlot = async () => {
     if (!modalClassCode.trim()) {
-      alert('Vui lòng nhập tên lớp!')
+      alert('Vui lòng nhập tên/mã lớp!')
       return
     }
 
@@ -159,11 +163,12 @@ export default function SchedulePage() {
     try {
       const code = modalClassCode.trim().toUpperCase()
       const subject = modalSubject.trim()
-      const targetWeek = modalApplyAllWeeks ? 0 : selectedWeek
+      const isSub = scheduleType === 'substitute'
+      const targetWeek = scheduleType === 'fixed' ? 0 : (selectedWeek > 0 ? selectedWeek : 1)
 
-      let classId: string | undefined = undefined
+      let classId: string | null = null
 
-      if (!isSubstitute) {
+      if (!isSub) {
         let targetClass = classes.find(
           (c) => c.code.toUpperCase() === code && c.subject.toLowerCase() === subject.toLowerCase()
         )
@@ -186,7 +191,6 @@ export default function SchedulePage() {
         classId = targetClass.id
       }
 
-      // Xóa slot cũ tại vị trí nếu cùng tuần
       await supabase
         .from('schedule_entries')
         .delete()
@@ -199,23 +203,13 @@ export default function SchedulePage() {
         period_number: modalPeriod,
         session: 'Sáng',
         week_number: targetWeek,
-        is_substitute: isSubstitute,
-      }
-
-      if (isSubstitute) {
-        payload.class_id = null
-        payload.sub_class_code = code
-        payload.sub_subject = subject
-        payload.sub_teacher_name = subTeacherName.trim()
-        payload.sub_lesson_order = Number(subLessonOrder)
-        payload.sub_lesson_name = subLessonName.trim()
-      } else {
-        payload.class_id = classId
-        payload.sub_class_code = null
-        payload.sub_subject = null
-        payload.sub_teacher_name = null
-        payload.sub_lesson_order = null
-        payload.sub_lesson_name = null
+        is_substitute: isSub,
+        class_id: classId,
+        sub_class_code: isSub ? code : null,
+        sub_subject: isSub ? subject : null,
+        sub_teacher_name: isSub ? subTeacherName.trim() : null,
+        sub_lesson_order: isSub ? Number(subLessonOrder) : null,
+        sub_lesson_name: isSub ? subLessonName.trim() : null,
       }
 
       const { error: sErr } = await supabase.from('schedule_entries').insert(payload)
@@ -224,7 +218,7 @@ export default function SchedulePage() {
       setIsModalOpen(false)
       await loadData()
     } catch (err: any) {
-      alert('Lỗi khi lưu tiết: ' + err.message)
+      alert('Lỗi lưu: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -237,32 +231,44 @@ export default function SchedulePage() {
     await loadData()
   }
 
+  const fixedSlots = schedule.filter((s) => !s.week_number || s.week_number === 0)
+  const currentWeekSlots = selectedWeek > 0 
+    ? [1, 2, 3, 4, 5, 6, 7].flatMap(d => [1, 2, 3, 4, 5].map(p => getSlot(d, p))).filter(Boolean)
+    : fixedSlots
+  const substituteSlotsCount = currentWeekSlots.filter((s: any) => s.is_substitute).length
+  const totalSlotsCount = currentWeekSlots.length
+
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans pb-10">
+    <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-2.5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Thời Khóa Biểu</h1>
+          <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Quản lý lịch dạy cố định cả năm, lịch dạy riêng từng tuần và xếp lịch dạy thay
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* NÚT TẢI MẪU TKB */}
+          <button
+            onClick={() => openModal(2, 1)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Thêm Tiết</span>
+          </button>
+
           <button
             onClick={handleDownloadSampleTKB}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border cursor-pointer"
-            title="Tải tệp Excel mẫu để điền Thời khóa biểu"
           >
             <Download className="w-3.5 h-3.5 text-slate-600" />
-            Tải Mẫu TKB
+            <span>Tải Mẫu TKB</span>
           </button>
 
-          {/* BỘ LỌC CHỌN TUẦN */}
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            <span className="text-xs font-bold text-slate-500 uppercase">Xem Lịch:</span>
+          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-500 uppercase">Xem:</span>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
@@ -280,15 +286,51 @@ export default function SchedulePage() {
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="p-1.5 sm:px-3 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Làm mới
           </button>
         </div>
       </div>
 
-      {/* LƯỚI THỜI KHÓA BIỂU ĐẦY ĐỦ TÍNH NĂNG */}
+      {/* THANH THỐNG KÊ SỐ TIẾT TRÊN ĐẦU */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="bg-emerald-50/90 border border-emerald-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-emerald-800 uppercase block">Tổng số tiết</span>
+            <span className="text-lg font-black text-emerald-950">{totalSlotsCount} tiết</span>
+          </div>
+          <BookmarkCheck className="w-5 h-5 text-emerald-600 opacity-80" />
+        </div>
+
+        <div className="bg-white border border-slate-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase block">Tiết cố định</span>
+            <span className="text-lg font-black text-slate-800">{fixedSlots.length} tiết</span>
+          </div>
+          <Layers className="w-5 h-5 text-slate-400 opacity-80" />
+        </div>
+
+        <div className="bg-amber-50/90 border border-amber-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-amber-800 uppercase block">Dạy thay tuần</span>
+            <span className="text-lg font-black text-amber-950">{substituteSlotsCount} tiết</span>
+          </div>
+          <UserCheck className="w-5 h-5 text-amber-600 opacity-80" />
+        </div>
+
+        <div className="bg-white border border-slate-200 p-2.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase block">Đang xem</span>
+            <span className="text-xs font-black text-blue-700">
+              {selectedWeek === 0 ? 'Lịch Cố Định' : `Tuần ${selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}`}
+            </span>
+          </div>
+          <Calendar className="w-5 h-5 text-blue-500 opacity-80" />
+        </div>
+      </div>
+
+      {/* BẢNG LƯỚI THỜI KHÓA BIỂU */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -314,11 +356,11 @@ export default function SchedulePage() {
                     const isWeekSpecific = slot && slot.week_number && slot.week_number > 0
 
                     return (
-                      <td key={day.id} className="p-2 border-r text-center align-middle h-20 relative group">
+                      <td key={day.id} className="p-2 border-r text-center align-middle h-24 relative group">
                         {slot ? (
                           <div 
-                            onClick={() => openEditModal(day.id, period, slot)}
-                            className={`p-2 rounded-xl border flex flex-col items-center justify-center relative shadow-xs cursor-pointer transition hover:ring-2 ${
+                            onClick={() => openModal(day.id, period, slot)}
+                            className={`p-2 rounded-xl border flex flex-col items-center justify-center relative shadow-2xs cursor-pointer transition hover:ring-2 ${
                               isSub
                                 ? 'bg-amber-50 border-amber-300 text-amber-900 hover:ring-amber-400'
                                 : isWeekSpecific
@@ -326,33 +368,38 @@ export default function SchedulePage() {
                                 : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:ring-emerald-400'
                             }`}
                           >
-                            {/* NHÃN ĐẶC BIỆT */}
-                            {isSub ? (
-                              <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-full mb-0.5 leading-tight">
-                                Dạy thay ({slot.sub_teacher_name || 'GV'})
+                            {/* DÒNG 1 TRÊN CÙNG: SỐ TIẾT NỔI BẬT */}
+                            <div className="flex items-center gap-1 mb-1">
+                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-white/90 text-slate-700 border border-slate-200/80 shadow-2xs">
+                                Tiết {period}
                               </span>
-                            ) : isWeekSpecific ? (
-                              <span className="text-[9px] font-black bg-blue-200 text-blue-900 px-1.5 py-0.2 rounded-full mb-0.5 leading-tight">
-                                Tuần {slot.week_number}
-                              </span>
-                            ) : null}
+                              {isSub ? (
+                                <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded leading-tight">
+                                  Dạy thay ({slot.sub_teacher_name || 'GV'})
+                                </span>
+                              ) : isWeekSpecific ? (
+                                <span className="text-[9px] font-black bg-blue-200 text-blue-900 px-1.5 py-0.2 rounded leading-tight">
+                                  Tuần {slot.week_number}
+                                </span>
+                              ) : null}
+                            </div>
 
-                            {/* MÃ LỚP */}
+                            {/* DÒNG 2: MÃ LỚP IN ĐẬM */}
                             <span className="font-black text-sm text-slate-900 leading-tight">
                               {isSub ? slot.sub_class_code : slot.classes?.code}
                             </span>
 
-                            {/* MÔN HỌC */}
+                            {/* DÒNG 3: TÊN MÔN HỌC */}
                             <span className="text-[10px] font-bold text-slate-600 uppercase mt-0.5">
                               {isSub ? slot.sub_subject : slot.classes?.subject}
                             </span>
 
-                            {/* THANH CÔNG CỤ NHANH KHI RÊ CHUỘT */}
+                            {/* NÚT THAO TÁC KHI HOVER */}
                             <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  openEditModal(day.id, period, slot)
+                                  openModal(day.id, period, slot)
                                 }}
                                 title="Sửa tiết"
                                 className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded transition cursor-pointer"
@@ -364,7 +411,7 @@ export default function SchedulePage() {
                                   e.stopPropagation()
                                   handleDeleteSlot(slot.id)
                                 }}
-                                title="Xóa tiết này"
+                                title="Xóa tiết"
                                 className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded transition cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -373,9 +420,9 @@ export default function SchedulePage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => openEditModal(day.id, period)}
-                            className="w-full h-full min-h-[48px] border-2 border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
-                            title="Bấm để xếp tiết mới"
+                            onClick={() => openModal(day.id, period)}
+                            className="w-full h-full min-h-[56px] border-2 border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
+                            title={`Xếp Tiết ${period}`}
                           >
                             <Plus className="w-4 h-4" />
                           </button>
@@ -390,10 +437,10 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* MODAL THÊM / SỬA TIẾT ĐẦY ĐỦ TÍNH NĂNG */}
+      {/* MODAL THÊM / SỬA TIẾT */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl border">
             <div className="flex justify-between items-center border-b pb-2">
               <h2 className="text-sm font-bold text-slate-900">
                 {editingSlotId ? 'Cập Nhật Tiết Dạy' : 'Thêm Tiết Dạy'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
@@ -404,31 +451,39 @@ export default function SchedulePage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              {/* CHUYỂN ĐỔI CHẾ ĐỘ DẠY THAY */}
-              <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-amber-600" />
-                    Chế độ dạy thay
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={isSubstitute}
-                    onChange={(e) => {
-                      setIsSubstitute(e.target.checked)
-                      if (e.target.checked) setModalApplyAllWeeks(false)
-                    }}
-                    className="w-4 h-4 rounded text-amber-600 accent-amber-600 cursor-pointer"
-                  />
-                </label>
-                {isSubstitute && (
-                  <p className="text-[10px] text-amber-800 italic">
-                    Tiết dạy thay sẽ tự động ghi chú tên giáo viên được thay trên Phiếu Báo Giảng của tuần được chọn.
-                  </p>
-                )}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Loại lịch giảng dạy:</label>
+                <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('fixed')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'fixed' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Cố định
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('week_specific')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'week_specific' ? 'bg-white text-blue-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Riêng tuần
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('substitute')}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      scheduleType === 'substitute' ? 'bg-white text-amber-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    Dạy thay
+                  </button>
+                </div>
               </div>
 
-              {/* MÃ LỚP */}
               <div>
                 <label className="block font-bold text-slate-600 mb-1">Mã lớp (vd: 12A1, 11Sử, 10T1...):</label>
                 <input
@@ -440,7 +495,6 @@ export default function SchedulePage() {
                 />
               </div>
 
-              {/* PHÂN MÔN */}
               <div>
                 <label className="block font-bold text-slate-600 mb-1">Phân môn:</label>
                 <select
@@ -454,71 +508,48 @@ export default function SchedulePage() {
                 </select>
               </div>
 
-              {/* THÔNG TIN CHI TIẾT NẾU LÀ DẠY THAY */}
-              {isSubstitute && (
-                <div className="space-y-2 pt-1 border-t border-slate-200">
+              {scheduleType === 'substitute' && (
+                <div className="space-y-2 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
                   <div>
-                    <label className="block font-bold text-slate-600 mb-1">Dạy thay cho ai:</label>
+                    <label className="block font-bold text-amber-900 mb-1">Dạy thay cho ai:</label>
                     <input
                       type="text"
                       placeholder="vd: Thầy Tuấn, Cô Lan..."
                       value={subTeacherName}
                       onChange={(e) => setSubTeacherName(e.target.value)}
-                      className="w-full px-3 py-1.5 border rounded-xl font-bold text-slate-800"
+                      className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-bold text-slate-800 bg-white"
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block font-bold text-slate-600 mb-1">Tiết PPCT:</label>
+                      <label className="block font-bold text-amber-900 mb-1">Tiết PPCT:</label>
                       <input
                         type="number"
                         value={subLessonOrder}
                         onChange={(e) => setSubLessonOrder(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 border rounded-xl font-black text-center text-blue-700"
+                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-black text-center text-blue-700 bg-white"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block font-bold text-slate-600 mb-1">Tên bài dạy:</label>
+                      <label className="block font-bold text-amber-900 mb-1">Tên bài dạy:</label>
                       <input
                         type="text"
-                        placeholder="Tên bài giảng..."
+                        placeholder="Tên bài học..."
                         value={subLessonName}
                         onChange={(e) => setSubLessonName(e.target.value)}
-                        className="w-full px-3 py-1.5 border rounded-xl font-medium text-slate-800"
+                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-medium text-slate-800 bg-white"
                       />
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* PHẠM VI ÁP DỤNG */}
-              {!isSubstitute && (
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={modalApplyAllWeeks}
-                      onChange={(e) => setModalApplyAllWeeks(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-700">
-                      Áp dụng cố định cho tất cả các tuần
-                    </span>
-                  </label>
-                  {!modalApplyAllWeeks && (
-                    <p className="text-[10px] text-blue-700 mt-0.5 ml-6">
-                      Chỉ áp dụng riêng cho <strong>Tuần {selectedWeek > 0 ? selectedWeek : 1}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* NÚT THAO TÁC */}
             <div className="flex justify-between items-center pt-2 border-t">
               {editingSlotId ? (
                 <button
+                  type="button"
                   onClick={() => handleDeleteSlot(editingSlotId)}
                   className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                 >
@@ -528,15 +559,17 @@ export default function SchedulePage() {
 
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-3 py-1.5 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveSlot}
                   disabled={loading}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1 cursor-pointer"
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>{editingSlotId ? 'Cập Nhật' : 'Lưu Tiết'}</span>
