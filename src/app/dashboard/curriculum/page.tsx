@@ -16,7 +16,9 @@ import {
   Square, 
   RefreshCcw,
   AlertTriangle,
-  Download
+  Download,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 
 interface CurriculumTemplate {
@@ -162,12 +164,12 @@ export default function CurriculumPage() {
 
   const handleApplyBatch = async () => {
     if (!selectedTemplateId) {
-      alert('Vui lòng chọn 1 khung PPCT ở bên trái trước!')
+      alert('Vui lòng chọn 1 khung PPCT trước!')
       return
     }
 
     if (selectedClassIds.length === 0) {
-      alert('Vui lòng tích chọn ít nhất 1 lớp bên phải để áp dụng!')
+      alert('Vui lòng tích chọn ít nhất 1 lớp để áp dụng!')
       return
     }
 
@@ -213,7 +215,6 @@ export default function CurriculumPage() {
     }
   }
 
-  // TẢI FILE MẪU EXCEL CHUẨN NGẮN GỌN (THEO MẪU pp-12-cb.xlsx)
   const handleDownloadSamplePPCT = () => {
     const sampleData = [
       { 'Tiết theo PPCT': '', 'Tên bài': 'CHƯƠNG I. ỨNG DỤNG ĐẠO HÀM' },
@@ -238,7 +239,6 @@ export default function CurriculumPage() {
     XLSX.writeFile(wb, 'Mau_Phan_Phoi_Chuong_Trinh.xlsx')
   }
 
-  // GIẢI MÃ ĐỊNH DẠNG Ô TIẾT (XỬ LÝ: "1, 2, 3, 4, 5", "Tiết 1", "5-Jan", "18-22")
   const parsePeriodCell = (raw: any): number[] => {
     if (raw === null || raw === undefined || raw === '') return []
     if (typeof raw === 'number') return [raw]
@@ -296,7 +296,6 @@ export default function CurriculumPage() {
     return result
   }
 
-  // ĐỌC FILE EXCEL
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -352,7 +351,6 @@ export default function CurriculumPage() {
             continue
           }
 
-          // Bỏ qua các dòng phân cách/chương không có số tiết
           if (rawName && !rawPeriod) {
             continue
           }
@@ -458,24 +456,24 @@ export default function CurriculumPage() {
   const unassignedClassesCount = classes.filter((c) => !c.template_id).length
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
+    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 font-sans pb-10">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-2.5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Phân Phối Chương Trình</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Bấm chọn khung PPCT bên trái, các lớp áp dụng tương ứng bên phải sẽ tự đổi màu nền nổi bật
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800">Phân Phối Chương Trình</h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+            Bấm chọn khung PPCT, danh sách lớp tương ứng sẽ hiển thị ngay phía dưới
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* NÚT TẢI FILE MẪU PPCT */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5">
           <button
             onClick={handleDownloadSamplePPCT}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border cursor-pointer"
             title="Tải tệp Excel mẫu chuẩn ngắn gọn"
           >
             <Download className="w-3.5 h-3.5 text-slate-600" />
-            Tải Mẫu PPCT
+            <span>Tải Mẫu PPCT</span>
           </button>
 
           <button
@@ -485,24 +483,190 @@ export default function CurriculumPage() {
               setFileLessons([])
               setFileName('')
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5" />
-            Tải PPCT (Excel)
+            <span>Tải PPCT (Excel)</span>
           </button>
 
           <button
             onClick={loadAll}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="p-1.5 sm:px-3 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Làm mới
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+      {/* ================= GIAO DIỆN DI ĐỘNG: BẤM KHUNG NÀO HIỆN NGAY LỚP PHÍA DƯỚI ================= */}
+      <div className="block md:hidden space-y-3">
+        {templates.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400 bg-white rounded-2xl border">
+            Chưa có khung nào. Hãy bấm "Tải PPCT (Excel)" để thêm.
+          </div>
+        ) : (
+          templates.map((tpl) => {
+            const isSelected = selectedTemplateId === tpl.id
+            const matchedClasses = classes.filter((c) => c.template_id === tpl.id)
+
+            return (
+              <div 
+                key={tpl.id}
+                className={`rounded-2xl border-2 transition overflow-hidden shadow-2xs ${
+                  isSelected 
+                    ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20' 
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                {/* THẺ KHUNG PPCT (BẤM ĐỂ MỞ RỘNG CÁC LỚP) */}
+                <div
+                  onClick={() => setSelectedTemplateId(isSelected ? null : tpl.id)}
+                  className="p-3.5 flex items-center justify-between cursor-pointer"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-sm text-slate-900">{tpl.title}</span>
+                      {isSelected && (
+                        <span className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[9px] font-black uppercase">
+                          Đang chọn
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Môn: <strong className="text-slate-800">{tpl.subject}</strong> — Khối {tpl.grade} ({tpl.total_lessons} tiết)
+                    </p>
+                    <p className="text-[10px] font-bold text-emerald-700">
+                      Đang áp dụng cho {matchedClasses.length} lớp trong TKB
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedTemplateId(tpl.id)
+                        setShowPreviewModal(true)
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-white rounded-lg"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteTemplate(tpl.id)
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    {isSelected ? (
+                      <ChevronUp className="w-4 h-4 text-emerald-700 ml-1" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+                    )}
+                  </div>
+                </div>
+
+                {/* KHU VỰC CÁC LỚP HIỂN THỊ NGAY PHÍA DƯỚI KHI ĐƯỢC CHỌN */}
+                {isSelected && (
+                  <div className="p-3 bg-white border-t border-emerald-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                        Các Lớp Áp Dụng ({matchedClasses.length}):
+                      </span>
+                      <button
+                        onClick={() => setShowPreviewModal(true)}
+                        className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+                      >
+                        <Eye className="w-3 h-3" /> Xem bài dạy ({previewLessons.length} tiết)
+                      </button>
+                    </div>
+
+                    {matchedClasses.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-2">
+                        Chưa có lớp nào áp dụng khung này. Hãy tích chọn các lớp chưa gán bên dưới để áp dụng.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {matchedClasses.map((cls) => (
+                          <div
+                            key={cls.id}
+                            className="p-2.5 rounded-xl border border-emerald-300 bg-emerald-50 flex items-center justify-between shadow-2xs"
+                          >
+                            <span className="font-black text-xs text-slate-900">{cls.code}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-700 text-white rounded">
+                              {cls.subject}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+
+        {/* DANH SÁCH LỚP CHƯA GÁN HOẶC CẦN ÁP DỤNG HÀNG LOẠT TRÊN MOBILE */}
+        <div className="bg-white p-3.5 rounded-2xl border shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-black text-xs text-slate-800 uppercase tracking-wide">
+              Gán Nhanh Lớp Vào Khung Đang Chọn
+            </span>
+            <button
+              onClick={handleApplyBatch}
+              disabled={isApplyingBatch || selectedClassIds.length === 0 || !selectedTemplateId}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+            >
+              <Check className="w-3 h-3" />
+              <span>Gán ({selectedClassIds.length})</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {classes.map((cls) => {
+              const isChecked = selectedClassIds.includes(cls.id)
+              const isCurrentMatched = cls.template_id === selectedTemplateId
+              const isUnassigned = !cls.template_id
+
+              return (
+                <div
+                  key={cls.id}
+                  onClick={() => toggleSelectClass(cls.id)}
+                  className={`p-2.5 rounded-xl border-2 transition cursor-pointer flex items-center justify-between text-xs ${
+                    isChecked
+                      ? 'border-slate-800 bg-slate-100 ring-1 ring-slate-400'
+                      : isCurrentMatched
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : isUnassigned
+                      ? 'border-amber-300 bg-amber-50/70'
+                      : 'border-slate-200 bg-slate-50/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="w-3.5 h-3.5 rounded accent-emerald-600"
+                    />
+                    <span className="font-black text-xs text-slate-900">{cls.code}</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-500">
+                    {cls.subject}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ================= GIAO DIỆN LAPTOP: GIỮ NGUYÊN BỐ CỤC 2 CỘT CHUẨN ================= */}
+      <div className="hidden md:grid md:grid-cols-12 gap-4">
         {/* NỬA TRÁI (5 CỘT): DANH SÁCH KHUNG PPCT */}
         <div className="md:col-span-5 bg-white rounded-2xl border shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between border-b pb-2">
