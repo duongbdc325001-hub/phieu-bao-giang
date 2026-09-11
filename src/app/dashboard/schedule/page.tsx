@@ -57,10 +57,22 @@ const DAYS = [
 
 const PERIODS = [1, 2, 3, 4, 5]
 
-// MỐC THỜI GIAN: TUẦN 1 BẮT ĐẦU TỪ THỨ HAI 07/09/2026
-const START_DATE_WEEK_1 = new Date(2026, 8, 7) // Tháng 9 là index 8
+// DANH SÁCH LỚP TOÀN TRƯỜNG ĐỂ GỢI Ý
+const ALL_CLASSES = [
+  '10T1', '10T2', '10L', '10H', '10Sinh', '10Tin', '10V', '10Sử', '10Địa', '10A1', '10A2', '10P', '10N',
+  '11T1', '11T2', '11L', '11H', '11Sinh', '11Tin', '11V', '11SỬ', '11Đ', '11A1', '11A2', '11P', '11N',
+  '12T1', '12T2', '12L', '12H', '12Sinh', '12Tin', '12V', '12SỬ', '12Đ', '12A1', '12A2', '12P', '12N'
+]
 
-// Hàm tính tuần hiện tại theo ngày thực tế
+// DANH SÁCH TẤT CẢ CÁC MÔN HỌC ĐỂ GỢI Ý
+const ALL_SUBJECTS = [
+  'Toán', 'GDĐP', 'TRN', 'Tin học', 'Vật lí', 'Hóa học', 
+  'Sinh học', 'Ngữ văn', 'Lịch sử', 'Địa lí', 'Tiếng Anh', 'Tiếng Nga', 'Tiếng Pháp', 'GDQP-AN', 'GDTC'
+]
+
+// MỐC THỜI GIAN: TUẦN 1 BẮT ĐẦU TỪ THỨ HAI 07/09/2026
+const START_DATE_WEEK_1 = new Date(2026, 8, 7)
+
 const getCurrentRealWeek = () => {
   const now = new Date()
   const diffTime = now.getTime() - START_DATE_WEEK_1.getTime()
@@ -74,6 +86,7 @@ const SUBJECT_COLORS: Record<string, { bg: string; border: string; text: string 
   'Toán': { bg: 'bg-amber-100/70', border: 'border-amber-400', text: 'text-amber-900' },
   'T': { bg: 'bg-amber-100/70', border: 'border-amber-400', text: 'text-amber-900' },
   'HĐTN': { bg: 'bg-fuchsia-100/70', border: 'border-fuchsia-400', text: 'text-fuchsia-900' },
+  'TRN': { bg: 'bg-fuchsia-100/70', border: 'border-fuchsia-400', text: 'text-fuchsia-900' },
   'TrN': { bg: 'bg-fuchsia-100/70', border: 'border-fuchsia-400', text: 'text-fuchsia-900' },
   'GDĐP': { bg: 'bg-emerald-100/70', border: 'border-emerald-400', text: 'text-emerald-900' },
   'Dạy thay': { bg: 'bg-rose-100/80', border: 'border-rose-400', text: 'text-rose-900' },
@@ -82,8 +95,7 @@ const SUBJECT_COLORS: Record<string, { bg: string; border: string; text: string 
 
 export default function SchedulePage() {
   const supabase = createClient()
-  
-  // Mặc định tự động nhảy tới tuần theo thời gian thực
+
   const [selectedWeek, setSelectedWeek] = useState<number>(getCurrentRealWeek)
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([])
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -104,7 +116,10 @@ export default function SchedulePage() {
 
   const [targetLessonOrder, setTargetLessonOrder] = useState<number>(1)
   const [slotType, setSlotType] = useState<'my_class' | 'substitute'>('my_class')
-  const [newSlotClassId, setNewSlotClassId] = useState<string>('')
+
+  // State thêm tiết cho lớp của mình
+  const [inputClassName, setInputClassName] = useState<string>('')
+  const [inputSubject, setInputSubject] = useState<string>('Toán')
 
   // Form dạy thay
   const [subClassCode, setSubClassCode] = useState('')
@@ -119,8 +134,9 @@ export default function SchedulePage() {
     const { data: cData } = await supabase.from('classes').select('*').order('code')
     if (cData) {
       setClasses(cData)
-      if (cData.length > 0 && !newSlotClassId) {
-        setNewSlotClassId(cData[0].id)
+      if (cData.length > 0 && !inputClassName) {
+        setInputClassName(cData[0].code)
+        setInputSubject(cData[0].subject || 'Toán')
       }
     }
 
@@ -145,7 +161,6 @@ export default function SchedulePage() {
     loadAll()
   }, [])
 
-  // Tính ngày cụ thể cho từng Thứ trong tuần được chọn
   const getDateOfDay = (dayOffset: number) => {
     const d = new Date(START_DATE_WEEK_1)
     d.setDate(d.getDate() + (selectedWeek - 1) * 7 + dayOffset)
@@ -154,15 +169,13 @@ export default function SchedulePage() {
     return `${day}/${month}`
   }
 
-  // Kiểm tra xem hôm nay có trùng Thứ và Tuần này không
   const isToday = (dayOfWeek: number) => {
     const now = new Date()
-    const currentJsDay = now.getDay() // 0 là CN, 1 là T2, 2 là T3...
-    const mapToDayOfWeek = currentJsDay === 0 ? 8 : currentJsDay + 1 // T2=2, T3=3...
+    const currentJsDay = now.getDay()
+    const mapToDayOfWeek = currentJsDay === 0 ? 8 : currentJsDay + 1
     return selectedWeek === getCurrentRealWeek() && mapToDayOfWeek === dayOfWeek
   }
 
-  // TÍNH TOÁN TIẾT PPCT THEO TUẦN
   const calculateLessonsForWeek = () => {
     const lessonMap: Record<string, { order: number; name: string; isOverridden: boolean; slotOrderInWeek: number } | null> = {}
 
@@ -235,8 +248,13 @@ export default function SchedulePage() {
     )
     if (subEntry) return subEntry
 
+    const weekSpecificEntry = schedule.find(
+      (s) => s.day_of_week === day && s.period_number === period && !s.is_substitute && s.week_number === selectedWeek
+    )
+    if (weekSpecificEntry) return weekSpecificEntry
+
     return schedule.find(
-      (s) => s.day_of_week === day && s.period_number === period && (!s.is_substitute || s.is_substitute === false)
+      (s) => s.day_of_week === day && s.period_number === period && !s.is_substitute && (s.week_number === 0 || !s.week_number)
     )
   }
 
@@ -309,18 +327,52 @@ export default function SchedulePage() {
     await loadAll()
   }
 
-  const handleCreateSlot = async () => {
+  const handleCreateSlot = async (isPermanent: boolean = true) => {
     if (!activeSlot) return
     setLoading(true)
 
     if (slotType === 'my_class') {
-      if (!newSlotClassId) return
+      const trimmedClass = inputClassName.trim().toUpperCase()
+      const trimmedSubject = inputSubject.trim()
+
+      if (!trimmedClass) {
+        alert('Vui lòng chọn hoặc nhập tên lớp!')
+        setLoading(false)
+        return
+      }
+
+      let targetClassId = ''
+      const existingClass = classes.find(
+        (c) => c.code.toUpperCase() === trimmedClass && c.subject.toLowerCase() === trimmedSubject.toLowerCase()
+      )
+
+      if (existingClass) {
+        targetClassId = existingClass.id
+      } else {
+        const { data: newClass, error: insertError } = await supabase
+          .from('classes')
+          .insert({
+            code: trimmedClass,
+            name: `Lớp ${trimmedClass}`,
+            subject: trimmedSubject,
+          })
+          .select()
+          .single()
+
+        if (insertError || !newClass) {
+          alert('Không thể khởi tạo lớp mới: ' + (insertError?.message || 'Lỗi không xác định'))
+          setLoading(false)
+          return
+        }
+        targetClassId = newClass.id
+      }
+
       await supabase.from('schedule_entries').insert({
         day_of_week: activeSlot.day,
         period_number: activeSlot.period,
-        class_id: newSlotClassId,
+        class_id: targetClassId,
         session: 'morning',
-        week_number: 0,
+        week_number: isPermanent ? 0 : selectedWeek,
         is_substitute: false,
       })
     } else {
@@ -359,7 +411,7 @@ export default function SchedulePage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* BỘ CHỌN TUẦN THEO THỜI GIAN THỰC */}
+          {/* BỘ CHỌN TUẦN */}
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
             <Calendar className="w-4 h-4 text-emerald-600" />
             <span className="text-xs font-bold text-slate-500 uppercase">Xem Tuần:</span>
@@ -395,7 +447,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* BẢNG THỜI KHÓA BIỂU CÓ HIỂN THỊ NGÀY THÁNG THỰC TẾ DƯỚI TỪNG THỨ */}
+      {/* BẢNG THỜI KHÓA BIỂU */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-x-auto">
         <table className="w-full border-collapse min-w-[760px]">
           <thead>
@@ -448,6 +500,7 @@ export default function SchedulePage() {
                   }
 
                   const isSub = !!entry.is_substitute
+                  const isWeekOnly = !isSub && entry.week_number && entry.week_number > 0
                   const lessonInfo = lessonResults[`${day.id}_${period}`]
                   const rawSubject = isSub ? (entry.sub_subject || 'Dạy thay') : (entry.classes?.subject || 'Toán')
                   const classCode = isSub ? entry.sub_class_code : entry.classes?.code
@@ -471,6 +524,10 @@ export default function SchedulePage() {
                         {isSub ? (
                           <span className="absolute top-1 right-1 px-1 py-0.2 bg-rose-600 text-white rounded text-[8px] font-black uppercase">
                             Dạy thay
+                          </span>
+                        ) : isWeekOnly ? (
+                          <span className="absolute top-1 right-1 px-1 py-0.2 bg-sky-600 text-white rounded text-[8px] font-black uppercase">
+                            Tuần {entry.week_number}
                           </span>
                         ) : (
                           lessonInfo?.isOverridden && (
@@ -509,7 +566,7 @@ export default function SchedulePage() {
                   {activeSlot.entry
                     ? activeSlot.entry.is_substitute
                       ? `Dạy thay: ${activeSlot.entry.sub_class_code} (${activeSlot.entry.sub_subject})`
-                      : `${activeSlot.entry.classes?.subject} - Lớp ${activeSlot.entry.classes?.code}`
+                      : `${activeSlot.entry.classes?.subject} - Lớp ${activeSlot.entry.classes?.code} ${activeSlot.entry.week_number ? `(Tuần ${activeSlot.entry.week_number})` : '(Cố định)'}`
                     : 'Thêm tiết giảng dạy'}
                 </span>
               </div>
@@ -598,31 +655,59 @@ export default function SchedulePage() {
 
                 {slotType === 'my_class' ? (
                   <div className="space-y-3 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Chọn lớp để thêm vào ô này:
-                      </label>
-                      <select
-                        value={newSlotClassId}
-                        onChange={(e) => setNewSlotClassId(e.target.value)}
-                        className="w-full p-2 border rounded-xl font-bold text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 bg-white"
-                      >
-                        {classes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.code} ({c.subject})
-                          </option>
-                        ))}
-                      </select>
+                    {/* KHỐI 2 Ô: LỚP VÀ MÔN TÁCH RỜI */}
+                    <div className="grid grid-cols-2 gap-2 text-left">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Lớp học:
+                        </label>
+                        <input
+                          type="text"
+                          list="globalClassList"
+                          placeholder="vd: 12SỬ, 11N..."
+                          value={inputClassName}
+                          onChange={(e) => setInputClassName(e.target.value)}
+                          className="w-full p-2 border rounded-xl font-bold text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Môn học:
+                        </label>
+                        <input
+                          type="text"
+                          list="globalSubjectList"
+                          placeholder="vd: Toán, GDĐP..."
+                          value={inputSubject}
+                          onChange={(e) => setInputSubject(e.target.value)}
+                          className="w-full p-2 border rounded-xl font-bold text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                      </div>
                     </div>
 
-                    <button
-                      onClick={handleCreateSlot}
-                      disabled={loading || !newSlotClassId}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Thêm Tiết Cố Định
-                    </button>
+                    {/* HAI NÚT LỰA CHỌN: CHỈ TUẦN NÀY HOẶC CỐ ĐỊNH */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={() => handleCreateSlot(false)}
+                        disabled={loading || !inputClassName.trim()}
+                        className="py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                        title={`Chỉ áp dụng riêng cho tuần ${selectedWeek}`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Chỉ Tuần Này ({selectedWeek})
+                      </button>
+
+                      <button
+                        onClick={() => handleCreateSlot(true)}
+                        disabled={loading || !inputClassName.trim()}
+                        className="py-2 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                        title="Áp dụng cho tất cả các tuần"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Thêm Cố Định
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2.5 pt-1">
@@ -631,6 +716,7 @@ export default function SchedulePage() {
                         <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Mã lớp dạy hộ:</label>
                         <input
                           type="text"
+                          list="globalClassList"
                           placeholder="vd: 11A2, 12SỬ"
                           value={subClassCode}
                           onChange={(e) => setSubClassCode(e.target.value)}
@@ -643,6 +729,7 @@ export default function SchedulePage() {
                         <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Môn học:</label>
                         <input
                           type="text"
+                          list="globalSubjectList"
                           value={subSubject}
                           onChange={(e) => setSubSubject(e.target.value)}
                           className="w-full p-1.5 border rounded-lg text-xs font-semibold focus:ring-2 focus:ring-rose-400"
@@ -702,6 +789,19 @@ export default function SchedulePage() {
                 )}
               </div>
             )}
+
+            {/* NGUỒN GỢI Ý DÙNG CHUNG CHO CẢ HAI TAB */}
+            <datalist id="globalClassList">
+              {ALL_CLASSES.map((cls) => (
+                <option key={cls} value={cls} />
+              ))}
+            </datalist>
+
+            <datalist id="globalSubjectList">
+              {ALL_SUBJECTS.map((sub) => (
+                <option key={sub} value={sub} />
+              ))}
+            </datalist>
           </div>
         </div>
       )}

@@ -41,7 +41,7 @@ export default function DashboardLayout({
     { href: '/dashboard/curriculum', label: 'Phân phối chương trình', icon: BookOpen },
     { href: '/dashboard/classes', label: 'Quản lý Lớp học', icon: Users },
     { href: '/dashboard/reports', label: 'Lịch Báo Giảng Tuần', icon: Calendar },
-    { href: '/dashboard/export', label: 'Xuất phiếu báo giảng', icon: FileText },
+   
     { href: '/dashboard/progress', label: 'Tiến độ thực hiện chương trình', icon: Activity },
   ]
 

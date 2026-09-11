@@ -3,7 +3,21 @@
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Trash2, RefreshCw, CheckCircle2, AlertCircle, Layers, Check, Eye, CheckSquare, Square, RefreshCcw } from 'lucide-react'
+import { 
+  Upload, 
+  Trash2, 
+  RefreshCw, 
+  CheckCircle2, 
+  AlertCircle, 
+  Layers, 
+  Check, 
+  Eye, 
+  CheckSquare, 
+  Square, 
+  RefreshCcw,
+  AlertTriangle,
+  Filter
+} from 'lucide-react'
 
 interface CurriculumTemplate {
   id: string
@@ -43,6 +57,9 @@ export default function CurriculumPage() {
   const [previewLessons, setPreviewLessons] = useState<CurriculumLesson[]>([])
   const [loading, setLoading] = useState(false)
   
+  // Bộ lọc hiển thị lớp: 'all' | 'unassigned' | 'assigned'
+  const [classFilter, setClassFilter] = useState<'all' | 'unassigned' | 'assigned'>('all')
+
   // Danh sách các lớp được tích chọn
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [isApplyingBatch, setIsApplyingBatch] = useState(false)
@@ -51,8 +68,8 @@ export default function CurriculumPage() {
   // State Modal Tải PPCT mới từ Excel
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newSubject, setNewSubject] = useState('GDĐP')
-  const [newGrade, setNewGrade] = useState(11)
+  const [newSubject, setNewSubject] = useState('Toán')
+  const [newGrade, setNewGrade] = useState(10)
   const [fileLessons, setFileLessons] = useState<CurriculumLesson[]>([])
   const [fileName, setFileName] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -131,15 +148,24 @@ export default function CurriculumPage() {
     )
   }
 
+  const filteredClasses = classes.filter((c) => {
+    if (classFilter === 'unassigned') return !c.template_id
+    if (classFilter === 'assigned') return !!c.template_id
+    return true
+  })
+
   const handleSelectAll = () => {
-    if (selectedClassIds.length === classes.length) {
-      setSelectedClassIds([])
+    const visibleIds = filteredClasses.map((c) => c.id)
+    const isAllVisibleSelected = visibleIds.every((id) => selectedClassIds.includes(id))
+
+    if (isAllVisibleSelected) {
+      setSelectedClassIds((prev) => prev.filter((id) => !visibleIds.includes(id)))
     } else {
-      setSelectedClassIds(classes.map((c) => c.id))
+      setSelectedClassIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
     }
   }
 
-  // ÁP DỤNG ĐỒNG LOẠT CHO CÁC LỚP ĐƯỢC CHỌN (KHÔNG CHỨA CỘT TOPIC)
+  // ÁP DỤNG ĐỒNG LOẠT CHO CÁC LỚP ĐƯỢC CHỌN
   const handleApplyBatch = async () => {
     if (!selectedTemplateId) {
       alert('Vui lòng chọn 1 khung PPCT ở bên trái trước!')
@@ -193,7 +219,7 @@ export default function CurriculumPage() {
     }
   }
 
-  // GIẢI MÃ TẤT CẢ CÁC ĐỊNH DẠNG Ô TIẾT (XỬ LÝ CẢ 5-Jan, 10-Jun, 18-22, 1, 2, 3...)
+  // GIẢI MÃ TẤT CẢ CÁC ĐỊNH DẠNG Ô TIẾT
   const parsePeriodCell = (raw: any): number[] => {
     if (raw === null || raw === undefined || raw === '') return []
     if (typeof raw === 'number') return [raw]
@@ -201,7 +227,6 @@ export default function CurriculumPage() {
     const str = String(raw).trim()
     const result: number[] = []
 
-    // 1. Nhận diện dạng Excel tự chuyển thành Date: "5-Jan", "10-Jun", "16-Dec"
     const dateTextMatch1 = str.match(/^(\d{1,2})[-/]([a-zA-Z]{3,})$/)
     if (dateTextMatch1) {
       const p1 = parseInt(dateTextMatch1[1], 10)
@@ -228,11 +253,9 @@ export default function CurriculumPage() {
       }
     }
 
-    // 2. Tách chuỗi theo dấu phẩy, chấm phẩy hoặc xuống dòng
     const tokens = str.replace(/[\r\n;]+/g, ',').split(',').map((t) => t.trim()).filter(Boolean)
 
     for (const token of tokens) {
-      // Dải gạch ngang: "18-22", "25-28", "99-101"
       const rangeMatch = token.match(/^(\d+)\s*[-–—]\s*(\d+)$/)
       if (rangeMatch) {
         const start = parseInt(rangeMatch[1], 10)
@@ -243,7 +266,6 @@ export default function CurriculumPage() {
         }
       }
 
-      // Tiết đơn: "11", "17", "23"
       const num = parseInt(token, 10)
       if (!isNaN(num)) {
         result.push(num)
@@ -274,7 +296,6 @@ export default function CurriculumPage() {
           return
         }
 
-        // Tự động nhận diện cột nào là Số tiết, cột nào là Tên bài
         let nameColIdx = 0
         let periodColIdx = 1
 
@@ -299,13 +320,11 @@ export default function CurriculumPage() {
           const rawName = row[nameColIdx] !== undefined ? String(row[nameColIdx]).trim() : ''
           const rawPeriod = row[periodColIdx] !== undefined ? String(row[periodColIdx]).trim() : ''
 
-          // Bỏ qua dòng tiêu đề bảng
           const lowerName = rawName.toLowerCase()
           if (lowerName === 'tên bài' || lowerName === 'tên bài/chủ đề' || lowerName.includes('tiết theo ppct')) {
             continue
           }
 
-          // Dòng tiêu đề chương (không có số tiết) -> bỏ qua
           if (rawName && !rawPeriod) {
             continue
           }
@@ -328,7 +347,6 @@ export default function CurriculumPage() {
 
         list.sort((a, b) => a.lesson_order - b.lesson_order)
 
-        // Loại bỏ trùng số tiết
         const uniqueLessons: CurriculumLesson[] = []
         const seen = new Set<number>()
         for (const item of list) {
@@ -350,7 +368,7 @@ export default function CurriculumPage() {
     reader.readAsArrayBuffer(file)
   }
 
-  // LƯU KHUNG MỚI: CHỈ LƯU 3 TRƯỜNG: template_id, lesson_order, lesson_name (KHÔNG GỬI topic)
+  // LƯU KHUNG MỚI
   const handleSaveNewTemplate = async () => {
     if (!newTitle.trim() || fileLessons.length === 0) {
       alert('Vui lòng nhập tên khung và chọn file Excel!')
@@ -377,7 +395,6 @@ export default function CurriculumPage() {
 
       if (tErr || !newTpl) throw tErr
 
-      // Chỉ gửi đúng 3 trường: template_id, lesson_order, lesson_name
       const itemsToInsert = fileLessons.map((l) => ({
         template_id: newTpl.id,
         lesson_order: l.lesson_order,
@@ -412,6 +429,7 @@ export default function CurriculumPage() {
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId)
   const appliedCount = classes.filter((c) => c.template_id === selectedTemplateId).length
+  const unassignedClassesCount = classes.filter((c) => !c.template_id).length
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans">
@@ -539,7 +557,7 @@ export default function CurriculumPage() {
           )}
         </div>
 
-        {/* NỬA PHẢI (7 CỘT): DANH SÁCH LỚP TỪ TKB */}
+        {/* NỬA PHẢI (7 CỘT): DANH SÁCH LỚP TỪ TKB KÈM CẢNH BÁO CHƯA GÁN */}
         <div className="md:col-span-7 bg-white rounded-2xl border shadow-sm p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between border-b pb-2.5 gap-2">
             <div className="flex items-center gap-2">
@@ -547,20 +565,46 @@ export default function CurriculumPage() {
                 onClick={handleSelectAll}
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
               >
-                {selectedClassIds.length === classes.length && classes.length > 0 ? (
+                {selectedClassIds.length === filteredClasses.length && filteredClasses.length > 0 ? (
                   <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
                 ) : (
                   <Square className="w-3.5 h-3.5 text-slate-400" />
                 )}
                 <span>
-                  {selectedClassIds.length === classes.length && classes.length > 0
-                    ? 'Bỏ chọn hết'
+                  {selectedClassIds.length === filteredClasses.length && filteredClasses.length > 0
+                    ? 'Bỏ chọn'
                     : 'Chọn tất cả'}
                 </span>
               </button>
-              <span className="text-xs text-slate-500 font-bold">
-                (Lớp từ TKB: {classes.length} lớp)
-              </span>
+
+              {/* BỘ LỌC TRẠNG THÁI LỚP */}
+              <div className="inline-flex rounded-lg border bg-slate-50 p-0.5 text-[11px] font-bold">
+                <button
+                  onClick={() => setClassFilter('all')}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                    classFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Tất cả ({classes.length})
+                </button>
+                <button
+                  onClick={() => setClassFilter('unassigned')}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer flex items-center gap-1 ${
+                    classFilter === 'unassigned' ? 'bg-amber-500 text-white shadow-xs' : 'text-amber-700 hover:text-amber-900'
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  Chưa gán ({unassignedClassesCount})
+                </button>
+                <button
+                  onClick={() => setClassFilter('assigned')}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                    classFilter === 'assigned' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Đã gán ({classes.length - unassignedClassesCount})
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -592,46 +636,65 @@ export default function CurriculumPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[560px] overflow-y-auto pr-1">
-            {classes.length === 0 ? (
+            {filteredClasses.length === 0 ? (
               <div className="col-span-full p-10 text-center text-xs text-slate-400">
-                Chưa có lớp nào trong Thời khóa biểu. Vui lòng vào mục <strong>"Thời khóa biểu"</strong> nhập lịch trước.
+                Không tìm thấy lớp nào phù hợp với bộ lọc hiện tại.
               </div>
             ) : (
-              classes.map((cls) => {
+              filteredClasses.map((cls) => {
                 const isChecked = selectedClassIds.includes(cls.id)
                 const isMatchedWithSelectedTemplate = cls.template_id === selectedTemplateId
+                const isUnassigned = !cls.template_id
 
                 return (
                   <div
                     key={cls.id}
                     onClick={() => toggleSelectClass(cls.id)}
-                    className={`px-2 py-1.5 rounded-xl border-2 transition cursor-pointer flex items-center justify-between gap-1.5 text-xs ${
+                    className={`px-2 py-2 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-1.5 text-xs ${
                       isMatchedWithSelectedTemplate
                         ? 'border-emerald-500 bg-emerald-100/80 shadow-xs ring-1 ring-emerald-500/40'
                         : isChecked
-                        ? 'border-slate-400 bg-slate-100 ring-1 ring-slate-400'
+                        ? 'border-slate-500 bg-slate-100 ring-1 ring-slate-400'
+                        : isUnassigned
+                        ? 'border-amber-300 bg-amber-50/70 hover:bg-amber-100/60'
                         : 'border-slate-200 bg-slate-50/40 hover:bg-slate-100'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        className="w-3.5 h-3.5 rounded text-emerald-600 cursor-pointer accent-emerald-600 shrink-0"
-                      />
-                      <span className={`font-black text-xs shrink-0 ${isMatchedWithSelectedTemplate ? 'text-emerald-950' : 'text-slate-900'}`}>
-                        {cls.code}
+                    <div className="flex items-center justify-between gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-3.5 h-3.5 rounded text-emerald-600 cursor-pointer accent-emerald-600 shrink-0"
+                        />
+                        <span className={`font-black text-xs shrink-0 ${isMatchedWithSelectedTemplate ? 'text-emerald-950' : 'text-slate-900'}`}>
+                          {cls.code}
+                        </span>
+                      </div>
+
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${
+                        isMatchedWithSelectedTemplate
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {cls.subject}
                       </span>
                     </div>
 
-                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${
-                      isMatchedWithSelectedTemplate
-                        ? 'bg-emerald-700 text-white'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {cls.subject}
-                    </span>
+                    {/* BADGE TRẠNG THÁI GÁN PPCT */}
+                    <div className="text-[10px] font-semibold">
+                      {isUnassigned ? (
+                        <span className="inline-flex items-center gap-1 text-amber-700 font-black">
+                          <AlertTriangle className="w-3 h-3 text-amber-500" />
+                          Chưa gán PPCT
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 truncate block">
+                          {templates.find((t) => t.id === cls.template_id)?.title || 'Đã gán khung'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )
               })
@@ -714,7 +777,7 @@ export default function CurriculumPage() {
                 <label className="block font-bold text-slate-600 mb-1">Tên khung PPCT:</label>
                 <input
                   type="text"
-                  placeholder="vd: GDĐP 11, Toán 12..."
+                  placeholder="vd: Toán 10 (Cơ bản), GDĐP 11..."
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-3 py-1.5 border rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"

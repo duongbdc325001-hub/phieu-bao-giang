@@ -1,8 +1,33 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Calendar, RefreshCw, ArrowLeftRight, X, RotateCcw } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import {
+  Document,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  AlignmentType,
+  WidthType,
+  BorderStyle,
+  VerticalAlign,
+} from 'docx'
+import { 
+  Calendar, 
+  RefreshCw, 
+  ArrowLeftRight, 
+  X, 
+  RotateCcw, 
+  FileText, 
+  Download,
+  AlertCircle
+} from 'lucide-react'
 
 interface ClassItem {
   id: string
@@ -94,6 +119,7 @@ export default function ReportsPage() {
   const [curriculum, setCurriculum] = useState<CurriculumItem[]>([])
   const [overrides, setOverrides] = useState<LessonOverride[]>([])
   const [loading, setLoading] = useState(false)
+  const [exportingWord, setExportingWord] = useState(false)
 
   const [editingSlot, setEditingSlot] = useState<{
     entry: ScheduleEntry
@@ -103,7 +129,6 @@ export default function ReportsPage() {
   } | null>(null)
   const [targetLessonOrder, setTargetLessonOrder] = useState<number>(1)
 
-  // Tính chuỗi ngày/tháng cụ thể cho Thứ theo tuần đang chọn
   const getFormattedDate = (offset: number) => {
     const d = new Date(START_DATE_WEEK_1)
     d.setDate(d.getDate() + (selectedWeek - 1) * 7 + offset)
@@ -181,7 +206,6 @@ export default function ReportsPage() {
 
       let validLessons: CurriculumItem[] = []
 
-      // 1. Kiểm tra template_id
       if (actualClass?.template_id) {
         const tpl = templates.find((t) => t.id === actualClass.template_id)
         if (tpl && getSubjectType(tpl.subject) === subType && tpl.grade === grade) {
@@ -189,7 +213,6 @@ export default function ReportsPage() {
         }
       }
 
-      // 2. Kiểm tra theo class_id
       if (validLessons.length === 0 && actualClass?.id) {
         const direct = curriculum.filter((c) => c.class_id === actualClass.id)
         const isClean = direct.every((d) => {
@@ -204,7 +227,6 @@ export default function ReportsPage() {
         }
       }
 
-      // 3. Fallback khớp chuẩn cả Môn lẫn Khối
       if (validLessons.length === 0) {
         const matchedTemplate = templates.find(
           (t) => getSubjectType(t.subject) === subType && t.grade === grade
@@ -258,7 +280,7 @@ export default function ReportsPage() {
       }
     })
 
-    const weekRows: any[] = []
+    const weekRows: { day: typeof DAYS[0]; slots: any[] }[] = []
 
     DAYS.forEach((day) => {
       const daySlots: any[] = []
@@ -284,8 +306,12 @@ export default function ReportsPage() {
           continue
         }
 
-        const defaultEntry = schedule.find(
-          (s) => s.day_of_week === day.id && s.period_number === p && (!s.is_substitute || s.is_substitute === false)
+        const weekOnlyEntry = schedule.find(
+          (s) => s.day_of_week === day.id && s.period_number === p && !s.is_substitute && s.week_number === selectedWeek
+        )
+
+        const defaultEntry = weekOnlyEntry || schedule.find(
+          (s) => s.day_of_week === day.id && s.period_number === p && (!s.is_substitute || s.is_substitute === false) && (s.week_number === 0 || !s.week_number)
         )
 
         if (defaultEntry) {
@@ -320,6 +346,325 @@ export default function ReportsPage() {
 
   const reportData = calculateReportRows()
   const totalSlotsCount = reportData.reduce((acc, curr) => acc + curr.slots.length, 0)
+
+  // XUẤT WORD MẪU C2 TRỰC TIẾP TẠI CHỖ
+  const handleExportWord = async () => {
+    if (reportData.length === 0) {
+      alert('Tuần này chưa có tiết dạy để xuất!')
+      return
+    }
+
+    setExportingWord(true)
+
+    try {
+      const tableRows: TableRow[] = [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 14, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Thứ, ngày', bold: true, size: 21 })] })],
+            }),
+            new TableCell({
+              width: { size: 18, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Môn - Lớp', bold: true, size: 21 })] })],
+            }),
+            new TableCell({
+              width: { size: 12, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tiết theo TKB', bold: true, size: 21 })] })],
+            }),
+            new TableCell({
+              width: { size: 36, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tên bài dạy', bold: true, size: 21 })] })],
+            }),
+            new TableCell({
+              width: { size: 10, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tiết theo CT', bold: true, size: 21 })] })],
+            }),
+            new TableCell({
+              width: { size: 10, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Ghi chú', bold: true, size: 21 })] })],
+            }),
+          ],
+        }),
+      ]
+
+      reportData.forEach((group) => {
+        const dayName = group.day.name
+        const dayDate = getFormattedDate(group.day.offset)
+
+        group.slots.forEach((slot, sIdx) => {
+          const isFirstSlot = sIdx === 0
+          const rowCells: TableCell[] = []
+
+          if (isFirstSlot) {
+            rowCells.push(
+              new TableCell({
+                rowSpan: group.slots.length,
+                verticalAlign: VerticalAlign.CENTER,
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: dayName, bold: true, size: 21 })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: dayDate, italics: true, size: 19 })],
+                  }),
+                ],
+              })
+            )
+          }
+
+          let noteText = ''
+          if (slot.isSubstitute) noteText = `Dạy thay ${slot.subTeacher ? `(${slot.subTeacher})` : ''}`
+          else if (slot.isOverridden) noteText = 'Đã đảo tiết'
+
+          rowCells.push(
+            new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: slot.subjectClass, size: 20 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: String(slot.period), size: 20 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [new TextRun({ text: slot.lessonName || '', size: 20 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: String(slot.lessonOrder), size: 20 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: noteText, italics: true, size: 18 })],
+                }),
+              ],
+            })
+          )
+
+          tableRows.push(new TableRow({ children: rowCells }))
+        })
+      })
+
+      const startDateObj = new Date(START_DATE_WEEK_1)
+      startDateObj.setDate(startDateObj.getDate() + (selectedWeek - 1) * 7)
+      const fromD = startDateObj.getDate()
+      const fromM = startDateObj.getMonth() + 1
+      const fromY = startDateObj.getFullYear()
+
+      const endDateObj = new Date(startDateObj)
+      endDateObj.setDate(endDateObj.getDate() + 5)
+      const toD = endDateObj.getDate()
+      const toM = endDateObj.getMonth() + 1
+      const toY = endDateObj.getFullYear()
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE },
+                  bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                  insideHorizontal: { style: BorderStyle.NONE },
+                  insideVertical: { style: BorderStyle.NONE },
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 52, type: WidthType.PERCENTAGE },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', size: 19 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [
+                              new TextRun({
+                                text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ',
+                                bold: true,
+                                size: 19,
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 48, type: WidthType.PERCENTAGE },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 19 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 19, underline: {} })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+
+              new Paragraph({ text: '', spacing: { before: 180 } }),
+
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: `PHIẾU BÁO GIẢNG TUẦN ${selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}`, bold: true, size: 26 })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `(Từ ngày ${fromD < 10 ? '0' + fromD : fromD} tháng ${fromM < 10 ? '0' + fromM : fromM} đến ngày ${toD < 10 ? '0' + toD : toD} tháng ${toM < 10 ? '0' + toM : toM} năm ${toY})`,
+                    italics: true,
+                    size: 20,
+                  }),
+                ],
+              }),
+
+              new Paragraph({ text: '', spacing: { before: 180 } }),
+
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows,
+              }),
+
+              new Paragraph({ text: '', spacing: { before: 250 } }),
+
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE },
+                  bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                  insideHorizontal: { style: BorderStyle.NONE },
+                  insideVertical: { style: BorderStyle.NONE },
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'KIỂM TRA CỦA HIỆU TRƯỞNG', bold: true, size: 20 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: `Ngày ${fromD < 10 ? '0' + fromD : fromD} tháng ${fromM < 10 ? '0' + fromM : fromM} năm ${fromY}`, size: 18 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: '(Ký, ghi rõ họ tên và đóng dấu)', italics: true, size: 17 })],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'KIỂM TRA CỦA TTCM', bold: true, size: 20 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: `Ngày ${toD < 10 ? '0' + toD : toD} tháng ${toM < 10 ? '0' + toM : toM} năm ${toY}`, size: 18 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: '(Ký và ghi rõ họ tên)', italics: true, size: 17 })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          },
+        ],
+      })
+
+      const blob = await Packer.toBlob(doc)
+      saveAs(blob, `Phieu_Bao_Giang_Tuan_${selectedWeek}.docx`)
+    } catch (err: any) {
+      alert('Lỗi xuất Word: ' + err.message)
+    } finally {
+      setExportingWord(false)
+    }
+  }
+
+  // XUẤT EXCEL TRỰC TIẾP TẠI CHỖ
+  const handleExportExcel = () => {
+    if (reportData.length === 0) {
+      alert('Tuần này chưa có tiết dạy để xuất!')
+      return
+    }
+
+    const exportRows: any[] = []
+    reportData.forEach((group) => {
+      group.slots.forEach((slot) => {
+        let noteText = ''
+        if (slot.isSubstitute) noteText = `Dạy thay ${slot.subTeacher ? `(${slot.subTeacher})` : ''}`
+        else if (slot.isOverridden) noteText = 'Đã đảo tiết'
+
+        exportRows.push({
+          'Thứ, ngày': `${group.day.name} (${getFormattedDate(group.day.offset)})`,
+          'Môn - Lớp': slot.subjectClass,
+          'Tiết theo TKB': slot.period,
+          'Tên bài dạy theo PPCT': slot.lessonName || '',
+          'Tiết theo CT': slot.lessonOrder,
+          'Ghi chú': noteText,
+        })
+      })
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Tuan_${selectedWeek}`)
+    XLSX.writeFile(workbook, `Phieu_Bao_Giang_Tuan_${selectedWeek}.xlsx`)
+  }
 
   const handleSaveOverride = async () => {
     if (!editingSlot) return
@@ -371,7 +716,8 @@ export default function ReportsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* BỘ CHỌN TUẦN */}
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
             <Calendar className="w-4 h-4 text-emerald-600" />
             <span className="text-xs font-bold text-slate-500 uppercase">Tuần Dạy:</span>
@@ -388,6 +734,29 @@ export default function ReportsPage() {
             </select>
           </div>
 
+          {/* NÚT XUẤT WORD TRỰC TIẾP */}
+          <button
+            onClick={handleExportWord}
+            disabled={exportingWord || loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
+            title="Xuất tệp Word (.docx) chuẩn phôi Mẫu C2 cho tuần này"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>{exportingWord ? 'Đang tạo Word...' : 'Xuất Word'}</span>
+          </button>
+
+          {/* NÚT TẢI EXCEL TRỰC TIẾP */}
+          <button
+            onClick={handleExportExcel}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
+            title="Tải về tệp Excel (.xlsx) cho tuần này"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Tải Excel</span>
+          </button>
+
+          {/* NÚT LÀM MỚI */}
           <button
             onClick={loadData}
             disabled={loading}
@@ -399,6 +768,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* BẢNG BÁO GIẢNG */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="p-3.5 bg-slate-50 border-b flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -447,7 +817,6 @@ export default function ReportsPage() {
                             <span className="text-sm font-black text-slate-900 block">
                               {group.day.name}
                             </span>
-                            {/* Dòng ngày tháng tự động tính toán */}
                             <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-block mt-1">
                               {getFormattedDate(group.day.offset)}
                             </span>
@@ -466,9 +835,14 @@ export default function ReportsPage() {
                           {hasLesson ? (
                             <span className="text-slate-900 font-bold">{slot.lessonName}</span>
                           ) : (
-                            <span className="text-slate-400 italic">
-                              Chưa có PPCT cho tiết này
-                            </span>
+                            <Link
+                              href="/dashboard/curriculum"
+                              className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-1 rounded-md transition font-semibold"
+                              title="Lớp này chưa có bài dạy trong PPCT, bấm để cấu hình"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Chưa có PPCT — Bấm để gán</span>
+                            </Link>
                           )}
                         </td>
 
@@ -518,6 +892,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* POPUP ĐIỀU CHỈNH SỐ TIẾT */}
       {editingSlot && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl border">
@@ -525,7 +900,7 @@ export default function ReportsPage() {
               <span className="font-bold text-slate-800 text-xs uppercase">
                 Điều chỉnh số tiết PPCT
               </span>
-              <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -548,15 +923,16 @@ export default function ReportsPage() {
                 <button
                   onClick={handleSaveOverride}
                   disabled={loading}
-                  className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs transition"
+                  className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
                 >
                   Lưu
                 </button>
                 {editingSlot.isOverridden && !editingSlot.entry.is_substitute && (
                   <button
                     onClick={handleResetOverride}
+                    disabled={loading}
                     title="Về tiến độ gốc"
-                    className="p-1.5 border rounded-lg hover:bg-slate-50 text-slate-600"
+                    className="p-1.5 border rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
