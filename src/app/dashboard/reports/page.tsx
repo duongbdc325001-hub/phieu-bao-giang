@@ -26,9 +26,7 @@ import {
   RotateCcw, 
   FileText, 
   Download,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight
+  AlertCircle
 } from 'lucide-react'
 
 interface ClassItem {
@@ -83,12 +81,12 @@ interface LessonOverride {
 const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
 
 const DAYS = [
-  { id: 2, name: 'Thứ Hai', short: 'T2', offset: 0 },
-  { id: 3, name: 'Thứ Ba', short: 'T3', offset: 1 },
-  { id: 4, name: 'Thứ Tư', short: 'T4', offset: 2 },
-  { id: 5, name: 'Thứ Năm', short: 'T5', offset: 3 },
-  { id: 6, name: 'Thứ Sáu', short: 'T6', offset: 4 },
-  { id: 7, name: 'Thứ Bảy', short: 'T7', offset: 5 },
+  { id: 2, name: 'Thứ Hai', offset: 0 },
+  { id: 3, name: 'Thứ Ba', offset: 1 },
+  { id: 4, name: 'Thứ Tư', offset: 2 },
+  { id: 5, name: 'Thứ Năm', offset: 3 },
+  { id: 6, name: 'Thứ Sáu', offset: 4 },
+  { id: 7, name: 'Thứ Bảy', offset: 5 },
 ]
 
 const getSubjectType = (raw?: string): 'TOAN' | 'TRN' | 'GDDP' | 'OTHER' => {
@@ -136,14 +134,6 @@ export default function ReportsPage() {
     const day = String(d.getDate()).padStart(2, '0')
     const month = String(d.getMonth() + 1).padStart(2, '0')
     return `${day}/${month}`
-  }
-
-  const getWeekRangeString = () => {
-    const start = new Date(START_DATE_WEEK_1)
-    start.setDate(start.getDate() + (selectedWeek - 1) * 7)
-    const end = new Date(start)
-    end.setDate(end.getDate() + 5)
-    return `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')} - ${String(end.getDate()).padStart(2, '0')}/${String(end.getMonth() + 1).padStart(2, '0')}/${end.getFullYear()}`
   }
 
   const loadData = async () => {
@@ -291,8 +281,6 @@ export default function ReportsPage() {
             entry: subEntry,
             day: day.id,
             period: p,
-            subject: subEntry.sub_subject || 'Dạy thay',
-            classCode: subEntry.sub_class_code || '',
             subjectClass: `${subEntry.sub_subject || 'Dạy thay'} - ${subEntry.sub_class_code}`,
             lessonOrder: subEntry.sub_lesson_order || 1,
             lessonName: subEntry.sub_lesson_name || '',
@@ -314,16 +302,18 @@ export default function ReportsPage() {
 
         if (defaultEntry) {
           const info = lessonMap[`${day.id}_${p}`]
-          const subject = defaultEntry.classes?.subject || 'Toán'
+          const rawSub = defaultEntry.classes?.subject || 'Toán'
+          let shortSub = rawSub
+          if (rawSub === 'Toán') shortSub = 'T'
+          else if (rawSub === 'HĐTN') shortSub = 'TrN'
+          
           const code = defaultEntry.classes?.code || ''
 
           daySlots.push({
             entry: defaultEntry,
             day: day.id,
             period: p,
-            subject,
-            classCode: code,
-            subjectClass: `${subject} - ${code}`,
+            subjectClass: `${shortSub} - ${code}`,
             lessonOrder: info ? info.order : '—',
             lessonName: info?.name || '',
             isSubstitute: false,
@@ -608,128 +598,153 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-3 font-sans pb-8">
-      {/* THANH ĐIỀU HƯỚNG TUẦN VÀ XUẤT BÁO CÁO NHẸ NHÀNG */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
-        <div className="flex items-center justify-between gap-2">
-          {/* NÚT LÙI / TIẾN TUẦN NHANH */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setSelectedWeek((w) => Math.max(1, w - 1))}
-              disabled={selectedWeek <= 1}
-              className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
-              <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-              <select
-                value={selectedWeek}
-                onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                className="font-black text-emerald-900 bg-transparent text-xs focus:outline-none cursor-pointer"
-              >
-                {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
-                  <option key={w} value={w}>
-                    Tuần {w < 10 ? '0' + w : w}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={() => setSelectedWeek((w) => Math.min(35, w + 1))}
-              disabled={selectedWeek >= 35}
-              className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* SỐ TIẾT TRONG TUẦN */}
-          <span className="text-[11px] font-bold text-slate-500">
-            {totalSlotsCount} tiết dạy
-          </span>
+    <div className="max-w-7xl mx-auto space-y-2.5 sm:space-y-4 font-sans pb-8">
+      {/* HEADER & THANH CÔNG CỤ */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-2 sm:pb-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">Lịch Báo Giảng</h1>
+          <p className="text-[11px] sm:text-xs text-slate-500">Đồng bộ bài dạy theo TKB (Tuần 1 từ 07/09/2026)</p>
         </div>
 
-        {/* THÔNG TIN KHOẢNG NGÀY & NÚT XUẤT */}
-        <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 gap-2">
-          <span className="text-[11px] text-slate-500 font-medium">
-            Áp dụng: <strong className="text-slate-700">{getWeekRangeString()}</strong>
-          </span>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleExportWord}
-              disabled={exportingWord || loading}
-              className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition cursor-pointer disabled:opacity-50"
+        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-end">
+          {/* CHỌN TUẦN */}
+          <div className="flex items-center gap-1 bg-white px-2 py-1.5 border rounded-xl shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              <FileText className="w-3 h-3" />
-              <span>{exportingWord ? 'Đang xuất...' : 'Word'}</span>
-            </button>
-
-            <button
-              onClick={handleExportExcel}
-              disabled={loading}
-              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold shadow-2xs transition cursor-pointer disabled:opacity-50"
-            >
-              <Download className="w-3 h-3" />
-              <span>Excel</span>
-            </button>
-
-            <button
-              onClick={loadData}
-              disabled={loading}
-              className="p-1 border rounded-lg hover:bg-slate-50 text-slate-500"
-              title="Làm mới"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+              {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
+                <option key={w} value={w}>
+                  Tuần {w < 10 ? '0' + w : w}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {/* XUẤT WORD */}
+          <button
+            onClick={handleExportWord}
+            disabled={exportingWord || loading}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Word</span>
+          </button>
+
+          {/* TẢI EXCEL */}
+          <button
+            onClick={handleExportExcel}
+            disabled={loading}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Excel</span>
+          </button>
+
+          {/* LÀM MỚI */}
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="p-1.5 sm:px-2 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* ================= GIAO DIỆN DI ĐỘNG: KHỚP 100% BỀ NGANG, GỌN ĐẸP ================= */}
-      <div className="block md:hidden space-y-2.5">
-        {reportData.length === 0 ? (
-          <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border text-xs">
-            Tuần này chưa có tiết dạy nào trên Thời khóa biểu.
-          </div>
-        ) : (
-          reportData.map((group) => (
-            <div key={group.day.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-              {/* THANH TIÊU ĐỀ THỨ VÀ NGÀY */}
-              <div className="bg-[#f1f5f9] px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
-                <span className="font-black text-xs text-slate-800 tracking-wide uppercase">
-                  {group.day.name}
-                </span>
-                <span className="text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                  {getFormattedDate(group.day.offset)}
-                </span>
-              </div>
+      {/* THẺ TỔNG SỐ TIẾT */}
+      <div className="flex justify-between items-center bg-emerald-50/90 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs">
+        <span className="font-bold text-emerald-950">Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}</span>
+        <span className="font-black text-emerald-800">Tổng: {totalSlotsCount} tiết dạy</span>
+      </div>
 
-              {/* DANH SÁCH CÁC TIẾT TRONG NGÀY */}
-              <div className="divide-y divide-slate-100 text-xs">
-                {group.slots.map((slot: any) => {
+      {/* ================= BẢNG BÁO GIẢNG VỪA KHÍT 100% CẢ TRÊN MOBILE VÀ LAPTOP ================= */}
+      <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-left text-xs">
+          <thead>
+            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px]">
+              {/* TỶ LỆ CỘT TỰ CO GIÃN THÔNG MINH */}
+              <th className="w-[18%] sm:w-[15%] p-2 sm:p-3 border-r border-slate-300 text-center">
+                THỨ, NGÀY
+              </th>
+              <th className="w-[20%] sm:w-[16%] p-1.5 sm:p-3 border-r border-slate-300 text-center">
+                MÔN - LỚP
+              </th>
+              <th className="w-[10%] sm:w-[9%] p-1 sm:p-3 border-r border-slate-300 text-center">
+                TIẾT TKB
+              </th>
+              <th className="w-[38%] sm:w-[42%] p-2 sm:p-3 border-r border-slate-300">
+                TÊN BÀI DẠY THEO PPCT
+              </th>
+              <th className="w-[14%] sm:w-[10%] p-1 sm:p-3 border-r border-slate-300 text-center">
+                TIẾT THEO CT
+              </th>
+              <th className="hidden sm:table-cell sm:w-[8%] p-3 text-center">
+                GHI CHÚ
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 text-slate-800">
+            {reportData.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-10 text-center text-slate-400">
+                  Tuần này chưa có tiết dạy nào được xếp trong Thời khóa biểu.
+                </td>
+              </tr>
+            ) : (
+              reportData.map((group) => {
+                return group.slots.map((slot: any, idx: number) => {
+                  const isFirst = idx === 0
                   const hasLesson = slot.lessonName && slot.lessonName.trim() !== ''
 
                   return (
-                    <div key={`${slot.day}_${slot.period}`} className="p-2.5 space-y-1.5">
-                      {/* DÒNG 1: TIẾT TKB + MÔN LỚP + NÚT ĐIỀU CHỈNH TIẾT */}
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-700 font-black text-[11px] flex items-center justify-center border border-slate-200">
-                            {slot.period}
+                    <tr key={`${slot.day}_${slot.period}`} className="hover:bg-slate-50/80 transition">
+                      {/* CỘT THỨ, NGÀY (GỘP Ô BẰNG ROWSPAN) */}
+                      {isFirst && (
+                        <td
+                          rowSpan={group.slots.length}
+                          className="p-1 sm:p-2.5 border-r border-slate-300 text-center font-black bg-slate-50/60 align-middle"
+                        >
+                          <span className="text-[11px] sm:text-xs font-black text-slate-900 block leading-tight">
+                            {group.day.name}
                           </span>
-                          <span className="font-black text-xs text-slate-900">
-                            {slot.classCode}
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-1.5 py-0.5 rounded-full inline-block mt-1">
+                            {getFormattedDate(group.day.offset)}
                           </span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            {slot.subject === 'Toán' ? 'Toán' : slot.subject}
-                          </span>
-                        </div>
+                        </td>
+                      )}
 
-                        {/* NÚT BẤM ĐẢO TIẾT */}
+                      {/* MÔN - LỚP */}
+                      <td className="p-1 sm:p-2 border-r border-slate-300 text-center font-black text-slate-900 text-[11px] sm:text-xs">
+                        {slot.subjectClass}
+                      </td>
+
+                      {/* TIẾT TKB */}
+                      <td className="p-1 sm:p-2 border-r border-slate-300 text-center font-black text-emerald-700 text-xs sm:text-sm">
+                        {slot.period}
+                      </td>
+
+                      {/* TÊN BÀI DẠY THEO PPCT */}
+                      <td className="p-1.5 sm:p-2.5 border-r border-slate-300 align-middle">
+                        {hasLesson ? (
+                          <span className="text-slate-900 font-medium line-clamp-2 leading-snug text-[11px] sm:text-xs">
+                            {slot.lessonName}
+                          </span>
+                        ) : (
+                          <Link
+                            href="/dashboard/curriculum"
+                            className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md font-semibold"
+                          >
+                            <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span>Chưa có PPCT — Bấm để gán</span>
+                          </Link>
+                        )}
+                      </td>
+
+                      {/* TIẾT THEO CT (NÚT ĐẢO TIẾT GỌN GÀNG) */}
+                      <td className="p-1 sm:p-2 border-r border-slate-300 text-center align-middle">
                         <button
                           onClick={() => {
                             setEditingSlot({
@@ -740,166 +755,41 @@ export default function ReportsPage() {
                             })
                             setTargetLessonOrder(Number(slot.lessonOrder) || 1)
                           }}
-                          className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 cursor-pointer transition ${
+                          className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md inline-flex items-center justify-center gap-0.5 transition cursor-pointer font-black text-xs ${
                             slot.isOverridden
                               ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'text-blue-700 bg-blue-50 border border-blue-200'
                           }`}
                         >
-                          <span>Tiết {slot.lessonOrder}</span>
+                          <span>{slot.lessonOrder}</span>
                           <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
                         </button>
-                      </div>
+                      </td>
 
-                      {/* DÒNG 2: TÊN BÀI DẠY */}
-                      <div className="pl-6.5 text-[11px] leading-snug">
-                        {hasLesson ? (
-                          <span className="text-slate-800 font-semibold">{slot.lessonName}</span>
+                      {/* GHI CHÚ (ẨN TRÊN ĐIỆN THOẠI, HIỆN TRÊN LAPTOP) */}
+                      <td className="hidden sm:table-cell p-2 text-center text-xs">
+                        {slot.isSubstitute ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                            Dạy thay {slot.subTeacher ? `(${slot.subTeacher})` : ''}
+                          </span>
+                        ) : slot.isOverridden ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            Đã đảo tiết
+                          </span>
                         ) : (
-                          <Link
-                            href="/dashboard/curriculum"
-                            className="inline-flex items-center gap-1 text-amber-700 font-bold hover:underline"
-                          >
-                            <AlertCircle className="w-3 h-3 text-amber-600" />
-                            <span>Chưa có bài dạy (Bấm để gán PPCT)</span>
-                          </Link>
+                          <span className="text-slate-300">—</span>
                         )}
-                      </div>
-
-                      {/* DÒNG 3: HUY HIỆU DẠY THAY / ĐÃ ĐẢO TIẾT NẾU CÓ */}
-                      {(slot.isSubstitute || slot.isOverridden) && (
-                        <div className="pl-6.5">
-                          {slot.isSubstitute ? (
-                            <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
-                              Dạy thay {slot.subTeacher ? `(${slot.subTeacher})` : ''}
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
-                              Đã đảo tiết
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                      </td>
+                    </tr>
                   )
-                })}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ================= GIAO DIỆN LAPTOP: BẢNG 6 CỘT CHUẨN C2 ================= */}
-      <div className="hidden md:block bg-white rounded-2xl border shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead className="bg-slate-100 text-slate-700 font-bold border-b uppercase tracking-wider">
-              <tr>
-                <th className="p-2.5 border-r text-center w-28">Thứ, ngày</th>
-                <th className="p-2.5 border-r text-center w-36">Môn - Lớp</th>
-                <th className="p-2.5 border-r text-center w-20">Tiết TKB</th>
-                <th className="p-2.5 border-r">Tên bài dạy theo PPCT</th>
-                <th className="p-2.5 border-r text-center w-24">Tiết theo CT</th>
-                <th className="p-2.5 text-center w-28">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y text-slate-700">
-              {reportData.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400">
-                    Tuần này chưa có tiết dạy nào được xếp trong Thời khóa biểu.
-                  </td>
-                </tr>
-              ) : (
-                reportData.map((group) => {
-                  return group.slots.map((slot: any, idx: number) => {
-                    const isFirst = idx === 0
-                    const hasLesson = slot.lessonName && slot.lessonName.trim() !== ''
-
-                    return (
-                      <tr key={`${slot.day}_${slot.period}`} className="hover:bg-slate-50/80 transition">
-                        {isFirst && (
-                          <td
-                            rowSpan={group.slots.length}
-                            className="p-3 border-r text-center font-black text-slate-800 bg-slate-50/50 align-middle"
-                          >
-                            <span className="text-sm font-black text-slate-900 block">
-                              {group.day.name}
-                            </span>
-                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-block mt-1">
-                              {getFormattedDate(group.day.offset)}
-                            </span>
-                          </td>
-                        )}
-
-                        <td className="p-2.5 border-r text-center font-black text-slate-900">
-                          {slot.subjectClass}
-                        </td>
-
-                        <td className="p-2.5 border-r text-center font-black text-emerald-700">
-                          {slot.period}
-                        </td>
-
-                        <td className="p-2.5 border-r font-medium">
-                          {hasLesson ? (
-                            <span className="text-slate-900 font-bold">{slot.lessonName}</span>
-                          ) : (
-                            <Link
-                              href="/dashboard/curriculum"
-                              className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-1 rounded-md transition font-semibold"
-                            >
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Chưa có PPCT — Bấm để gán</span>
-                            </Link>
-                          )}
-                        </td>
-
-                        <td className="p-2.5 border-r text-center font-black">
-                          <button
-                            onClick={() => {
-                              setEditingSlot({
-                                entry: slot.entry,
-                                slotOrderInWeek: slot.slotOrderInWeek,
-                                currentLessonOrder: Number(slot.lessonOrder) || 1,
-                                isOverridden: slot.isOverridden,
-                              })
-                              setTargetLessonOrder(Number(slot.lessonOrder) || 1)
-                            }}
-                            className={`px-2 py-0.5 rounded-md inline-flex items-center gap-1 hover:ring-2 hover:ring-blue-400 transition cursor-pointer ${
-                              slot.isOverridden
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : 'text-blue-700 bg-blue-50 border border-blue-200'
-                            }`}
-                          >
-                            <span>{slot.lessonOrder}</span>
-                            <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
-                          </button>
-                        </td>
-
-                        <td className="p-2.5 text-center">
-                          {slot.isSubstitute ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
-                              Dạy thay {slot.subTeacher ? `(${slot.subTeacher})` : ''}
-                            </span>
-                          ) : slot.isOverridden ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                              Đã đảo tiết
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })
                 })
-              )}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* POPUP ĐIỀU CHỈNH TIẾT PPCT */}
+      {/* POPUP ĐIỀU CHỈNH TIẾT */}
       {editingSlot && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 shadow-2xl border">
