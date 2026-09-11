@@ -41,12 +41,12 @@ interface ScheduleEntry {
 }
 
 const DAYS = [
-  { id: 2, name: 'Thứ Hai' },
-  { id: 3, name: 'Thứ Ba' },
-  { id: 4, name: 'Thứ Tư' },
-  { id: 5, name: 'Thứ Năm' },
-  { id: 6, name: 'Thứ Sáu' },
-  { id: 7, name: 'Thứ Bảy' },
+  { id: 2, name: 'Thứ Hai', date: '07/09' },
+  { id: 3, name: 'Thứ Ba', date: '08/09' },
+  { id: 4, name: 'Thứ Tư', date: '09/09' },
+  { id: 5, name: 'Thứ Năm', date: '10/09' },
+  { id: 6, name: 'Thứ Sáu', date: '11/09' },
+  { id: 7, name: 'Thứ Bảy', date: '12/09' },
 ]
 
 // 15 MÔN HỌC CHUẨN THPT
@@ -73,14 +73,14 @@ const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ'
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
-// MÀU SẮC PHÂN LOẠI THEO PHÂN MÔN
+// MÀU SẮC THẺ THEO MẪU
 const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (isSub) {
     return {
-      card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
-      lessonBadge: 'bg-amber-200 text-amber-950 border border-amber-300',
+      card: 'bg-amber-50/90 border-amber-300 text-amber-950 hover:ring-amber-400',
+      topBadge: 'text-amber-800 font-bold',
       classText: 'text-amber-950',
-      subjectBadge: 'bg-amber-200/80 text-amber-950',
+      subjectBadge: 'text-amber-700',
     }
   }
 
@@ -88,36 +88,27 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
 
   if (s.includes('toán') || s === 't') {
     return {
-      card: 'bg-emerald-50/80 border-emerald-300 text-emerald-950 hover:ring-emerald-400',
-      lessonBadge: 'bg-emerald-200 text-emerald-900 border border-emerald-300',
-      classText: 'text-emerald-950',
-      subjectBadge: 'bg-emerald-200/80 text-emerald-900',
-    }
-  }
-
-  if (s.includes('gdđp') || s.includes('địa phương')) {
-    return {
-      card: 'bg-purple-50/80 border-purple-300 text-purple-950 hover:ring-purple-400',
-      lessonBadge: 'bg-purple-200 text-purple-900 border border-purple-300',
-      classText: 'text-purple-950',
-      subjectBadge: 'bg-purple-200/80 text-purple-900',
+      card: 'bg-white border-amber-300 text-slate-900 hover:ring-amber-400 shadow-2xs',
+      topBadge: 'text-slate-600 font-bold',
+      classText: 'text-slate-900',
+      subjectBadge: 'text-slate-600',
     }
   }
 
   if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
     return {
-      card: 'bg-sky-50/80 border-sky-300 text-sky-950 hover:ring-sky-400',
-      lessonBadge: 'bg-sky-200 text-sky-900 border border-sky-300',
-      classText: 'text-sky-950',
-      subjectBadge: 'bg-sky-200/80 text-sky-900',
+      card: 'bg-white border-purple-300 text-slate-900 hover:ring-purple-400 shadow-2xs',
+      topBadge: 'text-purple-700 font-bold',
+      classText: 'text-slate-900',
+      subjectBadge: 'text-purple-700',
     }
   }
 
   return {
-    card: 'bg-slate-50 border-slate-300 text-slate-800 hover:ring-slate-400',
-    lessonBadge: 'bg-slate-200 text-slate-800 border border-slate-300',
+    card: 'bg-white border-emerald-300 text-slate-900 hover:ring-emerald-400 shadow-2xs',
+    topBadge: 'text-emerald-700 font-bold',
     classText: 'text-slate-900',
-    subjectBadge: 'bg-slate-200 text-slate-800',
+    subjectBadge: 'text-emerald-700',
   }
 }
 
@@ -126,7 +117,7 @@ export default function SchedulePage() {
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([])
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedWeek, setSelectedWeek] = useState<number>(0)
+  const [selectedWeek, setSelectedWeek] = useState<number>(1)
 
   // Modal xếp tiết
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -165,17 +156,8 @@ export default function SchedulePage() {
     const sampleTKB = [
       { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '12A1', 'Môn': 'Toán' },
       { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 2, 'Lớp': '12A1', 'Môn': 'Toán' },
-      { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 3, 'Lớp': '11SỬ', 'Môn': 'Toán' },
-      { 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 4, 'Lớp': '11NGA', 'Môn': 'Toán' },
-      { 'Thứ': 3, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '11SỬ', 'Môn': 'Toán' },
-      { 'Thứ': 3, 'Buổi': 'Sáng', 'Tiết': 2, 'Lớp': '11SỬ', 'Môn': 'Toán' },
-      { 'Thứ': 4, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '12A1', 'Môn': 'Toán' },
-      { 'Thứ': 5, 'Buổi': 'Sáng', 'Tiết': 2, 'Lớp': '11NGA', 'Môn': 'Toán' },
-      { 'Thứ': 6, 'Buổi': 'Sáng', 'Tiết': 3, 'Lớp': '11A1', 'Môn': 'GDĐP' },
     ]
-
     const ws = XLSX.utils.json_to_sheet(sampleTKB)
-    ws['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'TKB Mau')
     XLSX.writeFile(wb, 'Mau_Thoi_Khoa_Bieu.xlsx')
@@ -310,35 +292,20 @@ export default function SchedulePage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-2.5">
+      {/* HEADER GIỐNG MẪU */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 gap-2.5">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu</h1>
+          <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu Giảng Dạy</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Phân loại màu sắc trực quan và xếp lịch dạy học
+            Mốc thời gian thực: <strong className="text-slate-700">Tuần {selectedWeek} bắt đầu từ 07/09</strong> — Tự động cập nhật theo ngày hiện tại
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => openModal(2, 1)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Thêm Tiết</span>
-          </button>
-
-          <button
-            onClick={handleDownloadSampleTKB}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition border cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-600" />
-            <span>Tải Mẫu TKB</span>
-          </button>
-
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 border rounded-xl shadow-xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="text-xs font-bold text-slate-500 uppercase">Xem:</span>
+          {/* XEM TUẦN */}
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border-2 border-emerald-600 rounded-xl shadow-xs">
+            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-600 uppercase">Xem tuần:</span>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
@@ -347,136 +314,112 @@ export default function SchedulePage() {
               <option value={0}>Lịch Cố Định (Cả năm)</option>
               {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w}
+                  Tuần {w < 10 ? '0' + w : w} {w === 1 ? '(Hiện tại)' : ''}
                 </option>
               ))}
             </select>
           </div>
 
           <button
+            onClick={handleDownloadSampleTKB}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Nhập TKB (Excel / JSON)</span>
+          </button>
+
+          <button
             onClick={loadData}
             disabled={loading}
-            className="p-1.5 sm:px-3 sm:py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      {/* THANH THỐNG KÊ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-emerald-800 uppercase block">Toán ({currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'Toán').length}t)</span>
-            <span className="text-lg font-black text-emerald-950">{totalSlotsCount} tiết tổng</span>
-          </div>
-          <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-xs" />
-        </div>
-
-        <div className="bg-purple-50 border border-purple-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-purple-800 uppercase block">GDĐP</span>
-            <span className="text-lg font-black text-purple-950">
-              {currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'GDĐP').length} tiết
-            </span>
-          </div>
-          <div className="w-4 h-4 rounded-full bg-purple-500 shadow-xs" />
-        </div>
-
-        <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-sky-800 uppercase block">HĐTN</span>
-            <span className="text-lg font-black text-sky-950">
-              {currentWeekSlots.filter((s: any) => (s.sub_subject || s.classes?.subject) === 'HĐTN').length} tiết
-            </span>
-          </div>
-          <div className="w-4 h-4 rounded-full bg-sky-500 shadow-xs" />
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-amber-800 uppercase block">Dạy thay</span>
-            <span className="text-lg font-black text-amber-950">{substituteSlotsCount} tiết</span>
-          </div>
-          <div className="w-4 h-4 rounded-full bg-amber-500 shadow-xs" />
-        </div>
-      </div>
-
-      {/* BẢNG LƯỚI TKB */}
-      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      {/* BẢNG LƯỚI TKB CHUẨN GIAO DIỆN MẪU */}
+      <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
-            <thead className="bg-slate-100 text-slate-700 font-bold border-b uppercase tracking-wider">
+            <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider">
               <tr>
-                <th className="p-3 border-r text-center w-20">Tiết</th>
-                {DAYS.map((d) => (
-                  <th key={d.id} className="p-3 border-r text-center w-40">
-                    {d.name}
-                  </th>
-                ))}
+                <th className="p-3 border-r-2 border-slate-300 text-center w-20 text-slate-600">TIẾT</th>
+                {DAYS.map((d) => {
+                  const isCurrentDay = d.id === 5 // Ví dụ Thứ Sáu 11/09
+                  return (
+                    <th 
+                      key={d.id} 
+                      className={`p-3 border-r-2 border-slate-300 text-center w-40 ${
+                        isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
+                      }`}
+                    >
+                      <div>{d.name}</div>
+                      <div className="text-[11px] font-normal text-slate-500 mt-0.5">{d.date}</div>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
-            <tbody className="divide-y text-slate-700">
+            <tbody className="divide-y-2 divide-slate-200 text-slate-700">
               {[1, 2, 3, 4, 5].map((period) => (
-                <tr key={period} className="hover:bg-slate-50/50 transition">
-                  <td className="p-3 border-r text-center font-black text-slate-800 bg-slate-50/80">
+                <tr key={period} className="hover:bg-slate-50/30 transition">
+                  <td className="p-3 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50">
                     Tiết {period}
                   </td>
                   {DAYS.map((day) => {
                     const slot = getSlot(day.id, period)
                     const isSub = slot?.is_substitute
-                    const isWeekSpecific = slot && slot.week_number && slot.week_number > 0
                     const subject = isSub ? slot.sub_subject : slot?.classes?.subject
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
                     const lessonNum = slot?.sub_lesson_order || period
                     const theme = getSlotColorTheme(subject, isSub)
+                    const subPrefix = (subject || 'Toán').substring(0, 3).toUpperCase()
 
                     return (
-                      <td key={day.id} className="p-2 border-r text-center align-middle h-24 relative group">
+                      <td key={day.id} className="p-2 border-r-2 border-slate-200 text-center align-middle h-24 relative group">
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`p-2 rounded-xl border-2 flex flex-col items-center justify-between relative shadow-xs cursor-pointer transition hover:scale-[1.02] hover:shadow-md ${theme.card}`}
+                            className={`p-2.5 rounded-xl border-2 flex flex-col items-center justify-between relative shadow-xs cursor-pointer transition hover:scale-[1.02] hover:shadow-md ${theme.card}`}
                           >
-                            {/* TOP: NHÃN TUẦN / DẠY THAY */}
-                            <div className="w-full flex items-center justify-end gap-1 mb-0.5">
-                              {isSub ? (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 border border-amber-300">
-                                  Dạy thay
-                                </span>
-                              ) : isWeekSpecific ? (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-200 text-blue-900">
-                                  Tuần {slot.week_number}
-                                </span>
-                              ) : null}
+                            {/* TOP: TIẾT PPCT (ví dụ: T-1, TRN-1, GDĐP-1) */}
+                            <div className="w-full text-center">
+                              <span className={`text-[11px] font-bold tracking-wide ${theme.topBadge}`}>
+                                {subPrefix}-{lessonNum}
+                              </span>
                             </div>
 
-                            {/* CLASS CODE (TRÊN) & TIẾT PPCT (CHÍNH GIỮA) */}
-                            <div className="flex flex-col items-center justify-center my-0.5 space-y-0.5">
-                              <span className={`font-black text-sm tracking-wide ${theme.classText}`}>
+                            {/* CENTER: TÊN LỚP (To và đậm ở giữa giống mẫu) */}
+                            <div className="my-1">
+                              <span className={`font-black text-lg tracking-tight ${theme.classText}`}>
                                 {classCode}
                               </span>
-                              <span className={`text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs ${theme.lessonBadge}`}>
-                                Tiết {lessonNum}
-                              </span>
                             </div>
 
-                            {/* BOTTOM: PHÂN MÔN */}
-                            <div className="w-full flex items-center justify-center mt-0.5">
-                              <span className={`text-[10px] font-bold px-2 py-0.2 rounded-md uppercase ${theme.subjectBadge}`}>
-                                {subject === 'Toán' ? 'Toán' : subject}
-                              </span>
+                            {/* BOTTOM: THÔNG TIN PHỤ ẨN / HIỆN KHI HOVER */}
+                            <div className="w-full text-center">
+                              {isSub ? (
+                                <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                                  Dạy thay
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-slate-400 font-medium">
+                                  {subject}
+                                </span>
+                              )}
                             </div>
 
-                            {/* NÚT THAO TÁC ẨN */}
-                            <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                            {/* NÚT THAO TÁC KHI HOVER */}
+                            <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/90 p-0.5 rounded shadow-xs">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   openModal(day.id, period, slot)
                                 }}
                                 title="Sửa tiết"
-                                className="p-1 text-slate-500 hover:text-blue-600 hover:bg-white rounded transition cursor-pointer"
+                                className="p-1 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
                               >
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -486,7 +429,7 @@ export default function SchedulePage() {
                                   handleDeleteSlot(slot.id)
                                 }}
                                 title="Xóa tiết"
-                                className="p-1 text-slate-500 hover:text-rose-600 hover:bg-white rounded transition cursor-pointer"
+                                className="p-1 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -495,7 +438,7 @@ export default function SchedulePage() {
                         ) : (
                           <button
                             onClick={() => openModal(day.id, period)}
-                            className="w-full h-full min-h-[56px] border-2 border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
+                            className="w-full h-full min-h-[64px] border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
                             title={`Xếp Tiết ${period}`}
                           >
                             <Plus className="w-4 h-4" />
