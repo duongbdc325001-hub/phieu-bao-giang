@@ -78,7 +78,7 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (isSub) {
     return {
       card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
-      periodBadge: 'bg-amber-100 text-amber-900',
+      lessonBadge: 'bg-amber-200 text-amber-950 border border-amber-300',
       classText: 'text-amber-950',
       subjectBadge: 'bg-amber-200/80 text-amber-950',
     }
@@ -89,7 +89,7 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (s.includes('toán') || s === 't') {
     return {
       card: 'bg-emerald-50/80 border-emerald-300 text-emerald-950 hover:ring-emerald-400',
-      periodBadge: 'bg-emerald-100 text-emerald-800',
+      lessonBadge: 'bg-emerald-200 text-emerald-900 border border-emerald-300',
       classText: 'text-emerald-950',
       subjectBadge: 'bg-emerald-200/80 text-emerald-900',
     }
@@ -98,7 +98,7 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (s.includes('gdđp') || s.includes('địa phương')) {
     return {
       card: 'bg-purple-50/80 border-purple-300 text-purple-950 hover:ring-purple-400',
-      periodBadge: 'bg-purple-100 text-purple-800',
+      lessonBadge: 'bg-purple-200 text-purple-900 border border-purple-300',
       classText: 'text-purple-950',
       subjectBadge: 'bg-purple-200/80 text-purple-900',
     }
@@ -107,7 +107,7 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
   if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
     return {
       card: 'bg-sky-50/80 border-sky-300 text-sky-950 hover:ring-sky-400',
-      periodBadge: 'bg-sky-100 text-sky-800',
+      lessonBadge: 'bg-sky-200 text-sky-900 border border-sky-300',
       classText: 'text-sky-950',
       subjectBadge: 'bg-sky-200/80 text-sky-900',
     }
@@ -115,7 +115,7 @@ const getSlotColorTheme = (subject?: string, isSub?: boolean) => {
 
   return {
     card: 'bg-slate-50 border-slate-300 text-slate-800 hover:ring-slate-400',
-    periodBadge: 'bg-slate-200 text-slate-700',
+    lessonBadge: 'bg-slate-200 text-slate-800 border border-slate-300',
     classText: 'text-slate-900',
     subjectBadge: 'bg-slate-200 text-slate-800',
   }
@@ -136,6 +136,7 @@ export default function SchedulePage() {
   const [modalClassCode, setModalClassCode] = useState('12SỬ')
   const [modalSubject, setModalSubject] = useState('Toán')
   const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
+  const [modalLessonOrder, setModalLessonOrder] = useState<number>(1)
 
   // Dạy thay
   const [isSubstitute, setIsSubstitute] = useState(false)
@@ -203,18 +204,20 @@ export default function SchedulePage() {
       setModalClassCode(code)
       setModalSubject(sub)
       setModalApplyAllWeeks(!existingSlot.week_number || existingSlot.week_number === 0)
+      setModalLessonOrder(existingSlot.sub_lesson_order || period)
       setIsSubstitute(!!existingSlot.is_substitute)
       setSubTeacherName(existingSlot.sub_teacher_name || '')
-      setSubLessonOrder(existingSlot.sub_lesson_order || 1)
+      setSubLessonOrder(existingSlot.sub_lesson_order || period)
       setSubLessonName(existingSlot.sub_lesson_name || '')
     } else {
       setEditingSlotId(null)
       setModalClassCode('12SỬ')
       setModalSubject('Toán')
       setModalApplyAllWeeks(selectedWeek === 0)
+      setModalLessonOrder(period)
       setIsSubstitute(false)
       setSubTeacherName('')
-      setSubLessonOrder(1)
+      setSubLessonOrder(period)
       setSubLessonName('')
     }
 
@@ -275,7 +278,7 @@ export default function SchedulePage() {
         sub_class_code: isSubstitute ? code : null,
         sub_subject: isSubstitute ? subject : null,
         sub_teacher_name: isSubstitute ? subTeacherName.trim() : null,
-        sub_lesson_order: isSubstitute ? Number(subLessonOrder) : null,
+        sub_lesson_order: isSubstitute ? Number(subLessonOrder) : Number(modalLessonOrder),
         sub_lesson_name: isSubstitute ? subLessonName.trim() : null,
       }
 
@@ -425,6 +428,7 @@ export default function SchedulePage() {
                     const isWeekSpecific = slot && slot.week_number && slot.week_number > 0
                     const subject = isSub ? slot.sub_subject : slot?.classes?.subject
                     const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
+                    const lessonNum = slot?.sub_lesson_order || period
                     const theme = getSlotColorTheme(subject, isSub)
 
                     return (
@@ -434,11 +438,8 @@ export default function SchedulePage() {
                             onClick={() => openModal(day.id, period, slot)}
                             className={`p-2 rounded-xl border-2 flex flex-col items-center justify-between relative shadow-xs cursor-pointer transition hover:scale-[1.02] hover:shadow-md ${theme.card}`}
                           >
-                            <div className="w-full flex items-center justify-between gap-1 mb-1">
-                              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded shadow-2xs ${theme.periodBadge}`}>
-                                Tiết {period}
-                              </span>
-
+                            {/* TOP: NHÃN TUẦN / DẠY THAY */}
+                            <div className="w-full flex items-center justify-end gap-1 mb-0.5">
                               {isSub ? (
                                 <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 border border-amber-300">
                                   Dạy thay
@@ -450,18 +451,24 @@ export default function SchedulePage() {
                               ) : null}
                             </div>
 
-                            <div className="my-0.5">
+                            {/* CLASS CODE (TRÊN) & TIẾT PPCT (CHÍNH GIỮA) */}
+                            <div className="flex flex-col items-center justify-center my-0.5 space-y-0.5">
                               <span className={`font-black text-sm tracking-wide ${theme.classText}`}>
                                 {classCode}
                               </span>
+                              <span className={`text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs ${theme.lessonBadge}`}>
+                                Tiết {lessonNum}
+                              </span>
                             </div>
 
-                            <div className="w-full flex items-center justify-center">
+                            {/* BOTTOM: PHÂN MÔN */}
+                            <div className="w-full flex items-center justify-center mt-0.5">
                               <span className={`text-[10px] font-bold px-2 py-0.2 rounded-md uppercase ${theme.subjectBadge}`}>
                                 {subject === 'Toán' ? 'Toán' : subject}
                               </span>
                             </div>
 
+                            {/* NÚT THAO TÁC ẨN */}
                             <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                               <button
                                 onClick={(e) => {
@@ -504,7 +511,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* MODAL THÊM / SỬA TIẾT — ĐÃ THAY HOÀN TOÀN Ô INPUT BẰNG SELECT 41 LỚP VÀ 15 MÔN */}
+      {/* MODAL THÊM / SỬA TIẾT */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
@@ -518,7 +525,7 @@ export default function SchedulePage() {
             </div>
 
             <div className="space-y-3.5 text-xs">
-              {/* CHỌN HÌNH THỨC DẠY THAY */}
+              {/* CHẾ ĐỘ DẠY THAY */}
               <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
                 <label className="flex items-center justify-between cursor-pointer">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
@@ -537,7 +544,7 @@ export default function SchedulePage() {
                 </label>
               </div>
 
-              {/* 1. HỘP CHỌN MÃ LỚP THUẦN TÚY: BẤM VÀO LÀ BUNG 41 LỚP */}
+              {/* MÃ LỚP (41 LỚP) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Mã lớp (Chọn trong 41 lớp):
@@ -568,7 +575,7 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              {/* 2. HỘP CHỌN PHÂN MÔN THUẦN TÚY: BẤM VÀO LÀ BUNG 15 MÔN */}
+              {/* PHÂN MÔN (15 MÔN) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Phân môn (Chọn trong 15 môn):
@@ -588,6 +595,21 @@ export default function SchedulePage() {
                   <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
+
+              {/* TIẾT PPCT CHO LỚP THƯỜNG */}
+              {!isSubstitute && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Số Tiết theo PPCT (Phân phối chương trình):
+                  </label>
+                  <input
+                    type="number"
+                    value={modalLessonOrder}
+                    onChange={(e) => setModalLessonOrder(Number(e.target.value))}
+                    className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl font-black text-emerald-700 bg-white"
+                  />
+                </div>
+              )}
 
               {/* THÔNG TIN DẠY THAY */}
               {isSubstitute && (
