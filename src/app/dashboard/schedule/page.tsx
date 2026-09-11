@@ -71,7 +71,6 @@ const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ'
 const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
 const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
 
-// PHÂN LOẠI MÀU NỀN (THÊM MÀU XANH DƯƠNG RIÊNG CHO CÁC MÔN/LỚP KHOA HỌC TỰ NHIÊN)
 const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean) => {
   if (isSub) {
     return {
@@ -84,7 +83,6 @@ const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean
   const s = (subject || '').trim().toLowerCase()
   const c = (classCode || '').trim().toUpperCase()
 
-  // Các lớp hoặc môn Khoa học / Tự nhiên (Lý, Hóa, Sinh, Toán, Tin)
   if (s.includes('lý') || s.includes('vật lí') || s.includes('hóa') || s.includes('sinh') || s.includes('tin') || c.includes('LÍ') || c.includes('HÓA') || c.includes('SINH') || c.includes('TIN')) {
     return {
       card: 'bg-blue-50/90 border-blue-300 text-blue-950 hover:ring-blue-400 shadow-2xs',
@@ -321,17 +319,17 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* BẢNG LƯỚI TKB THU GỌN GẠN GÀNG */}
+      {/* BẢNG LƯỚI TKB SIÊU GỌN (THU NHỎ KHOẢNG 40%) */}
       <div className="bg-white rounded-xl border-2 border-slate-300 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="p-2 border-r-2 border-slate-300 text-center w-16 text-slate-600">TIẾT</th>
+                <th className="p-1.5 border-r-2 border-slate-300 text-center w-14 text-slate-600">TIẾT</th>
                 {DAYS.map((d) => (
-                  <th key={d.id} className="p-2 border-r-2 border-slate-300 text-center w-36">
+                  <th key={d.id} className="p-1.5 border-r-2 border-slate-300 text-center w-32">
                     <div>{d.name}</div>
-                    <div className="text-[10px] font-normal text-slate-400">{d.date}</div>
+                    <div className="text-[9px] font-normal text-slate-400">{d.date}</div>
                   </th>
                 ))}
               </tr>
@@ -339,7 +337,7 @@ export default function SchedulePage() {
             <tbody className="divide-y-2 divide-slate-200 text-slate-700">
               {[1, 2, 3, 4, 5].map((period) => (
                 <tr key={period} className="hover:bg-slate-50/30 transition">
-                  <td className="p-2 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50 text-xs">
+                  <td className="p-1 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50 text-xs">
                     T{period}
                   </td>
                   {DAYS.map((day) => {
@@ -352,31 +350,25 @@ export default function SchedulePage() {
                     const subPrefix = (subject || 'Toán').substring(0, 3).toUpperCase()
 
                     return (
-                      <td key={day.id} className="p-1.5 border-r-2 border-slate-200 text-center align-middle h-18 relative group">
+                      <td key={day.id} className="p-1 border-r-2 border-slate-200 text-center align-middle h-12 relative group">
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`p-1.5 rounded-lg border-2 flex flex-col items-center justify-between relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
+                            className={`px-1 py-0.5 rounded border flex items-center justify-between relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
                           >
-                            <div className="w-full text-center">
-                              <span className={`text-[10px] tracking-wide ${theme.topBadge}`}>
-                                {subPrefix}-{lessonNum}
-                              </span>
-                            </div>
+                            <span className={`text-[9px] font-bold ${theme.topBadge}`}>
+                              {subPrefix}-{lessonNum}
+                            </span>
+                            
+                            <span className={`font-black text-sm tracking-tight ${theme.classText}`}>
+                              {classCode}
+                            </span>
 
-                            <div className="my-0.5">
-                              <span className={`font-black text-base tracking-tight ${theme.classText}`}>
-                                {classCode}
-                              </span>
-                            </div>
+                            <span className="text-[8px] text-slate-400 font-medium truncate max-w-[40px]">
+                              {isSub ? 'Thay' : ''}
+                            </span>
 
-                            <div className="w-full text-center">
-                              <span className="text-[9px] text-slate-500 font-medium">
-                                {isSub ? 'Dạy thay' : subject}
-                              </span>
-                            </div>
-
-                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/90 p-0.5 rounded shadow-xs">
+                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/95 p-0.5 rounded shadow-xs">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -384,7 +376,7 @@ export default function SchedulePage() {
                                 }}
                                 className="p-0.5 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
                               >
-                                <Edit3 className="w-3 h-3" />
+                                <Edit3 className="w-2.5 h-2.5" />
                               </button>
                               <button
                                 onClick={(e) => {
@@ -393,16 +385,16 @@ export default function SchedulePage() {
                                 }}
                                 className="p-0.5 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-2.5 h-2.5" />
                               </button>
                             </div>
                           </div>
                         ) : (
                           <button
                             onClick={() => openModal(day.id, period)}
-                            className="w-full h-full min-h-[48px] border border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-lg flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
+                            className="w-full h-full min-h-[36px] border border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3 h-3" />
                           </button>
                         )}
                       </td>
