@@ -178,7 +178,6 @@ export default function SchedulePage() {
     )
   }
 
-  // TÍNH TOÁN SỐ TIẾT TỰ ĐỘNG LŨY TIẾN THEO THỨ TỰ THỜI GIAN TRONG TUẦN CHO TỪNG MÔN & TỪNG LỚP
   const calculateAutoLessonNumber = (currentDay: number, currentPeriod: number, targetClass: string, targetSubject: string) => {
     const activeSlots: { day: number; period: number }[] = []
 
@@ -198,7 +197,6 @@ export default function SchedulePage() {
       })
     })
 
-    // Sắp xếp các tiết theo thứ tự thời gian trong tuần (Thứ Hai -> Thứ Bảy, Tiết 1 -> Tiết 5)
     activeSlots.sort((a, b) => a.day === b.day ? a.period - b.period : a.day - b.day)
 
     const index = activeSlots.findIndex(item => item.day === currentDay && item.period === currentPeriod)
@@ -365,18 +363,19 @@ export default function SchedulePage() {
           <table className="w-full border-collapse text-left text-xs">
             <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider">
               <tr>
-                <th className="p-3 border-r-2 border-slate-300 text-center w-16 text-slate-600">TIẾT</th>
+                <th className="p-3 border-r-2 border-slate-300 text-center w-14 text-slate-600">TIẾT</th>
                 {DAYS.map((d) => {
                   const isCurrentDay = d.id === 5 
                   return (
                     <th 
                       key={d.id} 
-                      className={`p-2.5 border-r-2 border-slate-300 text-center w-28 ${
+                      /* THU HẸP BỀ NGANG CÁC CỘT LẠI KHOẢNG 20% (w-22) */
+                      className={`p-2 border-r-2 border-slate-300 text-center w-22 ${
                         isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
                       }`}
                     >
                       <div>{d.name}</div>
-                      <div className="text-[11px] font-normal text-slate-500 mt-0.5">{d.date}</div>
+                      <div className="text-[10px] font-normal text-slate-500 mt-0.5">{d.date}</div>
                     </th>
                   )
                 })}
@@ -396,8 +395,6 @@ export default function SchedulePage() {
                     const theme = getSlotColorTheme(subject, classCode, isSub)
 
                     const shortSub = getSubjectShortCode(subject)
-                    
-                    // Tự động tính toán số tiết lũy tiến theo đúng thứ tự trong tuần cho lớp đó
                     const autoLessonNum = classCode && subject 
                       ? calculateAutoLessonNumber(day.id, period, classCode, subject) 
                       : (slot?.sub_lesson_order || period)
@@ -409,9 +406,9 @@ export default function SchedulePage() {
                         {slot ? (
                           <div 
                             onClick={() => openModal(day.id, period, slot)}
-                            className={`px-1.5 py-1.5 rounded-xl border-2 flex items-center justify-center relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
+                            className={`px-1 py-1.5 rounded-xl border-2 flex items-center justify-center relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
                           >
-                            <span className={`font-black text-[11px] tracking-tight ${theme.textMain} truncate`}>
+                            <span className={`font-black text-[10px] tracking-tight ${theme.textMain} truncate`}>
                               {cellText}
                             </span>
 
@@ -424,7 +421,7 @@ export default function SchedulePage() {
                                 title="Sửa tiết"
                                 className="p-0.5 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
                               >
-                                <Edit3 className="w-3 h-3" />
+                                <Edit3 className="w-2.5 h-2.5" />
                               </button>
                               <button
                                 onClick={(e) => {
@@ -434,7 +431,7 @@ export default function SchedulePage() {
                                 title="Xóa tiết"
                                 className="p-0.5 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-2.5 h-2.5" />
                               </button>
                             </div>
                           </div>
@@ -444,7 +441,7 @@ export default function SchedulePage() {
                             className="w-full h-full min-h-[40px] border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
                             title={`Xếp Tiết ${period}`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3 h-3" />
                           </button>
                         )}
                       </td>
