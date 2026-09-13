@@ -3,639 +3,530 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import * as XLSX from 'xlsx'
-import { 
-  Calendar, 
-  Plus, 
-  Trash2, 
-  RefreshCw, 
-  Download,
-  Edit3,
-  UserCheck,
-  X,
-  Check,
-  ChevronDown
-} from 'lucide-react'
+import { Upload, RefreshCw, Calendar, Plus, Trash2, X, Copy, ClipboardPaste, ArrowRightLeft } from 'lucide-react'
 
-interface ClassItem {
-  id: string
-  code: string
-  name: string
-  subject: string
-  grade?: number
-}
-
-interface ScheduleEntry {
+interface ScheduleItem {
   id: string
   day_of_week: number
   period_number: number
-  session: string
   class_id?: string
   week_number?: number
-  is_substitute?: boolean
   sub_class_code?: string
   sub_subject?: string
-  sub_teacher_name?: string
-  sub_lesson_order?: number
-  sub_lesson_name?: string
-  classes?: ClassItem
 }
 
 const DAYS = [
-  { id: 2, name: 'Thứ Hai', date: '07/09' },
-  { id: 3, name: 'Thứ Ba', date: '08/09' },
-  { id: 4, name: 'Thứ Tư', date: '09/09' },
-  { id: 5, name: 'Thứ Năm', date: '10/09' },
-  { id: 6, name: 'Thứ Sáu', date: '11/09' },
-  { id: 7, name: 'Thứ Bảy', date: '12/09' },
+  { id: 2, name: 'Thứ Hai' },
+  { id: 3, name: 'Thứ Ba' },
+  { id: 4, name: 'Thứ Tư' },
+  { id: 5, name: 'Thứ Năm' },
+  { id: 6, name: 'Thứ Sáu' },
+  { id: 7, name: 'Thứ Bảy' },
 ]
-
-const ALL_SUBJECTS = [
-  'Toán',
-  'GDĐP',
-  'HĐTN',
-  'Ngữ văn',
-  'Tiếng Anh',
-  'Vật lí',
-  'Hóa học',
-  'Sinh học',
-  'Lịch sử',
-  'Địa lí',
-  'GDKT & PL',
-  'Tin học',
-  'Công nghệ',
-  'Giáo dục thể chất',
-  'GDQP & AN'
-]
-
-const CLASSES_K12 = ['12A1', '12A2', '12A3', '12A4', '12TOÁN', '12TIN', '12LÍ', '12HÓA', '12SINH', '12VĂN', '12SỬ', '12ĐỊA', '12ANH', '12NGA']
-const CLASSES_K11 = ['11A1', '11A2', '11A3', '11A4', '11TOÁN', '11TIN', '11LÍ', '11HÓA', '11SINH', '11VĂN', '11SỬ', '11ĐỊA', '11ANH', '11NGA']
-const CLASSES_K10 = ['10T1', '10T2', '10A1', '10A2', '10A3', '10TOÁN', '10TIN', '10LÍ', '10HÓA', '10SINH', '10VĂN', '10SỬ', '10ĐỊA']
-
-const getSubjectShortCode = (sub: string) => {
-  const s = (sub || '').trim().toLowerCase()
-  if (s.includes('toán') || s === 't') return 'T'
-  if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') return 'TrN'
-  if (s.includes('gdđp') || s.includes('địa phương') || s.includes('gđđ')) return 'GDĐP'
-  if (s.includes('ngữ văn') || s === 'văn') return 'Văn'
-  if (s.includes('tiếng anh') || s === 'anh') return 'Anh'
-  if (s.includes('vật lí') || s === 'lý') return 'Lí'
-  if (s.includes('hóa')) return 'Hóa'
-  if (s.includes('sinh')) return 'Sinh'
-  if (s.includes('lịch sử') || s === 'sử') return 'Sử'
-  if (s.includes('địa')) return 'Địa'
-  if (s.includes('kinh tế') || s.includes('kt&pl')) return 'KTPL'
-  if (s.includes('tin')) return 'Tin'
-  if (s.includes('công nghệ')) return 'CN'
-  return (sub || '').substring(0, 3).toUpperCase()
-}
-
-const getSlotColorTheme = (subject?: string, classCode?: string, isSub?: boolean) => {
-  if (isSub) {
-    return {
-      card: 'bg-amber-50 border-amber-300 text-amber-950 hover:ring-amber-400',
-      textMain: 'text-amber-950',
-    }
-  }
-
-  const s = (subject || '').trim().toLowerCase()
-  const c = (classCode || '').trim().toUpperCase()
-
-  if (s.includes('lý') || s.includes('vật lí') || s.includes('hóa') || s.includes('sinh') || s.includes('tin') || c.includes('LÍ') || c.includes('HÓA') || c.includes('SINH') || c.includes('TIN')) {
-    return {
-      card: 'bg-blue-50/90 border-blue-300 text-blue-950 hover:ring-blue-400 shadow-2xs',
-      textMain: 'text-blue-950',
-    }
-  }
-
-  if (s.includes('hđtn') || s.includes('trải nghiệm') || s === 'trn') {
-    return {
-      card: 'bg-purple-50/90 border-purple-300 text-purple-950 hover:ring-purple-400 shadow-2xs',
-      textMain: 'text-purple-950',
-    }
-  }
-
-  return {
-    card: 'bg-emerald-50/60 border-emerald-300 text-slate-900 hover:ring-emerald-400 shadow-2xs',
-    textMain: 'text-slate-900',
-  }
-}
 
 export default function SchedulePage() {
   const supabase = createClient()
-  const [schedule, setSchedule] = useState<ScheduleEntry[]>([])
-  const [classes, setClasses] = useState<ClassItem[]>([])
+  const [selectedWeek, setSelectedWeek] = useState(1)
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedWeek, setSelectedWeek] = useState<number>(1)
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
-  const [modalDay, setModalDay] = useState(2)
-  const [modalPeriod, setModalPeriod] = useState(1)
-  const [modalClassCode, setModalClassCode] = useState('12SỬ')
-  const [modalSubject, setModalSubject] = useState('Toán')
-  const [modalApplyAllWeeks, setModalApplyAllWeeks] = useState(true)
-  const [modalLessonOrder, setModalLessonOrder] = useState<number>(1)
+  // State lưu danh sách gợi ý các lớp và môn học từ CSDL
+  const [availableClasses, setAvailableClasses] = useState<string[]>([])
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([])
 
-  const [isSubstitute, setIsSubstitute] = useState(false)
-  const [subTeacherName, setSubTeacherName] = useState('')
-  const [subLessonOrder, setSubLessonOrder] = useState<number>(1)
-  const [subLessonName, setSubLessonName] = useState('')
+  // State lưu tiết đang được Copy / Kéo thả
+  const [copiedSlot, setCopiedSlot] = useState<{ subject: string; classCode: string } | null>(null)
 
-  const loadData = async () => {
+  // State cho popup thêm/sửa/xóa tiết học từng ô
+  const [editingCell, setEditingCell] = useState<{
+    dayId: number
+    period: number
+    subject: string
+    classCode: string
+    isExisting: boolean
+  } | null>(null)
+
+  const loadScheduleAndSuggestions = async () => {
     setLoading(true)
-    const { data: cData } = await supabase.from('classes').select('*').order('code', { ascending: true })
-    if (cData) setClasses(cData)
-
+    
     const { data: sData } = await supabase
       .from('schedule_entries')
-      .select('*, classes(*)')
-    if (sData) setSchedule(sData as any)
+      .select('*')
+      .eq('week_number', selectedWeek)
+
+    if (sData && sData.length > 0) {
+      setSchedule(sData)
+    } else {
+      if (selectedWeek > 1) {
+        const { data: week1Data } = await supabase
+          .from('schedule_entries')
+          .select('*')
+          .eq('week_number', 1)
+
+        if (week1Data && week1Data.length > 0) {
+          const inheritedData = week1Data.map((item) => ({
+            ...item,
+            id: `inherited_${item.id}`,
+            week_number: selectedWeek,
+          }))
+          setSchedule(inheritedData)
+        } else {
+          setSchedule([])
+        }
+      } else {
+        setSchedule([])
+      }
+    }
+
+    const { data: cData } = await supabase.from('classes').select('code')
+    if (cData) {
+      const uniqueCodes = Array.from(new Set(cData.map((c) => c.code).filter(Boolean))) as string[]
+      setAvailableClasses(uniqueCodes)
+    }
+
+    const { data: allEntries } = await supabase.from('schedule_entries').select('sub_subject')
+    if (allEntries) {
+      const uniqueSubjects = Array.from(new Set(allEntries.map((e) => e.sub_subject).filter(Boolean))) as string[]
+      if (uniqueSubjects.length === 0) {
+        setAvailableSubjects(['T', 'TrN', 'GDĐP'])
+      } else {
+        setAvailableSubjects(uniqueSubjects)
+      }
+    }
 
     setLoading(false)
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadScheduleAndSuggestions()
+  }, [selectedWeek])
 
-  const handleDownloadSampleTKB = () => {
-    const sampleTKB = [{ 'Thứ': 2, 'Buổi': 'Sáng', 'Tiết': 1, 'Lớp': '12A1', 'Môn': 'Toán' }]
-    const ws = XLSX.utils.json_to_sheet(sampleTKB)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'TKB Mau')
-    XLSX.writeFile(wb, 'Mau_Thoi_Khoa_Bieu.xlsx')
-  }
-
-  const getSlot = (day: number, period: number) => {
-    if (selectedWeek > 0) {
-      const weekSlot = schedule.find(
-        (s) => s.day_of_week === day && s.period_number === period && s.week_number === selectedWeek
-      )
-      if (weekSlot) return weekSlot
-    }
-    return schedule.find(
-      (s) => s.day_of_week === day && s.period_number === period && (!s.week_number || s.week_number === 0)
-    )
-  }
-
-  const calculateAutoLessonNumber = (currentDay: number, currentPeriod: number, targetClass: string, targetSubject: string) => {
-    const activeSlots: { day: number; period: number }[] = []
-
-    DAYS.forEach(d => {
-      [1, 2, 3, 4, 5].forEach(p => {
-        const slot = getSlot(d.id, p)
-        if (slot) {
-          const s = slot.is_substitute ? slot.sub_subject : slot.classes?.subject
-          const c = slot.is_substitute ? slot.sub_class_code : slot.classes?.code
-          if (
-            (c || '').trim().toUpperCase() === targetClass.trim().toUpperCase() &&
-            (s || '').trim().toLowerCase() === targetSubject.trim().toLowerCase()
-          ) {
-            activeSlots.push({ day: d.id, period: p })
-          }
-        }
-      })
-    })
-
-    activeSlots.sort((a, b) => a.day === b.day ? a.period - b.period : a.day - b.day)
-
-    const index = activeSlots.findIndex(item => item.day === currentDay && item.period === currentPeriod)
-    return index !== -1 ? index + 1 : 1
-  }
-
-  const openModal = (day: number, period: number, existingSlot?: ScheduleEntry) => {
-    setModalDay(day)
-    setModalPeriod(period)
-
-    if (existingSlot) {
-      setEditingSlotId(existingSlot.id)
-      const code = (existingSlot.sub_class_code || existingSlot.classes?.code || '12SỬ').toUpperCase()
-      const sub = existingSlot.sub_subject || existingSlot.classes?.subject || 'Toán'
-      setModalClassCode(code)
-      setModalSubject(sub)
-      setModalApplyAllWeeks(!existingSlot.week_number || existingSlot.week_number === 0)
-      setModalLessonOrder(existingSlot.sub_lesson_order || period)
-      setIsSubstitute(!!existingSlot.is_substitute)
-      setSubTeacherName(existingSlot.sub_teacher_name || '')
-      setSubLessonOrder(existingSlot.sub_lesson_order || period)
-      setSubLessonName(existingSlot.sub_lesson_name || '')
-    } else {
-      setEditingSlotId(null)
-      setModalClassCode('12SỬ')
-      setModalSubject('Toán')
-      setModalApplyAllWeeks(selectedWeek === 0)
-      setModalLessonOrder(1)
-      setIsSubstitute(false)
-      setSubTeacherName('')
-      setSubLessonOrder(1)
-      setSubLessonName('')
-    }
-
-    setIsModalOpen(true)
-  }
-
-  const handleSaveSlot = async () => {
-    if (!modalClassCode.trim()) {
-      alert('Vui lòng chọn lớp!')
-      return
-    }
-
+  // Xử lý lưu hoặc cập nhật 1 ô tiết học cụ thể
+  const handleSaveCell = async (targetDayId: number, targetPeriod: number, subject: string, classCode: string) => {
     setLoading(true)
+
     try {
-      const code = modalClassCode.trim().toUpperCase()
-      const subject = modalSubject.trim()
-      const targetWeek = modalApplyAllWeeks ? 0 : (selectedWeek > 0 ? selectedWeek : 1)
+      const subSubject = subject.trim()
+      const subClassCode = classCode.trim().toUpperCase()
 
-      let classId: string | null = null
-
-      if (!isSubstitute) {
-        let targetClass = classes.find(
-          (c) => c.code.toUpperCase() === code && c.subject.toLowerCase() === subject.toLowerCase()
-        )
-
-        if (!targetClass) {
-          let grade = 12
-          if (code.startsWith('10')) grade = 10
-          if (code.startsWith('11')) grade = 11
-
-          const { data: newCls, error: cErr } = await supabase
-            .from('classes')
-            .insert({ code, name: `Lớp ${code}`, subject, grade })
-            .select()
-            .single()
-
-          if (cErr) throw cErr
-          targetClass = newCls
-          setClasses((prev) => [...prev, newCls])
-        }
-        classId = targetClass.id
+      if (!subSubject || !subClassCode) {
+        alert('Vui lòng nhập đầy đủ Môn học và Mã lớp!')
+        setLoading(false)
+        return
       }
 
-      await supabase
+      let classId = null
+      const { data: existingClass } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('code', subClassCode)
+        .single()
+
+      if (existingClass) {
+        classId = existingClass.id
+      } else {
+        const gradeNum = subClassCode.startsWith('12') ? 12 : subClassCode.startsWith('11') ? 11 : 10
+        const { data: newClass } = await supabase
+          .from('classes')
+          .insert({
+            code: subClassCode,
+            name: `Lớp ${subClassCode}`,
+            subject: subSubject === 'T' ? 'Toán' : subSubject,
+            grade: gradeNum,
+          })
+          .select('id')
+          .single()
+
+        if (newClass) classId = newClass.id
+      }
+
+      const { data: currentEntry } = await supabase
         .from('schedule_entries')
-        .delete()
-        .eq('day_of_week', modalDay)
-        .eq('period_number', modalPeriod)
-        .eq('week_number', targetWeek)
+        .select('id')
+        .eq('week_number', selectedWeek)
+        .eq('day_of_week', targetDayId)
+        .eq('period_number', targetPeriod)
+        .single()
 
-      const payload: any = {
-        day_of_week: modalDay,
-        period_number: modalPeriod,
-        session: 'Sáng',
-        week_number: targetWeek,
-        is_substitute: isSubstitute,
-        class_id: classId,
-        sub_class_code: isSubstitute ? code : null,
-        sub_subject: isSubstitute ? subject : null,
-        sub_teacher_name: isSubstitute ? subTeacherName.trim() : null,
-        sub_lesson_order: isSubstitute ? Number(subLessonOrder) : Number(modalLessonOrder),
-        sub_lesson_name: isSubstitute ? subLessonName.trim() : null,
+      if (currentEntry) {
+        await supabase
+          .from('schedule_entries')
+          .update({
+            sub_subject: subSubject,
+            sub_class_code: subClassCode,
+            class_id: classId,
+          })
+          .eq('id', currentEntry.id)
+      } else {
+        await supabase.from('schedule_entries').insert({
+          week_number: selectedWeek,
+          day_of_week: targetDayId,
+          period_number: targetPeriod,
+          sub_subject: subSubject,
+          sub_class_code: subClassCode,
+          class_id: classId,
+        })
       }
 
-      const { error: sErr } = await supabase.from('schedule_entries').insert(payload)
-      if (sErr) throw sErr
-
-      setIsModalOpen(false)
-      await loadData()
+      loadScheduleAndSuggestions()
     } catch (err: any) {
-      alert('Lỗi lưu tiết: ' + err.message)
+      alert('Lỗi khi lưu tiết học: ' + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDeleteSlot = async (slotId: string) => {
-    if (!confirm('Bạn có chắc muốn xóa tiết này khỏi Thời khóa biểu?')) return
+  // Xử lý xóa tiết học trong ô
+  const handleDeleteCell = async () => {
+    if (!editingCell) return
+    if (!confirm('Bạn có chắc chắn muốn xóa tiết học này khỏi ô TKB?')) return
+
     setLoading(true)
-    await supabase.from('schedule_entries').delete().eq('id', slotId)
-    await loadData()
+    try {
+      await supabase
+        .from('schedule_entries')
+        .delete()
+        .eq('week_number', selectedWeek)
+        .eq('day_of_week', editingCell.dayId)
+        .eq('period_number', editingCell.period)
+
+      setEditingCell(null)
+      loadScheduleAndSuggestions()
+    } catch (err: any) {
+      alert('Lỗi khi xóa tiết: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Xử lý Thả (Drop) ô được kéo sang ô đích
+  const handleDropSlot = async (e: React.DragEvent, targetDayId: number, targetPeriod: number) => {
+    e.preventDefault()
+    if (!copiedSlot) return
+
+    await handleSaveCell(targetDayId, targetPeriod, copiedSlot.subject, copiedSlot.classCode)
+    setCopiedSlot(null)
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLoading(true)
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data, { type: 'array' })
+      const sheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[sheetName]
+      const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
+
+      const headerRow = jsonData[0] || []
+      const dayColumns: { dayId: number; colIdx: number }[] = []
+
+      headerRow.forEach((h: any, idx: number) => {
+        const text = String(h || '').trim().toLowerCase()
+        if (text.includes('thứ 2') || text.includes('thứ hai')) dayColumns.push({ dayId: 2, colIdx: idx })
+        if (text.includes('thứ 3') || text.includes('thứ ba')) dayColumns.push({ dayId: 3, colIdx: idx })
+        if (text.includes('thứ 4') || text.includes('thứ tư')) dayColumns.push({ dayId: 4, colIdx: idx })
+        if (text.includes('thứ 5') || text.includes('thứ năm')) dayColumns.push({ dayId: 5, colIdx: idx })
+        if (text.includes('thứ 6') || text.includes('thứ sáu')) dayColumns.push({ dayId: 6, colIdx: idx })
+        if (text.includes('thứ 7') || text.includes('thứ bảy')) dayColumns.push({ dayId: 7, colIdx: idx })
+      })
+
+      const newEntries: any[] = []
+
+      for (let r = 1; r < jsonData.length; r++) {
+        const row = jsonData[r]
+        if (!row || row.length === 0) continue
+
+        const periodText = String(row[0] || '').trim()
+        const periodNumber = parseInt(periodText, 10)
+
+        if (isNaN(periodNumber) || periodNumber < 1 || periodNumber > 5) continue
+
+        dayColumns.forEach(({ dayId, colIdx }) => {
+          const cellValue = String(row[colIdx] || '').trim()
+          if (cellValue && cellValue !== 'NaN' && cellValue !== '-') {
+            const parts = cellValue.split('-').map((p) => p.trim())
+            if (parts.length >= 2) {
+              const subject = parts[0]
+              const classCode = parts[1]
+
+              newEntries.push({
+                day_of_week: dayId,
+                period_number: periodNumber,
+                week_number: selectedWeek,
+                sub_class_code: classCode,
+                sub_subject: subject,
+              })
+            }
+          }
+        })
+      }
+
+      if (newEntries.length === 0) {
+        alert('Không tìm thấy tiết học nào hợp lệ trong file Excel!')
+        setLoading(false)
+        return
+      }
+
+      await supabase.from('schedule_entries').delete().eq('week_number', selectedWeek)
+
+      for (const entry of newEntries) {
+        const { data: existingClass } = await supabase
+          .from('classes')
+          .select('id')
+          .eq('code', entry.sub_class_code)
+          .single()
+
+        let classId = existingClass?.id
+
+        if (!classId) {
+          const gradeNum = entry.sub_class_code.startsWith('12') ? 12 : entry.sub_class_code.startsWith('11') ? 11 : 10
+          const { data: newClass } = await supabase
+            .from('classes')
+            .insert({
+              code: entry.sub_class_code,
+              name: `Lớp ${entry.sub_class_code}`,
+              subject: entry.sub_subject === 'T' ? 'Toán' : entry.sub_subject,
+              grade: gradeNum,
+            })
+            .select('id')
+            .single()
+
+          if (newClass) classId = newClass.id
+        }
+
+        entry.class_id = classId
+      }
+
+      const { error: insertErr } = await supabase.from('schedule_entries').insert(newEntries)
+      if (insertErr) throw insertErr
+
+      alert(`Đã nạp thành công ${newEntries.length} tiết học cho Tuần ${selectedWeek}!`)
+      loadScheduleAndSuggestions()
+    } catch (err: any) {
+      alert('Lỗi nhập file Excel: ' + err.message)
+    } finally {
+      setLoading(false)
+      const fileInput = document.getElementById('excel-upload') as HTMLInputElement
+      if (fileInput) fileInput.value = ''
+    }
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-3 font-sans pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 gap-2.5">
+    <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Thời Khóa Biểu Giảng Dạy</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Mốc thời gian thực: <strong className="text-slate-700">Tuần {selectedWeek} bắt đầu từ 07/09</strong> — Tự động cập nhật theo ngày hiện tại
+          <h1 className="text-2xl font-black text-slate-900 leading-tight">Thời Khóa Biểu</h1>
+          <p className="text-xs text-slate-500">
+            {copiedSlot 
+              ? `🎯 Đang giữ tiết [${copiedSlot.subject} - ${copiedSlot.classCode}]. Thả vào ô bất kỳ để di chuyển sang!` 
+              : '💡 Mẹo: Bạn có thể click chuột trái giữ và kéo thả tiết học giữa các ô, hoặc bấm vào ô để sửa/xóa.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border-2 border-emerald-600 rounded-xl shadow-xs">
-            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="text-xs font-bold text-slate-600 uppercase">Xem tuần:</span>
+        <div className="flex items-center gap-2">
+          {/* CHỌN TUẦN */}
+          <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
+              className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              <option value={0}>Lịch Cố Định (Cả năm)</option>
               {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w} {w === 1 ? '(Hiện tại)' : ''}
+                  Tuần {w < 10 ? '0' + w : w}
                 </option>
               ))}
             </select>
           </div>
 
-          <button
-            onClick={handleDownloadSampleTKB}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Nhập TKB (Excel / JSON)</span>
-          </button>
+          {/* NÚT NHẬP EXCEL */}
+          <label className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer">
+            <Upload className="w-3.5 h-3.5" />
+            <span>Nhập TKB Tuần {selectedWeek} (Excel)</span>
+            <input
+              id="excel-upload"
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
 
           <button
-            onClick={loadData}
+            onClick={loadScheduleAndSuggestions}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="p-2 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead className="bg-slate-50 text-slate-800 font-bold border-b-2 border-slate-300 uppercase tracking-wider">
-              <tr>
-                <th className="p-3 border-r-2 border-slate-300 text-center w-14 text-slate-600">TIẾT</th>
-                {DAYS.map((d) => {
-                  const isCurrentDay = d.id === 5 
+      {/* LƯỚI THỜI KHÓA BIỂU */}
+      <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-left text-xs">
+          <thead>
+            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px]">
+              <th className="w-[10%] p-3 border-r border-slate-300 text-center">TIẾT</th>
+              {DAYS.map((d) => (
+                <th key={d.id} className="w-[15%] p-3 border-r border-slate-300 text-center">
+                  {d.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 text-slate-800">
+            {[1, 2, 3, 4, 5].map((period) => (
+              <tr key={period} className="hover:bg-slate-50/50">
+                <td className="p-3 border-r border-slate-300 text-center font-black text-slate-900 bg-slate-50">
+                  Tiết {period}
+                </td>
+                {DAYS.map((day) => {
+                  const item = schedule.find(
+                    (s) => s.day_of_week === day.id && s.period_number === period
+                  )
                   return (
-                    <th 
-                      key={d.id} 
-                      /* THU HẸP ĐỘ RỘNG CÁC CỘT LẠI 40% (w-16) */
-                      className={`p-2 border-r-2 border-slate-300 text-center w-16 ${
-                        isCurrentDay ? 'bg-emerald-50/70 border-emerald-500 text-emerald-950 font-black' : ''
-                      }`}
+                    <td
+                      key={day.id}
+                      onClick={() =>
+                        setEditingCell({
+                          dayId: day.id,
+                          period,
+                          subject: item?.sub_subject || '',
+                          classCode: item?.sub_class_code || '',
+                          isExisting: !!item,
+                        })
+                      }
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDropSlot(e, day.id, period)}
+                      className="p-2.5 border-r border-slate-300 text-center align-middle cursor-pointer hover:bg-emerald-50/60 transition group relative"
+                      title="Click để sửa hoặc kéo thả để di chuyển tiết học"
                     >
-                      <div>{d.name}</div>
-                      <div className="text-[10px] font-normal text-slate-500 mt-0.5">{d.date}</div>
-                    </th>
+                      {item ? (
+                        <div
+                          draggable
+                          onDragStart={() =>
+                            setCopiedSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
+                          }
+                          className="bg-emerald-50 border border-emerald-300 rounded-lg p-1.5 shadow-2xs group-hover:border-emerald-500 cursor-grab active:cursor-grabbing relative flex flex-col items-center"
+                        >
+                          <span className="font-black text-emerald-950 text-xs block">
+                            {item.sub_subject}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            {item.sub_class_code}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-slate-300 group-hover:text-emerald-600 font-bold text-base">
+                          +
+                        </div>
+                      )}
+                    </td>
                   )
                 })}
               </tr>
-            </thead>
-            <tbody className="divide-y-2 divide-slate-200 text-slate-700">
-              {[1, 2, 3, 4, 5].map((period) => (
-                <tr key={period} className="hover:bg-slate-50/30 transition">
-                  <td className="p-2 border-r-2 border-slate-300 text-center font-black text-slate-800 bg-slate-50">
-                    Tiết {period}
-                  </td>
-                  {DAYS.map((day) => {
-                    const slot = getSlot(day.id, period)
-                    const isSub = slot?.is_substitute
-                    const subject = isSub ? slot.sub_subject : slot?.classes?.subject
-                    const classCode = isSub ? slot.sub_class_code : slot?.classes?.code
-                    const theme = getSlotColorTheme(subject, classCode, isSub)
-
-                    const shortSub = getSubjectShortCode(subject)
-                    const autoLessonNum = classCode && subject 
-                      ? calculateAutoLessonNumber(day.id, period, classCode, subject) 
-                      : (slot?.sub_lesson_order || period)
-
-                    const cellText = `${shortSub}-${(classCode || '').toUpperCase()}-${autoLessonNum}`
-
-                    return (
-                      <td key={day.id} className="p-1 border-r-2 border-slate-200 text-center align-middle h-14 relative group">
-                        {slot ? (
-                          <div 
-                            onClick={() => openModal(day.id, period, slot)}
-                            className={`px-1 py-1.5 rounded-xl border-2 flex items-center justify-center relative shadow-2xs cursor-pointer transition hover:scale-[1.01] ${theme.card}`}
-                          >
-                            <span className={`font-black text-[10px] tracking-tight ${theme.textMain} truncate`}>
-                              {cellText}
-                            </span>
-
-                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition bg-white/95 p-0.5 rounded shadow-xs">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openModal(day.id, period, slot)
-                                }}
-                                title="Sửa tiết"
-                                className="p-0.5 text-slate-600 hover:text-blue-600 rounded cursor-pointer"
-                              >
-                                <Edit3 className="w-2.5 h-2.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteSlot(slot.id)
-                                }}
-                                title="Xóa tiết"
-                                className="p-0.5 text-slate-600 hover:text-rose-600 rounded cursor-pointer"
-                              >
-                                <Trash2 className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => openModal(day.id, period)}
-                            className="w-full h-full min-h-[40px] border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-600 transition cursor-pointer"
-                            title={`Xếp Tiết ${period}`}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* MODAL THÊM / SỬA TIẾT */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h2 className="text-sm font-bold text-slate-900">
-                {editingSlotId ? 'Cập Nhật Tiết Dạy' : 'Thêm Tiết Dạy'} ({DAYS.find((d) => d.id === modalDay)?.name} — Tiết {modalPeriod})
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
+      {/* POPUP THÊM / SỬA / XÓA TIẾT HỌC */}
+      {editingCell && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
+            <div className="flex justify-between items-center border-b pb-3">
+              <span className="font-black text-slate-800 text-sm uppercase">
+                {DAYS.find((d) => d.id === editingCell.dayId)?.name} — Tiết {editingCell.period} (Tuần {selectedWeek})
+              </span>
+              <button
+                onClick={() => setEditingCell(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div className="p-2.5 bg-slate-50 border rounded-xl space-y-2">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-amber-600" />
-                    Chế độ dạy thay
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={isSubstitute}
-                    onChange={(e) => {
-                      setIsSubstitute(e.target.checked)
-                      if (e.target.checked) setModalApplyAllWeeks(false)
-                    }}
-                    className="w-4 h-4 rounded text-amber-600 accent-amber-600 cursor-pointer"
-                  />
-                </label>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Môn học (Chọn hoặc nhập mới):</label>
+                <input
+                  type="text"
+                  list="subjects-list"
+                  value={editingCell.subject}
+                  onChange={(e) => setEditingCell({ ...editingCell, subject: e.target.value })}
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Nhập hoặc chọn môn..."
+                  autoFocus
+                />
+                <datalist id="subjects-list">
+                  {availableSubjects.map((sub, idx) => (
+                    <option key={idx} value={sub} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Mã lớp (Chọn trong 41 lớp):
-                </label>
-                <div className="relative">
-                  <select
-                    value={modalClassCode}
-                    onChange={(e) => setModalClassCode(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 uppercase focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
-                  >
-                    <optgroup label="-- KHỐI 12 (14 LỚP) --">
-                      {CLASSES_K12.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="-- KHỐI 11 (14 LỚP) --">
-                      {CLASSES_K11.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="-- KHỐI 10 (13 LỚP) --">
-                      {CLASSES_K10.map((code) => (
-                        <option key={code} value={code}>Lớp {code}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
+                <label className="block font-bold text-slate-700 mb-1">Mã lớp (Chọn từ danh sách hệ thống):</label>
+                <select
+                  value={availableClasses.includes(editingCell.classCode) ? editingCell.classCode : 'CUSTOM'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'CUSTOM') {
+                      setEditingCell({ ...editingCell, classCode: e.target.value })
+                    } else {
+                      setEditingCell({ ...editingCell, classCode: '' })
+                    }
+                  }}
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer mb-2"
+                >
+                  <option value="">-- Chọn lớp học --</option>
+                  {availableClasses.map((cls, idx) => (
+                    <option key={idx} value={cls}>
+                      Lớp {cls}
+                    </option>
+                  ))}
+                  <option value="CUSTOM">✏️ Nhập mã lớp khác...</option>
+                </select>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Phân môn (Chọn trong 15 môn):
-                </label>
-                <div className="relative">
-                  <select
-                    value={modalSubject}
-                    onChange={(e) => setModalSubject(e.target.value)}
-                    className="w-full appearance-none bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer pr-8 shadow-xs"
-                  >
-                    {ALL_SUBJECTS.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              {!isSubstitute && (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Số Tiết theo PPCT (Phân phối chương trình):
-                  </label>
+                {(!availableClasses.includes(editingCell.classCode) || editingCell.classCode === '') && (
                   <input
-                    type="number"
-                    value={modalLessonOrder}
-                    onChange={(e) => setModalLessonOrder(Number(e.target.value))}
-                    className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl font-black text-emerald-700 bg-white"
+                    type="text"
+                    value={editingCell.classCode}
+                    onChange={(e) => setEditingCell({ ...editingCell, classCode: e.target.value })}
+                    className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập mã lớp mới (VD: 12SỬ)..."
                   />
-                </div>
-              )}
+                )}
+              </div>
 
-              {isSubstitute && (
-                <div className="space-y-2 p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl">
-                  <div>
-                    <label className="block font-bold text-amber-900 mb-1">Dạy thay cho ai:</label>
-                    <input
-                      type="text"
-                      placeholder="vd: Thầy Tuấn, Cô Lan..."
-                      value={subTeacherName}
-                      onChange={(e) => setSubTeacherName(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-bold text-slate-800 bg-white"
-                    />
-                  </div>
+              <div className="flex items-center gap-2 pt-2">
+                {editingCell.isExisting && (
+                  <button
+                    onClick={handleDeleteCell}
+                    disabled={loading}
+                    className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
+                    title="Xóa tiết học này"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xóa</span>
+                  </button>
+                )}
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block font-bold text-amber-900 mb-1">Tiết PPCT:</label>
-                      <input
-                        type="number"
-                        value={subLessonOrder}
-                        onChange={(e) => setSubLessonOrder(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-black text-center text-blue-700 bg-white"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block font-bold text-amber-900 mb-1">Tên bài dạy:</label>
-                      <input
-                        type="text"
-                        placeholder="Tên bài học..."
-                        value={subLessonName}
-                        onChange={(e) => setSubLessonName(e.target.value)}
-                        className="w-full px-3 py-1.5 border border-amber-300 rounded-xl font-medium text-slate-800 bg-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!isSubstitute && (
-                <div className="pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={modalApplyAllWeeks}
-                      onChange={(e) => setModalApplyAllWeeks(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-700">
-                      Áp dụng cố định cho tất cả các tuần
-                    </span>
-                  </label>
-                  {!modalApplyAllWeeks && (
-                    <p className="text-[10px] text-blue-700 mt-0.5 ml-6">
-                      Chỉ áp dụng riêng cho <strong>Tuần {selectedWeek > 0 ? selectedWeek : 1}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t">
-              {editingSlotId ? (
                 <button
-                  type="button"
-                  onClick={() => handleDeleteSlot(editingSlotId)}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                >
-                  Xóa tiết này
-                </button>
-              ) : <div />}
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-1.5 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSlot}
+                  onClick={async () => {
+                    await handleSaveCell(editingCell.dayId, editingCell.period, editingCell.subject, editingCell.classCode)
+                    setEditingCell(null)
+                  }}
                   disabled={loading}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
+                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1"
                 >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{editingSlotId ? 'Cập Nhật' : 'Lưu Tiết'}</span>
+                  <Plus className="w-4 h-4" />
+                  <span>Lưu tiết học</span>
                 </button>
               </div>
             </div>
