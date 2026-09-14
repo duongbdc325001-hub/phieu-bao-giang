@@ -66,7 +66,24 @@ export default function CurriculumPage() {
       }
     }
 
-    const { data: cData } = await supabase.from('classes').select('id, code, subject, grade')
+    // ĐỒNG BỘ THEO TKB: Chỉ lấy các lớp có trong schedule_entries
+    const { data: sData } = await supabase.from('schedule_entries').select('class_id')
+    const activeClassIds = new Set<string>()
+    if (sData) {
+      sData.forEach((s: any) => {
+        if (s.class_id) activeClassIds.add(s.class_id)
+      })
+    }
+
+    let cData: any[] = []
+    if (activeClassIds.size > 0) {
+      const { data } = await supabase
+        .from('classes')
+        .select('id, code, subject, grade')
+        .in('id', Array.from(activeClassIds))
+      if (data) cData = data
+    }
+
     const classMap = new Map<string, ClassItem>()
 
     if (cData && cData.length > 0) {
@@ -432,10 +449,11 @@ export default function CurriculumPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
+          {/* HIỂN THỊ THÀNH 3 CỘT GỌN GÀNG */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
             {classes.length === 0 ? (
-              <div className="col-span-2 p-10 text-center text-slate-400 text-xs">
-                Chưa có lớp nào trong hệ thống. Vui lòng kiểm tra lại bảng classes.
+              <div className="col-span-3 p-10 text-center text-slate-400 text-xs">
+                Chưa có lớp nào trong Thời khóa biểu. Vui lòng xếp lịch TKB trước để hiển thị danh sách lớp.
               </div>
             ) : (
               classes.map((cls) => {
@@ -454,7 +472,7 @@ export default function CurriculumPage() {
                   <div
                     key={cls.id}
                     onClick={() => handleToggleClassSelection(cls.id)}
-                    className={`p-3 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-2 ${
+                    className={`p-2.5 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-1.5 ${
                       isAssignedToActiveTpl
                         ? 'bg-emerald-100/90 border-emerald-600 shadow-xs ring-1 ring-emerald-500 font-semibold'
                         : isSelectedCheckbox
@@ -464,20 +482,20 @@ export default function CurriculumPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className={`text-sm block ${isAssignedToActiveTpl ? 'font-black text-emerald-950' : 'font-black text-slate-900'}`}>
+                        <span className={`text-xs block ${isAssignedToActiveTpl ? 'font-black text-emerald-950' : 'font-black text-slate-900'}`}>
                           Lớp {cls.code} {isAssignedToActiveTpl && '✓'}
                         </span>
-                        <span className="text-[11px] text-slate-500 font-medium">Môn: {cls.subject}</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Môn: {cls.subject}</span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="checkbox"
                           checked={isSelectedCheckbox}
                           onChange={() => {}}
-                          className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-700">Chọn</span>
+                        <span className="text-[11px] font-bold text-slate-700">Chọn</span>
                       </div>
                     </div>
 
@@ -489,10 +507,8 @@ export default function CurriculumPage() {
                         {assignedTemplatesForClass.map((tpl) => (
                           <span
                             key={tpl.id}
-                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                            className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
                               tpl.id === selectedTemplateId
-                                ? 'bg-emerald-700 text-white'
-                                : 'bg-blue-50 text-blue-800 border border-blue-200'
                             }`}
                           >
                             {tpl.title}
