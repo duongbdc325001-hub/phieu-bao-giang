@@ -12,36 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 
-interface ClassItem {
-  id: string
-  code: string
-  name: string
-  subject: string
-  grade?: number
-  template_id?: string | null
-}
-
-interface CurriculumItem {
-  id: string
-  class_id?: string
-  template_id?: string
-  lesson_order: number
-  lesson_name: string
-}
-
-interface ScheduleEntry {
-  id: string
-  day_of_week: number
-  period_number: number
-  class_id?: string
-  week_number?: number
-  is_substitute?: boolean
-  sub_class_code?: string
-  sub_subject?: string
-  classes?: ClassItem
-}
-
-const START_DATE_WEEK_1 = new Date(2026, 8, 7) // 07/09/2026
+const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
 
 const DAY_NAMES: Record<number, string> = {
   2: 'Thứ Hai',
@@ -55,130 +26,84 @@ const DAY_NAMES: Record<number, string> = {
 export default function ProgressPage() {
   const supabase = createClient()
 
-  const [classes, setClasses] = useState<ClassItem[]>([])
-  const [selectedClassId, setSelectedClassId] = useState<string>('')
-  const [curriculum, setCurriculum] = useState<CurriculumItem[]>([])
-  const [schedule, setSchedule] = useState<ScheduleEntry[]>([])
+  const [classes, setClasses] = useState<any[]>([])
+  const [selectedClassKey, setSelectedClassKey] = useState<string>('')
+  const [schedule, setSchedule] = useState<any[]>([])
+  const [curriculumItems, setCurriculumItems] = useState<any[]>([])
+  const [classCurriculums, setClassCurriculums] = useState<any[]>([])
+  const [overrides, setOverrides] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  const loadBaseData = async () => {
+  const loadData = async () => {
     setLoading(true)
 
-    const { data: sData } = await supabase
-      .from('schedule_entries')
-      .select('*, classes(*)')
-    if (sData) setSchedule(sData as any)
+    const { data: cData } = await supabase.from('classes').select('*').order('code', { ascending: true })
+    if (cData) setClasses(cData)
 
-    // Lấy tất cả các lớp có trong TKB hoặc danh sách classes
-    const { data: cData } = await supabase
-      .from('classes')
-      .select('*')
-      .order('code', { ascending: true })
+    const { data: sData } = await supabase.from('schedule_entries').select('*')
+    if (sData) setSchedule(sData)
 
-    if (cData && cData.length > 0) {
-      setClasses(cData)
-      if (!selectedClassId && cData.length > 0) {
-        setSelectedClassId(cData[0].id)
-      }
+    const { data: ccData } = await supabase.from('class_curriculums').select('*')
+    if (ccData) setClassCurriculums(ccData)
+
+    const { data: itemsData } = await supabase.from('curriculum_items').select('*')
+    if (itemsData) setCurriculumItems(itemsData)
+
+    const { data: ovrData } = await supabase.from('lesson_overrides').select('*')
+    if (ovrData) setOverrides(ovrData)
+
+    // Nếu chưa chọn lớp nào, tự động chọn lớp đầu tiên tìm thấy
+    const availableList = getAvailableClassSubjects(cData || [], sData || [])
+    if (availableList.length > 0 && !selectedClassKey) {
+      setSelectedClassKey(availableList[0].key)
     }
 
     setLoading(false)
   }
 
-  const loadClassCurriculum = async (classId: string) => {
-    if (!classId) return
-    const cls = classes.find((c) => c.id === classId)
-    if (!cls) return
-
-    let items: CurriculumItem[] = []
-
-    // 1. Kiểm tra bảng liên kết nhiều-nhiều class_curriculums kết hợp với tên môn học hoặc template_id
-    const { data: ccData } = await supabase
-      .from('class_curriculums')
-      .select('curriculum_id, curriculums(*)')
-      .eq('class_id', classId)
-
-    if (ccData && ccData.length > 0) {
-      // Tìm khung PPCT khớp với môn học của lớp này
-      const matchedCurr = ccData.find((item: any) => {
-        const currSub = (item.curriculums?.subject || '').toLowerCase()
-        const clsSub = (cls.subject || '').toLowerCase()
-        return currSub.includes(clsSub) || clsSub.includes(currSub) || !currSub
-      }) || ccData[0] // Fallback lấy phần tử đầu tiên nếu không khớp tuyệt đối
-
-      if (matchedCurr && matchedCurr.curriculums) {
-        const currId = (matchedCurr.curriculums as any).id
-        const { data: cItems } = await supabase
-          .from('curriculum_items')
-          .select('*')
-          .eq('template_id', currId)
-          .order('lesson_order', { ascending: true })
-        if (cItems) items = cItems as any
+  // Hàm tổng hợp danh sách lớp toàn diện từ mọi nguồn dữ liệu
+  const getAvailableClassSubjects = (classList: any[], scheduleList: any[]) => {
+    const map = new Map<string, { code: string; subject: string; label: string; key: string }>()
+    
+    // 1. Quét từ danh mục classes
+    classList.forEach(c => {
+      const code = (c.code || '').trim().toUpperCase()
+      const subject = (c.subject || 'Toán').trim()
+      if (code) {
+        const key = `${code}_${subject}`
+        if (!map.has(key)) {
+          map.set(key, { code, subject, label: `${code} — ${subject}`, key })
+        }
       }
-    }
+    })
 
-    // 2. Nếu chưa có, fallback tìm theo template_id của lớp
-    if (items.length === 0 && cls?.template_id) {
-      const { data } = await supabase
-        .from('curriculum_items')
-        .select('*')
-        .eq('template_id', cls.template_id)
-        .order('lesson_order', { ascending: true })
-      if (data) items = data as any
-    }
+    // 2. Quét từ thời khóa biểu schedule_entries (cả sub_class_code và sub_subject)
+    scheduleList.forEach(s => {
+      const code = (s.sub_class_code || '').trim().toUpperCase()
+      const subject = (s.sub_subject || 'Toán').trim()
+      if (code) {
+        const key = `${code}_${subject}`
+        if (!map.has(key)) {
+          map.set(key, { code, subject, label: `${code} — ${subject}`, key })
+        }
+      }
+    })
 
-    // 3. Fallback cuối cùng theo class_id trực tiếp
-    if (items.length === 0) {
-      const { data } = await supabase
-        .from('curriculum_items')
-        .select('*')
-        .eq('class_id', classId)
-        .order('lesson_order', { ascending: true })
-      if (data) items = data as any
-    }
-
-    setCurriculum(items)
+    return Array.from(map.values())
   }
 
   useEffect(() => {
-    loadBaseData()
+    loadData()
   }, [])
 
-  useEffect(() => {
-    if (selectedClassId) {
-      loadClassCurriculum(selectedClassId)
-    }
-  }, [selectedClassId, classes])
+  const classSubjectsList = getAvailableClassSubjects(classes, schedule)
 
-  // Lập danh sách tiến độ phân phối theo từng tuần
+  // Thuật toán xây dựng timeline bám sát logic Báo Giảng chính xác tuyệt đối cho mọi lớp
   const buildProgressTimeline = () => {
-    if (!selectedClassId || curriculum.length === 0) return []
-    const currentClass = classes.find(c => c.id === selectedClassId)
-    if (!currentClass) return []
+    if (!selectedClassKey || schedule.length === 0) return []
 
-    // Lọc các tiết học trên TKB khớp với lớp và môn học này
-    const classSlots = schedule
-      .filter((s) => {
-        const sCode = (s.sub_class_code || s.classes?.code || '').trim().toUpperCase()
-        const sSub = (s.sub_subject || s.classes?.subject || '').trim().toLowerCase()
-        const targetCode = currentClass.code.trim().toUpperCase()
-        const targetSub = currentClass.subject.trim().toLowerCase()
-
-        return (
-          sCode === targetCode &&
-          sSub.includes(targetSub) &&
-          !s.is_substitute
-        )
-      })
-      .sort((a, b) => {
-        if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week
-        return a.period_number - b.period_number
-      })
-
-    if (classSlots.length === 0) return []
-
-    const periodsPerWeek = classSlots.length
-    const now = new Date()
+    const [targetCode, targetSubject] = selectedClassKey.split('_')
+    const week1Slots = schedule.filter((s) => Number(s.week_number || 1) === 1 && !s.is_substitute)
 
     const weeksList: {
       weekNum: number
@@ -189,58 +114,151 @@ export default function ProgressPage() {
         periodStr: string
         dateStr: string
         status: 'dada' | 'sapday' | 'chuaday'
+        isSkipped?: boolean
       }>
     }[] = []
 
-    curriculum.forEach((item, index) => {
-      const weekIndex = Math.floor(index / periodsPerWeek)
-      const slotIndex = index % periodsPerWeek
-      const slot = classSlots[slotIndex] || classSlots[0]
+    const now = new Date()
 
-      const weekNum = weekIndex + 1
+    for (let w = 1; w <= 35; w++) {
+      let wSlots = schedule.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
+      if (wSlots.length === 0 && w > 1) {
+        wSlots = week1Slots.map((slot) => ({ ...slot, week_number: w }))
+      }
+      wSlots.sort((a, b) => {
+        const d1 = Number(a.day_of_week || 2)
+        const d2 = Number(b.day_of_week || 2)
+        if (d1 !== d2) return d1 - d2
+        return Number(a.period_number || 1) - Number(b.period_number || 1)
+      })
 
-      const d = new Date(START_DATE_WEEK_1)
-      const dayOffset = (slot.day_of_week - 2)
-      d.setDate(d.getDate() + weekIndex * 7 + dayOffset)
+      const classSlotsMap = new Map<string, any[]>()
+      wSlots.forEach((slot) => {
+        const classCode = (slot.sub_class_code || '').trim().toUpperCase()
+        const subject = (slot.sub_subject || 'Toán').trim()
+        const key = `${classCode}_${subject}`
+        if (!classSlotsMap.has(key)) classSlotsMap.set(key, [])
+        classSlotsMap.get(key)!.push(slot)
+      })
 
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
-      const yyyy = d.getFullYear()
-      const dateStr = `${dd}/${mm}/${yyyy}`
+      const classKey = `${targetCode}_${targetSubject}`
+      const targetSlotsForThisClass = classSlotsMap.get(classKey) || []
+      if (targetSlotsForThisClass.length === 0) continue
 
-      let status: 'dada' | 'sapday' | 'chuaday' = 'chuaday'
-      const diffTime = d.getTime() - now.getTime()
-      const diffDays = diffTime / (1000 * 3600 * 24)
-
-      if (diffDays < -0.5) status = 'dada'
-      else if (diffDays >= -0.5 && diffDays <= 7) status = 'sapday'
-      else status = 'chuaday'
-
-      let currentWeekGroup = weeksList.find((w) => w.weekNum === weekNum)
-      if (!currentWeekGroup) {
-        currentWeekGroup = { weekNum, items: [] }
-        weeksList.push(currentWeekGroup)
+      let templateId: string | null = null
+      const matchedClassRel = classCurriculums.find(
+        (cc) => cc.class_id === classKey || cc.class_id === targetSlotsForThisClass[0]?.class_id || cc.class_id === targetCode
+      )
+      if (matchedClassRel) {
+        templateId = matchedClassRel.template_id || matchedClassRel.curriculum_id
+      } else {
+        const cls = classes.find((c) => (c.code || '').trim().toUpperCase() === targetCode && (c.subject || 'Toán').trim().toLowerCase() === targetSubject.toLowerCase())
+        if (cls?.template_id) templateId = cls.template_id
       }
 
-      currentWeekGroup.items.push({
-        lessonOrder: item.lesson_order,
-        lessonName: item.lesson_name,
-        dayName: DAY_NAMES[slot.day_of_week] || `Thứ ${slot.day_of_week}`,
-        periodStr: `(T${slot.period_number})`,
-        dateStr,
-        status,
+      let lessons: any[] = []
+      if (templateId) {
+        lessons = curriculumItems.filter((item) => item.template_id === templateId)
+      }
+      if (lessons.length === 0) {
+        lessons = curriculumItems.filter((item) => item.class_id === targetSlotsForThisClass[0]?.class_id)
+      }
+      lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
+
+      // Dồn con trỏ bài học từ các tuần trước
+      let globalLessonPointer = 0
+      for (let prevW = 1; prevW < w; prevW++) {
+        let prevWSlots = schedule.filter((s) => Number(s.week_number || 1) === prevW && !s.is_substitute)
+        if (prevWSlots.length === 0 && prevW > 1) prevWSlots = week1Slots.map(s => ({ ...s, week_number: prevW }))
+        
+        const prevWClassMap = new Map<string, any[]>()
+        prevWSlots.forEach(slot => {
+          const cCode = (slot.sub_class_code || '').trim().toUpperCase()
+          const sub = (slot.sub_subject || 'Toán').trim()
+          const k = `${cCode}_${sub}`
+          if (!prevWClassMap.has(k)) prevWClassMap.set(k, [])
+          prevWClassMap.get(k)!.push(slot)
+        })
+
+        const slotsInPrevW = prevWClassMap.get(classKey) || []
+        slotsInPrevW.forEach((slot, sIdx) => {
+          const realCId = slot.class_id || classKey
+          const ovr = overrides.find(
+            (o) => (o.class_id === realCId || o.class_id === classKey) && Number(o.week_number) === prevW && Number(o.slot_order_in_week) === sIdx
+          )
+          const isSkipped = ovr ? (ovr as any).is_skipped === true : false
+          if (!isSkipped) globalLessonPointer++
+        })
+      }
+
+      const weekGroupItems: any[] = []
+      targetSlotsForThisClass.forEach((slot, sIdx) => {
+        const realCId = slot.class_id || classKey
+        const ovr = overrides.find(
+          (o) => (o.class_id === realCId || o.class_id === classKey) && Number(o.week_number) === w && Number(o.slot_order_in_week) === sIdx
+        )
+
+        const isSkipped = ovr ? (ovr as any).is_skipped === true : false
+        let assignedOrder = globalLessonPointer + 1
+
+        if (ovr && !isSkipped && (ovr as any).override_lesson_order) {
+          assignedOrder = Number((ovr as any).override_lesson_order)
+        }
+
+        let foundLesson = null
+        if (!isSkipped && lessons.length > 0) {
+          foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[globalLessonPointer]
+        }
+
+        const finalOrder = isSkipped ? 0 : (foundLesson ? Number(foundLesson.lesson_order || assignedOrder) : assignedOrder)
+        
+        let lessonName = isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (foundLesson ? foundLesson.lesson_name : null)
+        if (!lessonName && !isSkipped) {
+          lessonName = `Bài học theo phân phối chương trình (Tiết ${finalOrder})`
+        }
+
+        const dayOfWeek = Number(slot.day_of_week || 2)
+        const d = new Date(START_DATE_WEEK_1)
+        d.setDate(d.getDate() + (w - 1) * 7 + (dayOfWeek - 2))
+
+        const dd = String(d.getDate()).padStart(2, '0')
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const yyyy = d.getFullYear()
+        const dateStr = `${dd}/${mm}/${yyyy}`
+
+        let status: 'dada' | 'sapday' | 'chuaday' = 'chuaday'
+        const diffDays = (d.getTime() - now.getTime()) / (1000 * 3600 * 24)
+
+        if (diffDays < -0.5) status = 'dada'
+        else if (diffDays >= -0.5 && diffDays <= 7) status = 'sapday'
+        else status = 'chuaday'
+
+        weekGroupItems.push({
+          lessonOrder: finalOrder,
+          lessonName,
+          dayName: DAY_NAMES[dayOfWeek] || `Thứ ${dayOfWeek}`,
+          periodStr: `(T${slot.period_number})`,
+          dateStr,
+          status,
+          isSkipped,
+        })
+
+        if (!isSkipped) globalLessonPointer++
       })
-    })
+
+      if (weekGroupItems.length > 0) {
+        weeksList.push({ weekNum: w, items: weekGroupItems })
+      }
+    }
 
     return weeksList
   }
 
   const timelineWeeks = buildProgressTimeline()
-  const currentClass = classes.find((c) => c.id === selectedClassId)
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans pb-10">
-      {/* HEADER */}
+      {/* HEADER GIAO DIỆN GỐC */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-800">
@@ -254,22 +272,22 @@ export default function ProgressPage() {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 border rounded-xl shadow-2xs">
             <Layers className="w-4 h-4 text-emerald-600" />
-            <span className="text-xs font-bold text-slate-500 uppercase">Lớp:</span>
+            <span className="text-xs font-bold text-slate-500 uppercase">LỚP:</span>
             <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
+              value={selectedClassKey}
+              onChange={(e) => setSelectedClassKey(e.target.value)}
               className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} — {c.subject}
+              {classSubjectsList.map((cs) => (
+                <option key={cs.key} value={cs.key}>
+                  {cs.label}
                 </option>
               ))}
             </select>
           </div>
 
           <button
-            onClick={loadBaseData}
+            onClick={loadData}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition cursor-pointer"
           >
@@ -279,7 +297,7 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      {/* BẢNG TIẾN ĐỘ ĐÃ GỘP Ô TUẦN VÀ ĐẶT NGÀY DƯỚI THỨ */}
+      {/* BẢNG TIẾN ĐỘ */}
       <div className="bg-white rounded-2xl border shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
@@ -297,18 +315,18 @@ export default function ProgressPage() {
                 <tr>
                   <td colSpan={5} className="p-12 text-center text-slate-400">
                     <AlertCircle className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                    Lớp chưa được gán khung PPCT hoặc chưa xếp tiết trên Thời khóa biểu cho môn này.
+                    Lớp chưa có tiết dạy trên thời khóa biểu.
                   </td>
                 </tr>
               ) : (
                 timelineWeeks.map((weekGroup) => {
                   const weekTitle = `Tuần ${weekGroup.weekNum < 10 ? '0' + weekGroup.weekNum : weekGroup.weekNum}`
 
-                  return weekGroup.items.map((item, idx) => {
+                  return weekGroup.items.map((item: any, idx: number) => {
                     const isFirstInWeek = idx === 0
 
                     return (
-                      <tr key={`${weekGroup.weekNum}_${item.lessonOrder}`} className="hover:bg-slate-50/70 transition">
+                      <tr key={`${weekGroup.weekNum}_${idx}`} className="hover:bg-slate-50/70 transition">
                         {isFirstInWeek && (
                           <td
                             rowSpan={weekGroup.items.length}
@@ -328,7 +346,7 @@ export default function ProgressPage() {
                         </td>
 
                         <td className="p-2.5 border-r text-center font-black text-blue-700 text-sm">
-                          {item.lessonOrder}
+                          {item.isSkipped ? '—' : item.lessonOrder}
                         </td>
 
                         <td className="p-2.5 border-r font-medium text-slate-800">
