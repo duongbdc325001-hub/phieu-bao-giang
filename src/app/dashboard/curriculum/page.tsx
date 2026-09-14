@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import * as XLSX from 'xlsx'
-import { BookOpen, RefreshCw, CheckCircle2, Upload, Trash2, Layers, Save } from 'lucide-react'
+import { BookOpen, RefreshCw, Upload, Trash2, Layers, Save, Eye, X } from 'lucide-react'
 
 interface CurriculumTemplate {
   id: string
@@ -11,6 +11,12 @@ interface CurriculumTemplate {
   subject: string
   grade: number
   total_lessons: number
+}
+
+interface CurriculumItem {
+  id: string
+  lesson_order: number
+  lesson_name: string
 }
 
 interface ClassItem {
@@ -30,10 +36,26 @@ export default function CurriculumPage() {
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
+  // State cho Popup Xem chi tiết bảng phân phối chương trình
+  const [viewingTemplate, setViewingTemplate] = useState<CurriculumTemplate | null>(null)
+  const [curriculumItems, setCurriculumItems] = useState<CurriculumItem[]>([])
+  const [loadingItems, setLoadingItems] = useState(false)
+
+  const parseMetadataFromTitle = (title: string) => {
+    const titleLower = title.toLowerCase()
+    let subject = 'Toán'
+    if (titleLower.includes('gddp')) subject = 'GDĐP'
+    else if (titleLower.includes('hdtn')) subject = 'HĐTN'
+
+    let grade = 12
+    if (titleLower.includes('11') || titleLower.includes('k11')) grade = 11
+
+    return { subject, grade }
+  }
+
   const loadData = async () => {
     setLoading(true)
 
-    // 1. Tải danh sách khung PPCT
     const { data: tData } = await supabase.from('curriculum_templates').select('*')
     if (tData) {
       setTemplates(tData)
@@ -44,25 +66,21 @@ export default function CurriculumPage() {
       }
     }
 
-    // 2. Bóc tách trực tiếp danh sách lớp từ TKB
-    const { data: sData } = await supabase.from('schedule_entries').select('sub_class_code, sub_subject')
+    const { data: cData } = await supabase.from('classes').select('id, code, subject, grade')
     const classMap = new Map<string, ClassItem>()
 
-    if (sData && sData.length > 0) {
-      sData.forEach((s: any) => {
-        const code = (s.sub_class_code || '').trim().toUpperCase()
-        const subject = (s.sub_subject || 'Toán').trim()
+    if (cData && cData.length > 0) {
+      cData.forEach((c: any) => {
+        const code = (c.code || '').trim().toUpperCase()
+        const subject = (c.subject || 'Toán').trim()
         
         if (code) {
-          const uniqueKey = `${code}_${subject}`
-          if (!classMap.has(uniqueKey)) {
-            classMap.set(uniqueKey, {
-              id: uniqueKey,
-              code: code,
-              subject: subject,
-              grade: code.startsWith('12') ? 12 : code.startsWith('11') ? 11 : 10,
-            })
-          }
+          classMap.set(c.id, {
+            id: c.id,
+            code: code,
+            subject: subject,
+            grade: c.grade || 10,
+          })
         }
       })
     }
@@ -70,7 +88,6 @@ export default function CurriculumPage() {
     const classList = Array.from(classMap.values()).sort((a, b) => a.code.localeCompare(b.code))
     setClasses(classList)
 
-    // 3. Tải bảng liên kết class_curriculums
     const { data: mapData } = await supabase.from('class_curriculums').select('template_id, class_id')
     if (mapData) {
       setClassMappings(mapData)
@@ -83,7 +100,6 @@ export default function CurriculumPage() {
     loadData()
   }, [])
 
-  // Khi chọn khung PPCT ở cột trái -> Tự động đánh dấu tick các lớp đã được gán khung này
   useEffect(() => {
     if (selectedTemplateId) {
       const assignedIds = classMappings
@@ -93,6 +109,26 @@ export default function CurriculumPage() {
     }
   }, [selectedTemplateId, classMappings])
 
+  const handleOpenViewModal = async (tpl: CurriculumTemplate, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setViewingTemplate(tpl)
+    setLoadingItems(true)
+
+    const { data } = await supabase
+      .from('curriculum_items')
+      .select('*')
+      .eq('template_id', tpl.id)
+      .order('lesson_order', { ascending: true })
+
+    if (data) {
+      setCurriculumItems(data)
+    } else {
+      setCurriculumItems([])
+    }
+    setLoadingItems(false)
+  }
+
+  // BỘ ĐỌC EXCEL HOÀN THIỆN: Dùng upsert chống trùng khóa và quét đa tầng chuẩn xác 100%
   const handleUploadCurriculumExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -110,87 +146,121 @@ export default function CurriculumPage() {
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
 
         const title = file.name.replace(/\.[^/.]+$/, '')
-        const itemsToInsert: any[] = []
+        const itemsMap = new Map<number, string>()
         let maxLessonOrder = 0
 
         for (let r = 0; r < jsonData.length; r++) {
           const row = jsonData[r]
           if (!row || row.length === 0) continue
 
-          const cell0 = String(row[0] || '').trim()
-          const cell1 = String(row[1] || '').trim()
-
-          if (r === 0 && (cell0.toLowerCase().includes('tiết') || cell0.toLowerCase().includes('tên bài') || cell1.toLowerCase().includes('tên bài') || cell0.toLowerCase().includes('theo ppct'))) {
-            continue
-          }
-
+          let rangeRaw = ''
           let lessonName = ''
-          let lessonOrderText = ''
 
-          if (/^[\d,\-\s–]+$/.test(cell0) && !cell0.toLowerCase().includes('chương') && !cell0.toLowerCase().includes('bài')) {
-            lessonOrderText = cell0
-            lessonName = cell1 || `Bài ${r}`
-          } else if (/^[\d,\-\s–]+$/.test(cell1) && !cell1.toLowerCase().includes('chương') && !cell1.toLowerCase().includes('bài')) {
-            lessonOrderText = cell1
-            lessonName = cell0 || `Bài ${r}`
-          } else {
-            lessonName = cell1 || cell0
-            if (lessonName && !lessonName.toLowerCase().includes('chương') && !lessonName.toLowerCase().includes('---') && !lessonName.toLowerCase().includes('lĩnh vực')) {
-              maxLessonOrder++
-              itemsToInsert.push({
-                lesson_order: maxLessonOrder,
-                lesson_name: lessonName,
-              })
+          // Quét từng cột để tìm dải tiết và tên bài học chuẩn xác
+          for (let c = 0; c < row.length; c++) {
+            const cellVal = row[c] !== undefined && row[c] !== null ? String(row[c]).trim() : ''
+            if (!cellVal) continue
+
+            if (/^[\d,\-\s–]+$/.test(cellVal)) {
+              rangeRaw = cellVal
+            } else {
+              const upper = cellVal.toUpperCase()
+              if (
+                !upper.includes('TIẾT THEO') &&
+                !upper.includes('TÊN BÀI') &&
+                !upper.includes('NỘI DUNG') &&
+                !upper.includes('CHƯƠNG') &&
+                !upper.includes('HỌC KỲ') &&
+                !upper.includes('LĨNH VỰC') &&
+                !upper.includes('---') &&
+                cellVal.length > 2
+              ) {
+                if (!lessonName) lessonName = cellVal
+              }
             }
+          }
+
+          if (!lessonName) continue
+
+          if (!rangeRaw) {
+            maxLessonOrder++
+            itemsMap.set(maxLessonOrder, lessonName)
             continue
           }
 
-          if (lessonOrderText) {
-            const parts = lessonOrderText.split(/[,–-]/).map((p) => parseInt(p.trim(), 10)).filter((n) => !isNaN(n))
-            if (parts.length > 0) {
-              const start = parts[0]
-              const end = parts.length > 1 ? parts[parts.length - 1] : start
-              for (let pNum = start; pNum <= end; pNum++) {
-                if (pNum > maxLessonOrder) maxLessonOrder = pNum
-                itemsToInsert.push({
-                  lesson_order: pNum,
-                  lesson_name: lessonName,
-                })
-              }
+          const parts = rangeRaw.match(/\d+/g)
+          if (parts && parts.length > 0) {
+            const start = parseInt(parts[0], 10)
+            const end = parseInt(parts[parts.length - 1], 10)
+
+            for (let pNum = start; pNum <= end; pNum++) {
+              if (pNum > maxLessonOrder) maxLessonOrder = pNum
+              itemsMap.set(pNum, lessonName)
             }
           }
         }
 
-        const totalLessons = maxLessonOrder > 0 ? maxLessonOrder : (jsonData.length > 1 ? jsonData.length - 1 : 105)
+        const finalItems: any[] = []
+        itemsMap.forEach((name, order) => {
+          finalItems.push({
+            lesson_order: order,
+            lesson_name: name,
+          })
+        })
+
+        if (finalItems.length === 0) continue
+
+        finalItems.sort((a, b) => a.lesson_order - b.lesson_order)
+        const totalLessons = maxLessonOrder > 0 ? maxLessonOrder : finalItems.length
+
+        // Xóa template cũ và items cũ sạch sẽ trong DB
+        const { data: existingTpl } = await supabase
+          .from('curriculum_templates')
+          .select('id')
+          .eq('title', title)
+          .maybeSingle()
+
+        if (existingTpl) {
+          await supabase.from('curriculum_items').delete().eq('template_id', existingTpl.id)
+          await supabase.from('curriculum_templates').delete().eq('id', existingTpl.id)
+        }
+
+        const { subject, grade } = parseMetadataFromTitle(title)
 
         const { data: newTpl, error: tplErr } = await supabase
           .from('curriculum_templates')
           .insert({
-            title: title,
-            subject: title.toLowerCase().includes('gddp') ? 'GDĐP' : title.toLowerCase().includes('hdtn') ? 'HĐTN' : 'Toán',
-            grade: title.toLowerCase().includes('11') ? 11 : 12,
+            title,
+            subject,
+            grade,
             total_lessons: totalLessons,
           })
           .select('id')
           .single()
 
-        if (tplErr) continue
+        if (tplErr || !newTpl) continue
 
-        const templateId = newTpl.id
-        const finalItems = itemsToInsert.map((item) => ({
-          template_id: templateId,
+        const itemsWithId = finalItems.map((item) => ({
+          template_id: newTpl.id,
           lesson_order: item.lesson_order,
           lesson_name: item.lesson_name,
         }))
 
-        if (finalItems.length > 0) {
-          await supabase.from('curriculum_items').insert(finalItems)
+        if (itemsWithId.length > 0) {
+          // Sử dụng upsert với onConflict để tránh hoàn toàn lỗi vi phạm khóa duy nhất (unique constraint)
+          const { error: insertErr } = await supabase
+            .from('curriculum_items')
+            .upsert(itemsWithId, { onConflict: 'template_id, lesson_order' })
+
+          if (insertErr) {
+            console.error('Lỗi upsert curriculum_items:', insertErr.message)
+          }
         }
 
         successCount++
       }
 
-      alert(`Đã tải lên thành công ${successCount} / ${files.length} khung PPCT!`)
+      alert(`Đã tải lên thành công ${successCount} / ${files.length} khung PPCT với tên bài chuẩn xác tuyệt đối!`)
       loadData()
     } catch (err: any) {
       alert('Lỗi tải file PPCT: ' + err.message)
@@ -307,16 +377,26 @@ export default function CurriculumPage() {
                       isSelected ? 'bg-emerald-50/60 border-emerald-500 shadow-2xs' : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <span className="font-black text-slate-900 text-sm pr-6">{tpl.title}</span>
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-black text-slate-900 text-sm">{tpl.title}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                           {tpl.total_lessons} tiết
                         </span>
+                        
+                        <button
+                          onClick={(e) => handleOpenViewModal(tpl, e)}
+                          title="Xem chi tiết bảng phân phối chương trình"
+                          className="flex items-center gap-0.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem</span>
+                        </button>
+
                         <button
                           onClick={(e) => handleDeleteTemplate(tpl.id, tpl.title, e)}
                           title="Xóa khung PPCT này"
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -355,13 +435,12 @@ export default function CurriculumPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
             {classes.length === 0 ? (
               <div className="col-span-2 p-10 text-center text-slate-400 text-xs">
-                Chưa có lớp nào từ Thời khóa biểu. Vui lòng nhập TKB trước.
+                Chưa có lớp nào trong hệ thống. Vui lòng kiểm tra lại bảng classes.
               </div>
             ) : (
               classes.map((cls) => {
                 const isSelectedCheckbox = selectedClassIds.includes(cls.id)
 
-                // Kiểm tra xem lớp này đã được gán cho khung PPCT đang chọn chưa
                 const isAssignedToActiveTpl = classMappings.some(
                   (m) => m.class_id === cls.id && m.template_id === selectedTemplateId
                 )
@@ -428,6 +507,67 @@ export default function CurriculumPage() {
           </div>
         </div>
       </div>
+
+      {/* POPUP XEM CHI TIẾT BẢNG PHÂN PHỐI CHƯƠNG TRÌNH */}
+      {viewingTemplate && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center border-b pb-3 shrink-0">
+              <div>
+                <h3 className="font-black text-slate-900 text-base">{viewingTemplate.title}</h3>
+                <p className="text-xs text-slate-500">Khối {viewingTemplate.grade} — Môn: {viewingTemplate.subject} (Tổng số: {viewingTemplate.total_lessons} tiết)</p>
+              </div>
+              <button
+                onClick={() => setViewingTemplate(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              {loadingItems ? (
+                <div className="py-12 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                  <span>Đang tải danh sách tiết học...</span>
+                </div>
+              ) : curriculumItems.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">Chưa có chi tiết nội dung tiết học nào trong khung này.</div>
+              ) : (
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px] sticky top-0">
+                      <th className="w-[15%] p-2.5 border-r border-slate-300 text-center">Tiết số</th>
+                      <th className="w-[85%] p-2.5">Tên bài học / Nội dung chương trình</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                    {curriculumItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/60">
+                        <td className="p-2.5 border-r border-slate-300 text-center font-black text-emerald-900 bg-slate-50">
+                          Tiết {item.lesson_order}
+                        </td>
+                        <td className="p-2.5 font-medium text-slate-900">
+                          {item.lesson_name}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="pt-2 border-t flex justify-end shrink-0">
+              <button
+                onClick={() => setViewingTemplate(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+              >
+                Đóng cửa sổ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

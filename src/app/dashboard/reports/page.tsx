@@ -36,23 +36,20 @@ export default function ReportsPage() {
   const [selectedWeek, setSelectedWeek] = useState(1)
   const [schedule, setSchedule] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
-  const [curriculum, setCurriculum] = useState<any[]>([])
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
   const [curriculumItems, setCurriculumItems] = useState<any[]>([])
   const [overrides, setOverrides] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [exportingWord, setExportingWord] = useState(false)
 
-  // State popup chỉnh sửa tiết CT (Đảo tiết & Bỏ qua tiết)
+  // State popup chỉnh sửa tiến độ cá nhân
   const [editingSlot, setEditingSlot] = useState<{
-    realClassId: string
+    classId: string
     slotIdx: number
     currentOrder: number
     isOverridden: boolean
-    isSkipped: boolean
   } | null>(null)
   const [targetLessonOrder, setTargetLessonOrder] = useState<number>(1)
-  const [isSkippedSlot, setIsSkippedSlot] = useState<boolean>(false)
 
   const getFormattedDate = (offset: number) => {
     const d = new Date(START_DATE_WEEK_1)
@@ -71,9 +68,6 @@ export default function ReportsPage() {
     const { data: sData } = await supabase.from('schedule_entries').select('*')
     if (sData) setSchedule(sData)
 
-    const { data: currData } = await supabase.from('curriculums').select('*')
-    if (currData) setCurriculum(currData)
-
     const { data: ccData } = await supabase.from('class_curriculums').select('*')
     if (ccData) setClassCurriculums(ccData)
 
@@ -90,9 +84,9 @@ export default function ReportsPage() {
     loadData()
   }, [])
 
-  // Thuật toán ánh xạ thông minh: Phân tách độc lập tiến độ theo từng Môn và từng Lớp
+  // Thuật toán ánh xạ linh hoạt: Tích lũy liên mạch từ tuần trước, ưu tiên tuyệt đối các cấu hình thủ công trong overrides
   const calculateReportRows = () => {
-    if (schedule.length === 0) return []
+    if (schedule.length === 0 || classes.length === 0) return []
 
     const week1Slots = schedule.filter((s) => Number(s.week_number || 1) === 1 && !s.is_substitute)
 
@@ -100,10 +94,7 @@ export default function ReportsPage() {
     for (let w = 1; w <= selectedWeek; w++) {
       let wSlots = schedule.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
       if (wSlots.length === 0 && w > 1) {
-        wSlots = week1Slots.map((slot) => ({
-          ...slot,
-          week_number: w,
-        }))
+        wSlots = week1Slots.map((slot) => ({ ...slot, week_number: w }))
       }
       wSlots.sort((a, b) => {
         const d1 = Number(a.day_of_week || 2)
@@ -114,104 +105,88 @@ export default function ReportsPage() {
       allActiveWeeksSlots.push(...wSlots)
     }
 
-    // Phân tách nhóm theo từng (Lớp + Môn) độc lập tuyệt đối
     const classSlotsMap = new Map<string, any[]>()
     allActiveWeeksSlots.forEach((slot) => {
-      const classCode = (slot.sub_class_code || '').trim().toUpperCase()
-      const subject = (slot.sub_subject || 'Toán').trim()
-      const key = `${classCode}_${subject}`
-
-      if (!classSlotsMap.has(key)) classSlotsMap.set(key, [])
-      classSlotsMap.get(key)!.push(slot)
+      const clsId = slot.class_id
+      if (clsId) {
+        if (!classSlotsMap.has(clsId)) classSlotsMap.set(clsId, [])
+        classSlotsMap.get(clsId)!.push(slot)
+      }
     })
 
-    const lessonMapping = new Map<string, { order: number; name: string; isOverridden: boolean; isSkipped: boolean; slotIdx: number }>()
+    const lessonMapping = new Map<string, { order: number; name: string; isOverridden: boolean; slotIdx: number; hasTemplate: boolean }>()
 
-    classSlotsMap.forEach((slots, classKey) => {
+    classSlotsMap.forEach((slots, classId) => {
       let templateId: string | null = null
-      const classCodeOnly = classKey.split('_')[0]
-      
-      const matchedClassRel = classCurriculums.find(
-        (cc) => cc.class_id === classKey || cc.class_id === slots[0]?.class_id || cc.class_id === classCodeOnly
-      )
-      if (matchedClassRel) {
-        templateId = matchedClassRel.template_id || matchedClassRel.curriculum_id
+      const matchedRel = classCurriculums.find((cc) => cc.class_id === classId)
+      if (matchedRel) {
+        templateId = matchedRel.template_id
       } else {
-        const cls = classes.find(
-          (c) => c.id === slots[0]?.class_id || c.code === classCodeOnly
-        )
+        const cls = classes.find((c) => c.id === classId)
         if (cls?.template_id) templateId = cls.template_id
       }
 
       let lessons: any[] = []
-      if (templateId) {
+      const hasTemplate = !!templateId
+      if (hasTemplate) {
         lessons = curriculumItems.filter((item) => item.template_id === templateId)
       }
-      
-      if (lessons.length === 0) {
-        lessons = curriculumItems.filter((item) => item.class_id === slots[0]?.class_id)
-      }
-
       lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
 
-      const weekSlotCounters = new Map<number, number>()
-      let lessonPointer = 0
-
+      const slotsByWeek = new Map<number, any[]>()
       slots.forEach((slot) => {
-        const weekNum = Number(slot.week_number || 1)
-        const day = Number(slot.day_of_week || 2)
-        const period = Number(slot.period_number || 1)
-        const realCId = slot.class_id || classKey
-
-        if (!weekSlotCounters.has(weekNum)) {
-          weekSlotCounters.set(weekNum, 0)
-        }
-        const currentWeekSlotIdx = weekSlotCounters.get(weekNum)!
-
-        const ovr = overrides.find(
-          (o) => (o.class_id === realCId || o.class_id === classKey) && Number(o.week_number) === weekNum && Number(o.slot_order_in_week) === currentWeekSlotIdx
-        )
-
-        const isSkipped = ovr ? (ovr as any).is_skipped === true : false
-        let assignedOrder = lessonPointer + 1
-
-        if (ovr && !isSkipped && (ovr as any).override_lesson_order) {
-          assignedOrder = Number((ovr as any).override_lesson_order)
-        }
-
-        let foundLesson = null
-        if (!isSkipped && lessons.length > 0) {
-          foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[lessonPointer]
-        }
-
-        const mapKey = `${weekNum}_${day}_${period}_${classKey}`
-        lessonMapping.set(mapKey, {
-          order: isSkipped ? 0 : (foundLesson ? Number(foundLesson.lesson_order || assignedOrder) : assignedOrder),
-          name: isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (foundLesson ? foundLesson.lesson_name : ''),
-          isOverridden: !!ovr && !isSkipped,
-          isSkipped: isSkipped,
-          slotIdx: currentWeekSlotIdx,
-        })
-
-        weekSlotCounters.set(weekNum, currentWeekSlotIdx + 1)
-        
-        if (!isSkipped) {
-          lessonPointer++
-        }
+        const wNum = Number(slot.week_number || 1)
+        if (!slotsByWeek.has(wNum)) slotsByWeek.set(wNum, [])
+        slotsByWeek.get(wNum)!.push(slot)
       })
+
+      let globalPointer = 1 // Con trỏ mảng tích lũy từ tuần 1
+
+      for (let w = 1; w <= selectedWeek; w++) {
+        const wSlots = slotsByWeek.get(w) || []
+
+        wSlots.forEach((slot, weekSlotIdx) => {
+          const day = Number(slot.day_of_week || 2)
+          const period = Number(slot.period_number || 1)
+
+          const ovr = overrides.find(
+            (o) => o.class_id === classId && Number(o.week_number) === w && Number(o.slot_order_in_week) === weekSlotIdx
+          )
+
+          let assignedOrder = globalPointer
+          let isCustomOverridden = false
+
+          if (hasTemplate) {
+            if (ovr && ovr.override_lesson_order) {
+              assignedOrder = Number(ovr.override_lesson_order)
+              isCustomOverridden = true
+            }
+          }
+
+          let foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[assignedOrder - 1]
+
+          const mapKey = `${w}_${day}_${period}_${classId}`
+          if (w === selectedWeek) {
+            lessonMapping.set(mapKey, {
+              order: !hasTemplate ? 0 : assignedOrder,
+              name: !hasTemplate ? '' : (foundLesson ? foundLesson.lesson_name : `Tiết học số ${assignedOrder}`),
+              isOverridden: isCustomOverridden,
+              slotIdx: weekSlotIdx,
+              hasTemplate: hasTemplate,
+            })
+          }
+
+          globalPointer = assignedOrder + 1
+        })
+      }
     })
 
     let currentWeekSlots = schedule.filter((s) => Number(s.week_number || 1) === Number(selectedWeek) && !s.is_substitute)
     if (currentWeekSlots.length === 0 && Number(selectedWeek) > 1) {
-      currentWeekSlots = week1Slots.map((slot) => ({
-        ...slot,
-        week_number: Number(selectedWeek),
-      }))
+      currentWeekSlots = week1Slots.map((slot) => ({ ...slot, week_number: Number(selectedWeek) }))
     }
 
-    if (currentWeekSlots.length === 0) {
-      return []
-    }
+    if (currentWeekSlots.length === 0) return []
 
     const weekRows: { day: typeof DAYS[0]; slots: any[] }[] = []
 
@@ -223,28 +198,30 @@ export default function ReportsPage() {
           (s) => Number(s.day_of_week) === day.id && Number(s.period_number) === p
         )
 
-        if (matchedSlot) {
-          const classCode = (matchedSlot.sub_class_code || '').trim().toUpperCase()
-          const subject = (matchedSlot.sub_subject || 'Toán').trim()
-          const classKey = `${classCode}_${subject}`
-          const realCId = matchedSlot.class_id || classKey
+        if (matchedSlot && matchedSlot.class_id) {
+          const cls = classes.find((c) => c.id === matchedSlot.class_id)
+          const classCode = cls ? cls.code : (matchedSlot.sub_class_code || 'Lớp')
+          const subjectName = cls ? cls.subject : (matchedSlot.sub_subject || 'Toán')
+
+          const classSlotsAll = currentWeekSlots.filter((s) => Number(s.class_id) === Number(matchedSlot.class_id))
+          const slotIdxInWeek = classSlotsAll.findIndex((s) => Number(s.day_of_week) === day.id && Number(s.period_number) === p)
 
           const activeWeek = Number(selectedWeek)
-          const mapKey = `${activeWeek}_${day.id}_${p}_${classKey}`
-          const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, isSkipped: false, slotIdx: 0 }
+          const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
+          const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
 
           daySlots.push({
             entry: matchedSlot,
             day: day.id,
             period: p,
-            realClassId: realCId,
-            subjectClass: `${matchedSlot.sub_subject || 'Toán'} - ${matchedSlot.sub_class_code || 'Lớp'}`,
+            realClassId: matchedSlot.class_id,
+            subjectClass: `${subjectName} - ${classCode}`,
             lessonOrder: lessonInfo.order,
             lessonName: lessonInfo.name,
             isSubstitute: matchedSlot.is_substitute || false,
             isOverridden: lessonInfo.isOverridden,
-            isSkipped: lessonInfo.isSkipped,
-            slotOrderInWeek: lessonInfo.slotIdx,
+            slotOrderInWeek: slotIdxInWeek >= 0 ? slotIdxInWeek : 0,
+            hasTemplate: lessonInfo.hasTemplate,
           })
         }
       }
@@ -260,23 +237,21 @@ export default function ReportsPage() {
   const reportData = calculateReportRows()
   const totalSlotsCount = reportData.reduce((acc, curr) => acc + curr.slots.length, 0)
 
-  // Hàm lưu thay đổi tiết CT chuẩn chỉnh theo kiến trúc UUID quan hệ
-  const handleSaveOverride = async (skipStatus?: boolean) => {
+  const handleSaveOverride = async () => {
     if (!editingSlot) return
     setLoading(true)
 
     try {
-      const targetClassId = editingSlot.realClassId
-      const skipVal = skipStatus !== undefined ? skipStatus : isSkippedSlot
+      const payload = {
+        class_id: editingSlot.classId,
+        week_number: Number(selectedWeek),
+        slot_order_in_week: Number(editingSlot.slotIdx),
+        is_skipped: false,
+        override_lesson_order: Number(targetLessonOrder),
+      }
 
       const { error } = await supabase.from('lesson_overrides').upsert(
-        {
-          class_id: targetClassId,
-          week_number: Number(selectedWeek),
-          slot_order_in_week: Number(editingSlot.slotIdx),
-          override_lesson_order: Number(targetLessonOrder),
-          is_skipped: skipVal,
-        },
+        payload,
         { onConflict: 'class_id,week_number,slot_order_in_week' }
       )
 
@@ -285,7 +260,7 @@ export default function ReportsPage() {
       setEditingSlot(null)
       await loadData()
     } catch (err: any) {
-      alert('Lỗi khi lưu thay đổi: ' + err.message)
+      alert('Lỗi khi lưu thay đổi tiến độ: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -333,9 +308,9 @@ export default function ReportsPage() {
             )
           }
 
-          let noteText = slot.isSkipped ? 'Bỏ qua' : (slot.isOverridden ? 'Đảo tiết' : '')
-          let lessonDisplay = slot.isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (slot.lessonName || '')
-          let orderDisplay = slot.isSkipped ? '—' : String(slot.lessonOrder)
+          let noteText = !slot.hasTemplate ? 'Chưa có PPCT' : (slot.isOverridden ? 'Tùy chỉnh' : '')
+          let lessonDisplay = !slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || '')
+          let orderDisplay = !slot.hasTemplate ? '—' : String(slot.lessonOrder)
 
           rowCells.push(
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: slot.subjectClass, size: 20 })] })] }),
@@ -381,7 +356,6 @@ export default function ReportsPage() {
                   }),
                 ],
               }),
-
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 spacing: { before: 240, after: 60 },
@@ -392,58 +366,7 @@ export default function ReportsPage() {
                 spacing: { after: 240 },
                 children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học)`, italics: true, size: 20 })],
               }),
-
               new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
-
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                rows: [
-                  new TableRow({
-                    children: [
-                      new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        borders: noBorders,
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            spacing: { before: 300 },
-                            children: [new TextRun({ text: 'PHÓ HIỆU TRƯỞNG', bold: true, size: 20 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: '(Ký, ghi rõ họ tên và đóng dấu)', italics: true, size: 18 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            spacing: { before: 1100 },
-                            children: [new TextRun({ text: 'Nguyễn Tiến Đức', bold: true, size: 20 })],
-                          }),
-                        ],
-                      }),
-                      new TableCell({
-                        width: { size: 50, type: WidthType.PERCENTAGE },
-                        borders: noBorders,
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            spacing: { before: 300 },
-                            children: [new TextRun({ text: 'KIỂM TRA CỦA TTCM', bold: true, size: 20 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new TextRun({ text: '(Ký và ghi rõ họ tên)', italics: true, size: 18 })],
-                          }),
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            spacing: { before: 1100 },
-                            children: [new TextRun({ text: 'Nguyễn Ngọc Xuân', bold: true, size: 20 })],
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
-              }),
             ],
           },
         ],
@@ -471,8 +394,8 @@ export default function ReportsPage() {
           'Thứ, ngày': `${group.day.name} (${getFormattedDate(group.day.offset)})`,
           'Môn - Lớp': slot.subjectClass,
           'Tiết TKB': slot.period,
-          'Tên bài dạy': slot.isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (slot.lessonName || ''),
-          'Tiết CT': slot.isSkipped ? '—' : slot.lessonOrder,
+          'Tên bài dạy': !slot.hasTemplate ? 'CHƯƠNG CÓ PPCT' : (slot.lessonName || ''),
+          'Tiết CT': !slot.hasTemplate ? '—' : slot.lessonOrder,
         })
       })
     })
@@ -489,7 +412,7 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">Lịch Báo Giảng</h1>
-          <p className="text-xs text-slate-500">Đồng bộ tiến độ chuẩn xác theo thời khóa biểu</p>
+          <p className="text-xs text-slate-500">Đồng bộ hoàn toàn với Thời khóa biểu cá nhân và Phân phối chương trình chuẩn.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -558,17 +481,16 @@ export default function ReportsPage() {
             {reportData.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-10 text-center text-slate-400">
-                  Tuần này chưa có tiết dạy nào được xếp trong Thời khóa biểu.
+                  Tuần này chưa có tiết dạy cá nhân nào được xếp trong Thời khóa biểu.
                 </td>
               </tr>
             ) : (
               reportData.map((group) => {
                 return group.slots.map((slot: any, idx: number) => {
                   const isFirst = idx === 0
-                  const hasLesson = slot.lessonName && slot.lessonName.trim() !== ''
 
                   return (
-                    <tr key={`${slot.day}_${slot.period}_${idx}`} className={`hover:bg-slate-50/80 transition ${slot.isSkipped ? 'bg-slate-100/60 text-slate-400' : ''}`}>
+                    <tr key={`${slot.day}_${slot.period}_${idx}`} className="hover:bg-slate-50/80 transition">
                       {isFirst && (
                         <td
                           rowSpan={group.slots.length}
@@ -580,59 +502,56 @@ export default function ReportsPage() {
                           </span>
                         </td>
                       )}
-                      <td className="p-2 border-r border-slate-300 text-center font-black text-slate-900">
+                      <td className="p-2 border-r border-slate-300 text-center font-black text-slate-900 text-sm">
                         {slot.subjectClass}
                       </td>
                       <td className="p-2 border-r border-slate-300 text-center font-black text-emerald-700 text-sm">
                         {slot.period}
                       </td>
-                      <td className="p-2.5 border-r border-slate-300 align-middle">
-                        {slot.isSkipped ? (
-                          <span className="text-slate-400 italic font-medium">(Tiết nghỉ / Bỏ qua không dạy theo PPCT)</span>
-                        ) : hasLesson ? (
-                          <span className="text-slate-900 font-medium line-clamp-2">{slot.lessonName}</span>
-                        ) : (
+                      <td className="p-3 border-r border-slate-300 align-middle">
+                        {!slot.hasTemplate ? (
                           <Link
                             href="/dashboard/curriculum"
-                            className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded font-semibold"
+                            className="inline-flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-md font-bold shadow-2xs hover:bg-rose-100 transition"
                           >
-                            <AlertCircle className="w-3 h-3 text-amber-600" />
-                            <span>Chưa có PPCT — Gán ngay</span>
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Chưa có PPCT — Bấm để gán ngay</span>
                           </Link>
+                        ) : (
+                          <span className="text-slate-900 font-semibold text-sm leading-relaxed line-clamp-2">{slot.lessonName}</span>
                         )}
                       </td>
-                      {/* CỘT TIẾT CT CÓ THỂ BẤM VÀO ĐỂ ĐẢO TIẾT / XÓA BỎ QUA */}
                       <td className="p-2 border-r border-slate-300 text-center align-middle">
-                        <button
-                          onClick={() => {
-                            setEditingSlot({
-                              realClassId: slot.realClassId,
-                              slotIdx: slot.slotOrderInWeek,
-                              currentOrder: Number(slot.lessonOrder) || 1,
-                              isOverridden: slot.isOverridden,
-                              isSkipped: slot.isSkipped,
-                            })
-                            setTargetLessonOrder(Number(slot.lessonOrder) || 1)
-                            setIsSkippedSlot(slot.isSkipped)
-                          }}
-                          className={`px-2.5 py-1 rounded-md inline-flex items-center justify-center gap-1 font-black text-xs cursor-pointer transition ${
-                            slot.isSkipped
-                              ? 'bg-slate-200 text-slate-600 border border-slate-300'
-                              : slot.isOverridden
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
-                              : 'text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100'
-                          }`}
-                          title="Bấm để đảo tiết hoặc bỏ qua tiết này"
-                        >
-                          <span>{slot.isSkipped ? 'Bỏ qua' : slot.lessonOrder}</span>
-                          <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
-                        </button>
+                        {!slot.hasTemplate ? (
+                          <span className="text-slate-400 font-bold">—</span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingSlot({
+                                classId: slot.realClassId,
+                                slotIdx: slot.slotOrderInWeek,
+                                currentOrder: Number(slot.lessonOrder) || 1,
+                                isOverridden: slot.isOverridden,
+                              })
+                              setTargetLessonOrder(Number(slot.lessonOrder) || 1)
+                            }}
+                            className={`px-2.5 py-1 rounded-md inline-flex items-center justify-center gap-1 font-black text-xs cursor-pointer transition ${
+                              slot.isOverridden
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+                                : 'text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100'
+                            }`}
+                            title="Bấm để đổi số tiết CT"
+                          >
+                            <span>{slot.lessonOrder}</span>
+                            <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
+                          </button>
+                        )}
                       </td>
                       <td className="p-2 text-center text-xs font-medium">
-                        {slot.isSkipped ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">Đã bỏ qua</span>
+                        {!slot.hasTemplate ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Thiếu PPCT</span>
                         ) : slot.isOverridden ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Đảo tiết</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Tùy chỉnh</span>
                         ) : (
                           '—'
                         )}
@@ -646,7 +565,7 @@ export default function ReportsPage() {
         </table>
       </div>
 
-      {/* POPUP ĐIỀU CHỈNH HOẶC BỎ QUA TIẾT CT */}
+      {/* POPUP ĐIỀU CHỈNH TIẾN ĐỘ */}
       {editingSlot && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
@@ -658,44 +577,25 @@ export default function ReportsPage() {
             </div>
             <div className="space-y-3 text-xs">
               <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border">
-                <span className="text-slate-500 font-medium">Trạng thái hiện tại:</span>
-                <span className="font-bold text-slate-800">
-                  {editingSlot.isSkipped ? 'Đang bỏ qua' : `Tiết CT số ${editingSlot.currentOrder}`}
-                </span>
+                <span className="text-slate-500 font-medium">Tiết CT hiện tại:</span>
+                <span className="font-bold text-slate-800">Tiết CT số {editingSlot.currentOrder}</span>
               </div>
 
-              {/* Tùy chọn bỏ qua tiết */}
-              <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="space-y-1 pt-1">
+                <label className="font-medium text-slate-600 block">Đổi sang số tiết CT mong muốn:</label>
                 <input
-                  type="checkbox"
-                  checked={isSkippedSlot}
-                  onChange={(e) => setIsSkippedSlot(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={targetLessonOrder}
+                  onChange={(e) => setTargetLessonOrder(Number(e.target.value))}
+                  className="w-full p-2.5 border rounded-xl font-black text-center text-blue-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <div>
-                  <span className="font-bold text-slate-800 block">Bỏ qua / Xóa tiết này</span>
-                  <span className="text-[11px] text-slate-500">Tiết này sẽ không dạy theo PPCT (các tiết sau tự động đôn lên).</span>
-                </div>
-              </label>
-
-              {/* Ô nhập số tiết thay thế nếu không bỏ qua */}
-              {!isSkippedSlot && (
-                <div className="space-y-1 pt-1">
-                  <label className="font-medium text-slate-600 block">Hoặc đổi sang số tiết CT mong muốn:</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={200}
-                    value={targetLessonOrder}
-                    onChange={(e) => setTargetLessonOrder(Number(e.target.value))}
-                    className="w-full p-2.5 border rounded-xl font-black text-center text-blue-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
+              </div>
 
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => handleSaveOverride(isSkippedSlot)}
+                  onClick={handleSaveOverride}
                   disabled={loading}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                 >

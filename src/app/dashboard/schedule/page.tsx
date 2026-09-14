@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import * as XLSX from 'xlsx'
-import { Upload, RefreshCw, Calendar, Plus, Trash2, X, Copy, ClipboardPaste, ArrowRightLeft } from 'lucide-react'
+import { Upload, RefreshCw, Calendar, Plus, Trash2, X, Move, ArrowRightLeft } from 'lucide-react'
 
 interface ScheduleItem {
   id: string
@@ -24,20 +24,27 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy' },
 ]
 
+const VALID_CLASS_CODES = [
+  '10T1', '10T2', '10L', '10H', '10S', '10TIN', '10V1', '10V2', '10SỬ', '10Đ', '10A1', '10A2', '10P', '10N', '10TQ',
+  '11T', '11L', '11H', '11S', '11TIN', '11V', '11SỬ', '11Đ', '11A1', '11A2', '11P', '11N', '11TQ',
+  '12T', '12L', '12H', '12S', '12TIN', '12V', '12SỬ', '12Đ', '12A1', '12A2', '12P', '12N', '12TQ'
+]
+
+const VALID_SUBJECTS = [
+  'T', 'V', 'A', 'L', 'H', 'S', 'SU', 'Đ', 'Tin', 'CN', 
+  'KTPL', 'P', 'N', 'TQ', 'QPAN', 'GDTC', 'GDĐP', 'TrN', 'Nâng cao'
+]
+
 export default function SchedulePage() {
   const supabase = createClient()
   const [selectedWeek, setSelectedWeek] = useState(1)
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
 
-  // State lưu danh sách gợi ý các lớp và môn học từ CSDL
-  const [availableClasses, setAvailableClasses] = useState<string[]>([])
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>([])
+  const [availableClasses] = useState<string[]>(VALID_CLASS_CODES)
+  const [availableSubjects] = useState<string[]>(VALID_SUBJECTS)
+  const [movingSlot, setMovingSlot] = useState<{ subject: string; classCode: string } | null>(null)
 
-  // State lưu tiết đang được Copy / Kéo thả
-  const [copiedSlot, setCopiedSlot] = useState<{ subject: string; classCode: string } | null>(null)
-
-  // State cho popup thêm/sửa/xóa tiết học từng ô
   const [editingCell, setEditingCell] = useState<{
     dayId: number
     period: number
@@ -48,26 +55,58 @@ export default function SchedulePage() {
 
   const loadScheduleAndSuggestions = async () => {
     setLoading(true)
-    
+
     const { data: sData } = await supabase
       .from('schedule_entries')
-      .select('*')
+      .select(`
+        id,
+        week_number,
+        day_of_week,
+        period_number,
+        class_id,
+        classes (
+          code,
+          subject
+        )
+      `)
       .eq('week_number', selectedWeek)
 
     if (sData && sData.length > 0) {
-      setSchedule(sData)
+      const formattedEntries = sData.map((item: any) => ({
+        id: item.id,
+        day_of_week: item.day_of_week,
+        period_number: item.period_number,
+        class_id: item.class_id,
+        week_number: item.week_number,
+        sub_class_code: item.classes?.code || '',
+        sub_subject: item.classes?.subject || ''
+      }))
+      setSchedule(formattedEntries)
     } else {
       if (selectedWeek > 1) {
         const { data: week1Data } = await supabase
           .from('schedule_entries')
-          .select('*')
+          .select(`
+            id,
+            day_of_week,
+            period_number,
+            class_id,
+            classes (
+              code,
+              subject
+            )
+          `)
           .eq('week_number', 1)
 
         if (week1Data && week1Data.length > 0) {
-          const inheritedData = week1Data.map((item) => ({
-            ...item,
+          const inheritedData = week1Data.map((item: any) => ({
             id: `inherited_${item.id}`,
+            day_of_week: item.day_of_week,
+            period_number: item.period_number,
+            class_id: item.class_id,
             week_number: selectedWeek,
+            sub_class_code: item.classes?.code || '',
+            sub_subject: item.classes?.subject || ''
           }))
           setSchedule(inheritedData)
         } else {
@@ -78,22 +117,6 @@ export default function SchedulePage() {
       }
     }
 
-    const { data: cData } = await supabase.from('classes').select('code')
-    if (cData) {
-      const uniqueCodes = Array.from(new Set(cData.map((c) => c.code).filter(Boolean))) as string[]
-      setAvailableClasses(uniqueCodes)
-    }
-
-    const { data: allEntries } = await supabase.from('schedule_entries').select('sub_subject')
-    if (allEntries) {
-      const uniqueSubjects = Array.from(new Set(allEntries.map((e) => e.sub_subject).filter(Boolean))) as string[]
-      if (uniqueSubjects.length === 0) {
-        setAvailableSubjects(['T', 'TrN', 'GDĐP'])
-      } else {
-        setAvailableSubjects(uniqueSubjects)
-      }
-    }
-
     setLoading(false)
   }
 
@@ -101,7 +124,6 @@ export default function SchedulePage() {
     loadScheduleAndSuggestions()
   }, [selectedWeek])
 
-  // Xử lý lưu hoặc cập nhật 1 ô tiết học cụ thể
   const handleSaveCell = async (targetDayId: number, targetPeriod: number, subject: string, classCode: string) => {
     setLoading(true)
 
@@ -110,7 +132,13 @@ export default function SchedulePage() {
       const subClassCode = classCode.trim().toUpperCase()
 
       if (!subSubject || !subClassCode) {
-        alert('Vui lòng nhập đầy đủ Môn học và Mã lớp!')
+        alert('Vui lòng chọn đầy đủ Môn học và Mã lớp!')
+        setLoading(false)
+        return
+      }
+
+      if (!VALID_SUBJECTS.includes(subSubject)) {
+        alert(`Mã môn học "${subSubject}" không hợp lệ!`)
         setLoading(false)
         return
       }
@@ -120,25 +148,31 @@ export default function SchedulePage() {
         .from('classes')
         .select('id')
         .eq('code', subClassCode)
-        .single()
+        .eq('subject', subSubject)
+        .maybeSingle()
 
       if (existingClass) {
         classId = existingClass.id
       } else {
-        const gradeNum = subClassCode.startsWith('12') ? 12 : subClassCode.startsWith('11') ? 11 : 10
-        const { data: newClass } = await supabase
+        let gradeNum = 10
+        if (subClassCode.startsWith('12')) gradeNum = 12
+        else if (subClassCode.startsWith('11')) gradeNum = 11
+
+        const { data: newClass, error: classErr } = await supabase
           .from('classes')
           .insert({
             code: subClassCode,
-            name: `Lớp ${subClassCode}`,
-            subject: subSubject === 'T' ? 'Toán' : subSubject,
+            subject: subSubject,
             grade: gradeNum,
           })
           .select('id')
           .single()
 
-        if (newClass) classId = newClass.id
+        if (classErr) throw classErr
+        classId = newClass?.id
       }
+
+      if (!classId) throw new Error('Không thể tạo hoặc tìm thấy lớp học tương ứng.')
 
       const { data: currentEntry } = await supabase
         .from('schedule_entries')
@@ -146,29 +180,27 @@ export default function SchedulePage() {
         .eq('week_number', selectedWeek)
         .eq('day_of_week', targetDayId)
         .eq('period_number', targetPeriod)
-        .single()
+        .maybeSingle()
 
       if (currentEntry) {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('schedule_entries')
-          .update({
-            sub_subject: subSubject,
-            sub_class_code: subClassCode,
-            class_id: classId,
-          })
+          .update({ class_id: classId })
           .eq('id', currentEntry.id)
+        if (updateErr) throw updateErr
       } else {
-        await supabase.from('schedule_entries').insert({
+        const { error: insertErr } = await supabase.from('schedule_entries').insert({
           week_number: selectedWeek,
           day_of_week: targetDayId,
           period_number: targetPeriod,
-          sub_subject: subSubject,
-          sub_class_code: subClassCode,
           class_id: classId,
         })
+        if (insertErr) throw insertErr
       }
 
-      loadScheduleAndSuggestions()
+      setEditingCell(null)
+      setMovingSlot(null)
+      await loadScheduleAndSuggestions()
     } catch (err: any) {
       alert('Lỗi khi lưu tiết học: ' + err.message)
     } finally {
@@ -176,7 +208,6 @@ export default function SchedulePage() {
     }
   }
 
-  // Xử lý xóa tiết học trong ô
   const handleDeleteCell = async () => {
     if (!editingCell) return
     if (!confirm('Bạn có chắc chắn muốn xóa tiết học này khỏi ô TKB?')) return
@@ -191,7 +222,7 @@ export default function SchedulePage() {
         .eq('period_number', editingCell.period)
 
       setEditingCell(null)
-      loadScheduleAndSuggestions()
+      await loadScheduleAndSuggestions()
     } catch (err: any) {
       alert('Lỗi khi xóa tiết: ' + err.message)
     } finally {
@@ -199,13 +230,11 @@ export default function SchedulePage() {
     }
   }
 
-  // Xử lý Thả (Drop) ô được kéo sang ô đích
   const handleDropSlot = async (e: React.DragEvent, targetDayId: number, targetPeriod: number) => {
     e.preventDefault()
-    if (!copiedSlot) return
+    if (!movingSlot) return
 
-    await handleSaveCell(targetDayId, targetPeriod, copiedSlot.subject, copiedSlot.classCode)
-    setCopiedSlot(null)
+    await handleSaveCell(targetDayId, targetPeriod, movingSlot.subject, movingSlot.classCode)
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,7 +262,7 @@ export default function SchedulePage() {
         if (text.includes('thứ 7') || text.includes('thứ bảy')) dayColumns.push({ dayId: 7, colIdx: idx })
       })
 
-      const newEntries: any[] = []
+      const rawEntries: any[] = []
 
       for (let r = 1; r < jsonData.length; r++) {
         const row = jsonData[r]
@@ -249,46 +278,54 @@ export default function SchedulePage() {
           if (cellValue && cellValue !== 'NaN' && cellValue !== '-') {
             const parts = cellValue.split('-').map((p) => p.trim())
             if (parts.length >= 2) {
-              const subject = parts[0]
-              const classCode = parts[1]
-
-              newEntries.push({
+              rawEntries.push({
                 day_of_week: dayId,
                 period_number: periodNumber,
-                week_number: selectedWeek,
-                sub_class_code: classCode,
-                sub_subject: subject,
+                subject: parts[0],
+                classCode: parts[1]
               })
             }
           }
         })
       }
 
-      if (newEntries.length === 0) {
-        alert('Không tìm thấy tiết học nào hợp lệ trong file Excel!')
+      if (rawEntries.length === 0) {
+        alert('Không tìm thấy tiết học hợp lệ trong file Excel!')
         setLoading(false)
         return
       }
 
       await supabase.from('schedule_entries').delete().eq('week_number', selectedWeek)
 
-      for (const entry of newEntries) {
-        const { data: existingClass } = await supabase
+      const finalEntriesToInsert: any[] = []
+
+      for (const entry of rawEntries) {
+        const subSubject = entry.subject
+        const subClassCode = entry.classCode.toUpperCase()
+
+        if (!VALID_SUBJECTS.includes(subSubject) || !VALID_CLASS_CODES.includes(subClassCode)) {
+          continue 
+        }
+
+        let gradeNum = 10
+        if (subClassCode.startsWith('12')) gradeNum = 12
+        else if (subClassCode.startsWith('11')) gradeNum = 11
+
+        let { data: existingClass } = await supabase
           .from('classes')
           .select('id')
-          .eq('code', entry.sub_class_code)
-          .single()
+          .eq('code', subClassCode)
+          .eq('subject', subSubject)
+          .maybeSingle()
 
         let classId = existingClass?.id
 
         if (!classId) {
-          const gradeNum = entry.sub_class_code.startsWith('12') ? 12 : entry.sub_class_code.startsWith('11') ? 11 : 10
           const { data: newClass } = await supabase
             .from('classes')
             .insert({
-              code: entry.sub_class_code,
-              name: `Lớp ${entry.sub_class_code}`,
-              subject: entry.sub_subject === 'T' ? 'Toán' : entry.sub_subject,
+              code: subClassCode,
+              subject: subSubject,
               grade: gradeNum,
             })
             .select('id')
@@ -297,13 +334,22 @@ export default function SchedulePage() {
           if (newClass) classId = newClass.id
         }
 
-        entry.class_id = classId
+        if (classId) {
+          finalEntriesToInsert.push({
+            week_number: selectedWeek,
+            day_of_week: entry.day_of_week,
+            period_number: entry.period_number,
+            class_id: classId
+          })
+        }
       }
 
-      const { error: insertErr } = await supabase.from('schedule_entries').insert(newEntries)
-      if (insertErr) throw insertErr
+      if (finalEntriesToInsert.length > 0) {
+        const { error: insertErr } = await supabase.from('schedule_entries').insert(finalEntriesToInsert)
+        if (insertErr) throw insertErr
+      }
 
-      alert(`Đã nạp thành công ${newEntries.length} tiết học cho Tuần ${selectedWeek}!`)
+      alert(`Đã nạp thành công ${finalEntriesToInsert.length} tiết học cho Tuần ${selectedWeek}!`)
       loadScheduleAndSuggestions()
     } catch (err: any) {
       alert('Lỗi nhập file Excel: ' + err.message)
@@ -321,16 +367,24 @@ export default function SchedulePage() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">Thời Khóa Biểu</h1>
           <p className="text-xs text-slate-500">
-            {copiedSlot 
-              ? `🎯 Đang giữ tiết [${copiedSlot.subject} - ${copiedSlot.classCode}]. Thả vào ô bất kỳ để di chuyển sang!` 
-              : '💡 Mẹo: Bạn có thể click chuột trái giữ và kéo thả tiết học giữa các ô, hoặc bấm vào ô để sửa/xóa.'}
+            {movingSlot 
+              ? `🎯 Đang chọn [${movingSlot.subject} - ${movingSlot.classCode}]. Click vào ô bất kỳ để di chuyển đến!` 
+              : '💡 Mẹo: Bạn có thể kéo thả tiết học giữa các ô, bấm nút "Di chuyển" hoặc click vào ô để sửa/xóa.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* CHỌN TUẦN */}
+          {movingSlot && (
+            <button
+              onClick={() => setMovingSlot(null)}
+              className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-200 transition cursor-pointer"
+            >
+              Hủy di chuyển
+            </button>
+          )}
+
           <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0"/>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
@@ -344,9 +398,8 @@ export default function SchedulePage() {
             </select>
           </div>
 
-          {/* NÚT NHẬP EXCEL */}
           <label className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer">
-            <Upload className="w-3.5 h-3.5" />
+            <Upload className="w-3.5 h-3.5"/>
             <span>Nhập TKB Tuần {selectedWeek} (Excel)</span>
             <input
               id="excel-upload"
@@ -362,7 +415,7 @@ export default function SchedulePage() {
             disabled={loading}
             className="p-2 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}/>
           </button>
         </div>
       </div>
@@ -390,41 +443,60 @@ export default function SchedulePage() {
                   const item = schedule.find(
                     (s) => s.day_of_week === day.id && s.period_number === period
                   )
+                  const isMovingHere = movingSlot && !item
+
                   return (
                     <td
                       key={day.id}
-                      onClick={() =>
-                        setEditingCell({
-                          dayId: day.id,
-                          period,
-                          subject: item?.sub_subject || '',
-                          classCode: item?.sub_class_code || '',
-                          isExisting: !!item,
-                        })
-                      }
+                      onClick={() => {
+                        if (movingSlot && !item) {
+                          handleSaveCell(day.id, period, movingSlot.subject, movingSlot.classCode)
+                        } else {
+                          setEditingCell({
+                            dayId: day.id,
+                            period,
+                            subject: item?.sub_subject || '',
+                            classCode: item?.sub_class_code || '',
+                            isExisting: !!item,
+                          })
+                        }
+                      }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => handleDropSlot(e, day.id, period)}
-                      className="p-2.5 border-r border-slate-300 text-center align-middle cursor-pointer hover:bg-emerald-50/60 transition group relative"
-                      title="Click để sửa hoặc kéo thả để di chuyển tiết học"
+                      className={`p-2.5 border-r border-slate-300 text-center align-middle cursor-pointer transition group relative ${
+                        isMovingHere ? 'bg-amber-50 border-2 border-dashed border-amber-400' : 'hover:bg-emerald-50/60'
+                      }`}
                     >
                       {item ? (
                         <div
                           draggable
-                          onDragStart={() =>
-                            setCopiedSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
-                          }
+                          onDragStart={(e) => {
+                            e.stopPropagation()
+                            setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
+                          }}
                           className="bg-emerald-50 border border-emerald-300 rounded-lg p-1.5 shadow-2xs group-hover:border-emerald-500 cursor-grab active:cursor-grabbing relative flex flex-col items-center"
                         >
                           <span className="font-black text-emerald-950 text-xs block">
                             {item.sub_subject}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-600">
+                          <span className="text-[10px] font-bold text-slate-600 mb-1">
                             {item.sub_class_code}
                           </span>
+
+                          <button
+                            title="Di chuyển tiết học này sang ô khác"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
+                            }}
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-emerald-700 hover:bg-emerald-800 text-white p-1 rounded transition shadow-xs"
+                          >
+                            <ArrowRightLeft className="w-3 h-3"/>
+                          </button>
                         </div>
                       ) : (
                         <div className="text-slate-300 group-hover:text-emerald-600 font-bold text-base">
-                          +
+                          {movingSlot ? '🎯 Thả vào đây' : '+'}
                         </div>
                       )}
                     </td>
@@ -448,60 +520,37 @@ export default function SchedulePage() {
                 onClick={() => setEditingCell(null)}
                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4"/>
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Môn học (Chọn hoặc nhập mới):</label>
-                <input
-                  type="text"
-                  list="subjects-list"
+                <label className="block font-bold text-slate-700 mb-1">Môn học chuẩn:</label>
+                <select
                   value={editingCell.subject}
                   onChange={(e) => setEditingCell({ ...editingCell, subject: e.target.value })}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="Nhập hoặc chọn môn..."
-                  autoFocus
-                />
-                <datalist id="subjects-list">
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="">-- Chọn mã môn học --</option>
                   {availableSubjects.map((sub, idx) => (
-                    <option key={idx} value={sub} />
+                    <option key={idx} value={sub}>{sub}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Mã lớp (Chọn từ danh sách hệ thống):</label>
+                <label className="block font-bold text-slate-700 mb-1">Mã lớp học chuẩn:</label>
                 <select
-                  value={availableClasses.includes(editingCell.classCode) ? editingCell.classCode : 'CUSTOM'}
-                  onChange={(e) => {
-                    if (e.target.value !== 'CUSTOM') {
-                      setEditingCell({ ...editingCell, classCode: e.target.value })
-                    } else {
-                      setEditingCell({ ...editingCell, classCode: '' })
-                    }
-                  }}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer mb-2"
+                  value={editingCell.classCode}
+                  onChange={(e) => setEditingCell({ ...editingCell, classCode: e.target.value })}
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="">-- Chọn lớp học --</option>
+                  <option value="">-- Chọn mã lớp học --</option>
                   {availableClasses.map((cls, idx) => (
-                    <option key={idx} value={cls}>
-                      Lớp {cls}
-                    </option>
+                    <option key={idx} value={cls}>Lớp {cls}</option>
                   ))}
-                  <option value="CUSTOM">✏️ Nhập mã lớp khác...</option>
                 </select>
-
-                {(!availableClasses.includes(editingCell.classCode) || editingCell.classCode === '') && (
-                  <input
-                    type="text"
-                    value={editingCell.classCode}
-                    onChange={(e) => setEditingCell({ ...editingCell, classCode: e.target.value })}
-                    className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập mã lớp mới (VD: 12SỬ)..."
-                  />
-                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">
@@ -510,9 +559,8 @@ export default function SchedulePage() {
                     onClick={handleDeleteCell}
                     disabled={loading}
                     className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
-                    title="Xóa tiết học này"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4"/>
                     <span>Xóa</span>
                   </button>
                 )}
@@ -520,12 +568,11 @@ export default function SchedulePage() {
                 <button
                   onClick={async () => {
                     await handleSaveCell(editingCell.dayId, editingCell.period, editingCell.subject, editingCell.classCode)
-                    setEditingCell(null)
                   }}
                   disabled={loading}
                   className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4"/>
                   <span>Lưu tiết học</span>
                 </button>
               </div>
