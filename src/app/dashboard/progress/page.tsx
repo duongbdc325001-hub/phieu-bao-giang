@@ -1,33 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  TrendingUp, 
   RefreshCw, 
   CheckCircle2, 
   Clock, 
-  Calendar, 
   Layers,
   AlertCircle
 } from 'lucide-react'
 
 const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
 
-const DAY_NAMES: Record<number, string> = {
-  2: 'Thứ Hai',
-  3: 'Thứ Ba',
-  4: 'Thứ Tư',
-  5: 'Thứ Năm',
-  6: 'Thứ Sáu',
-  7: 'Thứ Bảy',
-}
-
 export default function ProgressPage() {
   const supabase = createClient()
 
   const [classes, setClasses] = useState<any[]>([])
-  const [selectedClassKey, setSelectedClassKey] = useState<string>('')
+  const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [schedule, setSchedule] = useState<any[]>([])
   const [curriculumItems, setCurriculumItems] = useState<any[]>([])
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
@@ -37,228 +27,219 @@ export default function ProgressPage() {
   const loadData = async () => {
     setLoading(true)
 
-    const { data: cData } = await supabase.from('classes').select('*').order('code', { ascending: true })
-    if (cData) setClasses(cData)
+    const [cRes, sRes, ccRes, itemsRes, ovrRes] = await Promise.all([
+      supabase.from('classes').select('*').order('code', { ascending: true }),
+      supabase.from('schedule_entries').select('*'),
+      supabase.from('class_curriculums').select('*'),
+      supabase.from('curriculum_items').select('*'),
+      supabase.from('lesson_overrides').select('*'),
+    ])
 
-    const { data: sData } = await supabase.from('schedule_entries').select('*')
-    if (sData) setSchedule(sData)
-
-    const { data: ccData } = await supabase.from('class_curriculums').select('*')
-    if (ccData) setClassCurriculums(ccData)
-
-    const { data: itemsData } = await supabase.from('curriculum_items').select('*')
-    if (itemsData) setCurriculumItems(itemsData)
-
-    const { data: ovrData } = await supabase.from('lesson_overrides').select('*')
-    if (ovrData) setOverrides(ovrData)
-
-    // Nếu chưa chọn lớp nào, tự động chọn lớp đầu tiên tìm thấy
-    const availableList = getAvailableClassSubjects(cData || [], sData || [])
-    if (availableList.length > 0 && !selectedClassKey) {
-      setSelectedClassKey(availableList[0].key)
-    }
+    if (cRes.data) setClasses(cRes.data)
+    if (sRes.data) setSchedule(sRes.data)
+    if (ccRes.data) setClassCurriculums(ccRes.data)
+    if (itemsRes.data) setCurriculumItems(itemsRes.data)
+    if (ovrRes.data) setOverrides(ovrRes.data)
 
     setLoading(false)
-  }
-
-  // Hàm tổng hợp danh sách lớp toàn diện từ mọi nguồn dữ liệu
-  const getAvailableClassSubjects = (classList: any[], scheduleList: any[]) => {
-    const map = new Map<string, { code: string; subject: string; label: string; key: string }>()
-    
-    // 1. Quét từ danh mục classes
-    classList.forEach(c => {
-      const code = (c.code || '').trim().toUpperCase()
-      const subject = (c.subject || 'Toán').trim()
-      if (code) {
-        const key = `${code}_${subject}`
-        if (!map.has(key)) {
-          map.set(key, { code, subject, label: `${code} — ${subject}`, key })
-        }
-      }
-    })
-
-    // 2. Quét từ thời khóa biểu schedule_entries (cả sub_class_code và sub_subject)
-    scheduleList.forEach(s => {
-      const code = (s.sub_class_code || '').trim().toUpperCase()
-      const subject = (s.sub_subject || 'Toán').trim()
-      if (code) {
-        const key = `${code}_${subject}`
-        if (!map.has(key)) {
-          map.set(key, { code, subject, label: `${code} — ${subject}`, key })
-        }
-      }
-    })
-
-    return Array.from(map.values())
   }
 
   useEffect(() => {
     loadData()
   }, [])
 
-  const classSubjectsList = getAvailableClassSubjects(classes, schedule)
+  // Lọc danh sách lớp: Chỉ lấy những lớp thực sự có tiết trong TKB (giống hệt Lịch Báo Giảng)
+  const getAvailableClasses = () => {
+    const classMap = new Map<string, any>()
+    
+    schedule.forEach((slot) => {
+      if (slot.class_id) {
+        const foundCls = classes.find((c) => c.id === slot.class_id)
+        if (foundCls && !classMap.has(foundCls.id)) {
+          classMap.set(foundCls.id, foundCls)
+        }
+      }
+    })
 
-  // Thuật toán xây dựng timeline bám sát logic Báo Giảng chính xác tuyệt đối cho mọi lớp
-  const buildProgressTimeline = () => {
-    if (!selectedClassKey || schedule.length === 0) return []
+    const list = Array.from(classMap.values()).sort((a, b) => (a.code || '').localeCompare(b.code || ''))
+    return list
+  }
 
-    const [targetCode, targetSubject] = selectedClassKey.split('_')
-    const week1Slots = schedule.filter((s) => Number(s.week_number || 1) === 1 && !s.is_substitute)
+  const activeClassesList = getAvailableClasses()
 
-    const weeksList: {
-      weekNum: number
-      items: Array<{
-        lessonOrder: number
-        lessonName: string
-        dayName: string
-        periodStr: string
-        dateStr: string
-        status: 'dada' | 'sapday' | 'chuaday'
-        isSkipped?: boolean
-      }>
-    }[] = []
+  // Tự động chọn lớp đầu tiên trong danh sách thực tế nếu chưa chọn
+  useEffect(() => {
+    if (activeClassesList.length > 0 && !selectedClassId) {
+      setSelectedClassId(activeClassesList[0].id)
+    }
+  }, [activeClassesList, selectedClassId])
 
+  // Lấy số liệu tiến độ bám sát trực tiếp từ Lịch Báo Giảng
+  const getProgressTimelineForSelectedClass = () => {
+    if (!selectedClassId || schedule.length === 0) return []
+
+    const timelineByWeeks: any[] = []
     const now = new Date()
 
     for (let w = 1; w <= 35; w++) {
-      let wSlots = schedule.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
-      if (wSlots.length === 0 && w > 1) {
-        wSlots = week1Slots.map((slot) => ({ ...slot, week_number: w }))
-      }
-      wSlots.sort((a, b) => {
-        const d1 = Number(a.day_of_week || 2)
-        const d2 = Number(b.day_of_week || 2)
-        if (d1 !== d2) return d1 - d2
-        return Number(a.period_number || 1) - Number(b.period_number || 1)
+      const weekRows = calculateReportRowsForWeek(w, schedule, classes, classCurriculums, curriculumItems, overrides)
+      const weekSlotsForThisClass: any[] = []
+
+      weekRows.forEach((group) => {
+        group.slots.forEach((slot: any) => {
+          if (slot.realClassId === selectedClassId) {
+            const d = new Date(START_DATE_WEEK_1)
+            d.setDate(d.getDate() + (w - 1) * 7 + group.day.offset)
+            const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+
+            let status: 'dada' | 'sapday' | 'chuaday' = 'chuaday'
+            const diffDays = (d.getTime() - now.getTime()) / (1000 * 3600 * 24)
+            if (diffDays < -0.5) status = 'dada'
+            else if (diffDays >= -0.5 && diffDays <= 7) status = 'sapday'
+            else status = 'chuaday'
+
+            weekSlotsForThisClass.push({
+              lessonOrder: slot.lessonOrder,
+              lessonName: slot.lessonName,
+              dayName: group.day.name,
+              periodStr: `(T${slot.period})`,
+              dateStr,
+              status,
+              hasTemplate: slot.hasTemplate,
+            })
+          }
+        })
       })
 
-      const classSlotsMap = new Map<string, any[]>()
-      wSlots.forEach((slot) => {
-        const classCode = (slot.sub_class_code || '').trim().toUpperCase()
-        const subject = (slot.sub_subject || 'Toán').trim()
-        const key = `${classCode}_${subject}`
-        if (!classSlotsMap.has(key)) classSlotsMap.set(key, [])
-        classSlotsMap.get(key)!.push(slot)
-      })
-
-      const classKey = `${targetCode}_${targetSubject}`
-      const targetSlotsForThisClass = classSlotsMap.get(classKey) || []
-      if (targetSlotsForThisClass.length === 0) continue
-
-      let templateId: string | null = null
-      const matchedClassRel = classCurriculums.find(
-        (cc) => cc.class_id === classKey || cc.class_id === targetSlotsForThisClass[0]?.class_id || cc.class_id === targetCode
-      )
-      if (matchedClassRel) {
-        templateId = matchedClassRel.template_id || matchedClassRel.curriculum_id
-      } else {
-        const cls = classes.find((c) => (c.code || '').trim().toUpperCase() === targetCode && (c.subject || 'Toán').trim().toLowerCase() === targetSubject.toLowerCase())
-        if (cls?.template_id) templateId = cls.template_id
-      }
-
-      let lessons: any[] = []
-      if (templateId) {
-        lessons = curriculumItems.filter((item) => item.template_id === templateId)
-      }
-      if (lessons.length === 0) {
-        lessons = curriculumItems.filter((item) => item.class_id === targetSlotsForThisClass[0]?.class_id)
-      }
-      lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
-
-      // Dồn con trỏ bài học từ các tuần trước
-      let globalLessonPointer = 0
-      for (let prevW = 1; prevW < w; prevW++) {
-        let prevWSlots = schedule.filter((s) => Number(s.week_number || 1) === prevW && !s.is_substitute)
-        if (prevWSlots.length === 0 && prevW > 1) prevWSlots = week1Slots.map(s => ({ ...s, week_number: prevW }))
-        
-        const prevWClassMap = new Map<string, any[]>()
-        prevWSlots.forEach(slot => {
-          const cCode = (slot.sub_class_code || '').trim().toUpperCase()
-          const sub = (slot.sub_subject || 'Toán').trim()
-          const k = `${cCode}_${sub}`
-          if (!prevWClassMap.has(k)) prevWClassMap.set(k, [])
-          prevWClassMap.get(k)!.push(slot)
-        })
-
-        const slotsInPrevW = prevWClassMap.get(classKey) || []
-        slotsInPrevW.forEach((slot, sIdx) => {
-          const realCId = slot.class_id || classKey
-          const ovr = overrides.find(
-            (o) => (o.class_id === realCId || o.class_id === classKey) && Number(o.week_number) === prevW && Number(o.slot_order_in_week) === sIdx
-          )
-          const isSkipped = ovr ? (ovr as any).is_skipped === true : false
-          if (!isSkipped) globalLessonPointer++
-        })
-      }
-
-      const weekGroupItems: any[] = []
-      targetSlotsForThisClass.forEach((slot, sIdx) => {
-        const realCId = slot.class_id || classKey
-        const ovr = overrides.find(
-          (o) => (o.class_id === realCId || o.class_id === classKey) && Number(o.week_number) === w && Number(o.slot_order_in_week) === sIdx
-        )
-
-        const isSkipped = ovr ? (ovr as any).is_skipped === true : false
-        let assignedOrder = globalLessonPointer + 1
-
-        if (ovr && !isSkipped && (ovr as any).override_lesson_order) {
-          assignedOrder = Number((ovr as any).override_lesson_order)
-        }
-
-        let foundLesson = null
-        if (!isSkipped && lessons.length > 0) {
-          foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[globalLessonPointer]
-        }
-
-        const finalOrder = isSkipped ? 0 : (foundLesson ? Number(foundLesson.lesson_order || assignedOrder) : assignedOrder)
-        
-        let lessonName = isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (foundLesson ? foundLesson.lesson_name : null)
-        if (!lessonName && !isSkipped) {
-          lessonName = `Bài học theo phân phối chương trình (Tiết ${finalOrder})`
-        }
-
-        const dayOfWeek = Number(slot.day_of_week || 2)
-        const d = new Date(START_DATE_WEEK_1)
-        d.setDate(d.getDate() + (w - 1) * 7 + (dayOfWeek - 2))
-
-        const dd = String(d.getDate()).padStart(2, '0')
-        const mm = String(d.getMonth() + 1).padStart(2, '0')
-        const yyyy = d.getFullYear()
-        const dateStr = `${dd}/${mm}/${yyyy}`
-
-        let status: 'dada' | 'sapday' | 'chuaday' = 'chuaday'
-        const diffDays = (d.getTime() - now.getTime()) / (1000 * 3600 * 24)
-
-        if (diffDays < -0.5) status = 'dada'
-        else if (diffDays >= -0.5 && diffDays <= 7) status = 'sapday'
-        else status = 'chuaday'
-
-        weekGroupItems.push({
-          lessonOrder: finalOrder,
-          lessonName,
-          dayName: DAY_NAMES[dayOfWeek] || `Thứ ${dayOfWeek}`,
-          periodStr: `(T${slot.period_number})`,
-          dateStr,
-          status,
-          isSkipped,
-        })
-
-        if (!isSkipped) globalLessonPointer++
-      })
-
-      if (weekGroupItems.length > 0) {
-        weeksList.push({ weekNum: w, items: weekGroupItems })
+      if (weekSlotsForThisClass.length > 0) {
+        timelineByWeeks.push({ weekNum: w, items: weekSlotsForThisClass })
       }
     }
 
-    return weeksList
+    return timelineByWeeks
   }
 
-  const timelineWeeks = buildProgressTimeline()
+  // Hàm tính toán báo giảng 1 tuần (Đồng bộ chuẩn 100% với Lịch Báo Giảng Tuần)
+  const calculateReportRowsForWeek = (targetWeek: number, sched: any[], clsList: any[], ccList: any[], itemsList: any[], ovrList: any[]) => {
+    const week1Slots = sched.filter((s) => Number(s.week_number || 1) === 1 && !s.is_substitute)
+    const allActiveWeeksSlots: any[] = []
+    
+    for (let w = 1; w <= targetWeek; w++) {
+      let wSlots = sched.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
+      if (wSlots.length === 0 && w > 1) {
+        wSlots = week1Slots.map((slot) => ({ ...slot, week_number: w }))
+      }
+      wSlots.sort((a, b) => Number(a.day_of_week || 2) - Number(b.day_of_week || 2) || Number(a.period_number || 1) - Number(b.period_number || 1))
+      allActiveWeeksSlots.push(...wSlots)
+    }
+
+    const classSlotsMap = new Map<string, any[]>()
+    allActiveWeeksSlots.forEach((slot) => {
+      if (slot.class_id) {
+        if (!classSlotsMap.has(slot.class_id)) classSlotsMap.set(slot.class_id, [])
+        classSlotsMap.get(slot.class_id)!.push(slot)
+      }
+    })
+
+    const lessonMapping = new Map<string, { order: number; name: string; hasTemplate: boolean }>()
+
+    classSlotsMap.forEach((slots, classId) => {
+      let templateId: string | null = null
+      const matchedRel = ccList.find((cc) => cc.class_id === classId)
+      if (matchedRel) templateId = matchedRel.template_id
+      else {
+        const cItem = clsList.find((c) => c.id === classId)
+        if (cItem?.template_id) templateId = cItem.template_id
+      }
+
+      let lessons: any[] = []
+      const hasTemplate = !!templateId
+      if (hasTemplate) lessons = itemsList.filter((item) => item.template_id === templateId)
+      lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
+
+      const slotsByWeek = new Map<number, any[]>()
+      slots.forEach((slot) => {
+        const wNum = Number(slot.week_number || 1)
+        if (!slotsByWeek.has(wNum)) slotsByWeek.set(wNum, [])
+        slotsByWeek.get(wNum)!.push(slot)
+      })
+
+      let globalPointer = 1
+      for (let w = 1; w <= targetWeek; w++) {
+        const wSlots = slotsByWeek.get(w) || []
+        wSlots.forEach((slot, weekSlotIdx) => {
+          const day = Number(slot.day_of_week || 2)
+          const period = Number(slot.period_number || 1)
+
+          const ovr = ovrList.find(
+            (o) => o.class_id === classId && Number(o.week_number) === w && Number(o.slot_order_in_week) === weekSlotIdx
+          )
+
+          const isSkipped = ovr ? ovr.is_skipped === true : false
+          let assignedOrder = globalPointer
+
+          if (hasTemplate && ovr && !isSkipped && ovr.override_lesson_order) {
+            assignedOrder = Number(ovr.override_lesson_order)
+          }
+
+          let foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[assignedOrder - 1]
+          const mapKey = `${w}_${day}_${period}_${classId}`
+
+          if (w === targetWeek) {
+            lessonMapping.set(mapKey, {
+              order: !hasTemplate ? 0 : (isSkipped ? 0 : assignedOrder),
+              name: !hasTemplate ? '(Chưa có PPCT)' : (isSkipped ? '(Nghỉ / Bỏ qua tiết)' : (foundLesson ? foundLesson.lesson_name : `Tiết số ${assignedOrder}`)),
+              hasTemplate,
+            })
+          }
+          if (!isSkipped) {
+            globalPointer = Math.max(globalPointer + 1, assignedOrder + 1)
+          }
+        })
+      }
+    })
+
+    const DAYS = [
+      { id: 2, name: 'Thứ Hai', offset: 0 }, { id: 3, name: 'Thứ Ba', offset: 1 },
+      { id: 4, name: 'Thứ Tư', offset: 2 }, { id: 5, name: 'Thứ Năm', offset: 3 },
+      { id: 6, name: 'Thứ Sáu', offset: 4 }, { id: 7, name: 'Thứ Bảy', offset: 5 },
+    ]
+
+    let currentWeekSlots = sched.filter((s) => Number(s.week_number || 1) === targetWeek && !s.is_substitute)
+    if (currentWeekSlots.length === 0 && targetWeek > 1) {
+      currentWeekSlots = week1Slots.map((slot) => ({ ...slot, week_number: targetWeek }))
+    }
+    if (currentWeekSlots.length === 0) return []
+
+    const weekRows: any[] = []
+    DAYS.forEach((day) => {
+      const daySlots: any[] = []
+      for (let p = 1; p <= 5; p++) {
+        const matchedSlot = currentWeekSlots.find((s) => Number(s.day_of_week) === day.id && Number(s.period_number) === p)
+        if (matchedSlot && matchedSlot.class_id) {
+          const mapKey = `${targetWeek}_${day.id}_${p}_${matchedSlot.class_id}`
+          const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', hasTemplate: false }
+
+          daySlots.push({
+            realClassId: matchedSlot.class_id,
+            period: p,
+            lessonOrder: lessonInfo.order,
+            lessonName: lessonInfo.name,
+            hasTemplate: lessonInfo.hasTemplate,
+          })
+        }
+      }
+      if (daySlots.length > 0) weekRows.push({ day, slots: daySlots })
+    })
+
+    return weekRows
+  }
+
+  const timelineWeeks = getProgressTimelineForSelectedClass()
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans pb-10">
-      {/* HEADER GIAO DIỆN GỐC */}
+      {/* HEADER GIAO DIỆN */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-800">
@@ -274,13 +255,13 @@ export default function ProgressPage() {
             <Layers className="w-4 h-4 text-emerald-600" />
             <span className="text-xs font-bold text-slate-500 uppercase">LỚP:</span>
             <select
-              value={selectedClassKey}
-              onChange={(e) => setSelectedClassKey(e.target.value)}
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
               className="font-black text-emerald-700 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              {classSubjectsList.map((cs) => (
-                <option key={cs.key} value={cs.key}>
-                  {cs.label}
+              {activeClassesList.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.code} — {cls.subject}
                 </option>
               ))}
             </select>
@@ -315,7 +296,7 @@ export default function ProgressPage() {
                 <tr>
                   <td colSpan={5} className="p-12 text-center text-slate-400">
                     <AlertCircle className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                    Lớp chưa có tiết dạy trên thời khóa biểu.
+                    Lớp chưa có tiết dạy nào trên thời khóa biểu.
                   </td>
                 </tr>
               ) : (
@@ -346,11 +327,21 @@ export default function ProgressPage() {
                         </td>
 
                         <td className="p-2.5 border-r text-center font-black text-blue-700 text-sm">
-                          {item.isSkipped ? '—' : item.lessonOrder}
+                          {!item.hasTemplate ? <span className="text-slate-400 font-bold">—</span> : (item.lessonOrder === 0 ? '—' : item.lessonOrder)}
                         </td>
 
                         <td className="p-2.5 border-r font-medium text-slate-800">
-                          {item.lessonName}
+                          {!item.hasTemplate ? (
+                            <Link
+                              href="/dashboard/curriculum"
+                              className="inline-flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-md font-bold shadow-2xs hover:bg-rose-100 transition"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Chưa có PPCT — Bấm để gán ngay</span>
+                            </Link>
+                          ) : (
+                            item.lessonName
+                          )}
                         </td>
 
                         <td className="p-2.5 text-center">

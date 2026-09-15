@@ -19,7 +19,6 @@ import { createClient } from '@/lib/supabase/client'
 const NAV_ITEMS = [
   { href: '/dashboard/schedule', label: 'Thời khóa biểu', icon: CalendarDays },
   { href: '/dashboard/curriculum', label: 'Phân phối chương trình', icon: BookOpen },
-  { href: '/dashboard/classes', label: 'Quản lý Lớp học', icon: Users },
   { href: '/dashboard/reports', label: 'Lịch Báo Giảng Tuần', icon: FileSpreadsheet },
   { href: '/dashboard/progress', label: 'Tiến độ thực hiện CT', icon: TrendingUp },
 ]
