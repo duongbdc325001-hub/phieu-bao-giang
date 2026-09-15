@@ -482,10 +482,10 @@ export default function CurriculumPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className={`text-xs block ${isAssignedToActiveTpl ? 'font-black text-emerald-950' : 'font-black text-slate-900'}`}>
-                          Lớp {cls.code} {isAssignedToActiveTpl && '✓'}
+                        {/* HIỂN THỊ GỘP DẠNG: 12N - Môn T (To, đậm rõ nét) */}
+                        <span className={`text-xs block font-black ${isAssignedToActiveTpl ? 'text-emerald-950' : 'text-slate-900'}`}>
+                          {cls.code} - Môn {cls.subject} {isAssignedToActiveTpl && '✓'}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-medium">Môn: {cls.subject}</span>
                       </div>
 
                       <div className="flex items-center gap-1">

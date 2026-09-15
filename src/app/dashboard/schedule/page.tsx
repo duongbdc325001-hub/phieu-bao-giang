@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import * as XLSX from 'xlsx'
-import { Upload, RefreshCw, Calendar, Plus, Trash2, X, Move, ArrowRightLeft } from 'lucide-react'
+import { Upload, RefreshCw, Calendar, Plus, Trash2, X, ArrowRightLeft } from 'lucide-react'
 
 interface ScheduleItem {
   id: string
@@ -56,6 +56,12 @@ export default function SchedulePage() {
   const loadScheduleAndSuggestions = async () => {
     setLoading(true)
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     const { data: sData } = await supabase
       .from('schedule_entries')
       .select(`
@@ -70,6 +76,7 @@ export default function SchedulePage() {
         )
       `)
       .eq('week_number', selectedWeek)
+      .eq('user_id', user.id)
 
     if (sData && sData.length > 0) {
       const formattedEntries = sData.map((item: any) => ({
@@ -97,6 +104,7 @@ export default function SchedulePage() {
             )
           `)
           .eq('week_number', 1)
+          .eq('user_id', user.id)
 
         if (week1Data && week1Data.length > 0) {
           const inheritedData = week1Data.map((item: any) => ({
@@ -128,6 +136,13 @@ export default function SchedulePage() {
     setLoading(true)
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Vui lòng đăng nhập lại!')
+        setLoading(false)
+        return
+      }
+
       const subSubject = subject.trim()
       const subClassCode = classCode.trim().toUpperCase()
 
@@ -149,6 +164,7 @@ export default function SchedulePage() {
         .select('id')
         .eq('code', subClassCode)
         .eq('subject', subSubject)
+        .eq('user_id', user.id)
         .maybeSingle()
 
       if (existingClass) {
@@ -164,6 +180,7 @@ export default function SchedulePage() {
             code: subClassCode,
             subject: subSubject,
             grade: gradeNum,
+            user_id: user.id,
           })
           .select('id')
           .single()
@@ -180,6 +197,7 @@ export default function SchedulePage() {
         .eq('week_number', selectedWeek)
         .eq('day_of_week', targetDayId)
         .eq('period_number', targetPeriod)
+        .eq('user_id', user.id)
         .maybeSingle()
 
       if (currentEntry) {
@@ -194,6 +212,7 @@ export default function SchedulePage() {
           day_of_week: targetDayId,
           period_number: targetPeriod,
           class_id: classId,
+          user_id: user.id,
         })
         if (insertErr) throw insertErr
       }
@@ -214,12 +233,16 @@ export default function SchedulePage() {
 
     setLoading(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       await supabase
         .from('schedule_entries')
         .delete()
         .eq('week_number', selectedWeek)
         .eq('day_of_week', editingCell.dayId)
         .eq('period_number', editingCell.period)
+        .eq('user_id', user.id)
 
       setEditingCell(null)
       await loadScheduleAndSuggestions()
@@ -243,6 +266,13 @@ export default function SchedulePage() {
 
     setLoading(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Vui lòng đăng nhập lại!')
+        setLoading(false)
+        return
+      }
+
       const data = await file.arrayBuffer()
       const workbook = XLSX.read(data, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
@@ -295,7 +325,11 @@ export default function SchedulePage() {
         return
       }
 
-      await supabase.from('schedule_entries').delete().eq('week_number', selectedWeek)
+      await supabase
+        .from('schedule_entries')
+        .delete()
+        .eq('week_number', selectedWeek)
+        .eq('user_id', user.id)
 
       const finalEntriesToInsert: any[] = []
 
@@ -316,6 +350,7 @@ export default function SchedulePage() {
           .select('id')
           .eq('code', subClassCode)
           .eq('subject', subSubject)
+          .eq('user_id', user.id)
           .maybeSingle()
 
         let classId = existingClass?.id
@@ -327,6 +362,7 @@ export default function SchedulePage() {
               code: subClassCode,
               subject: subSubject,
               grade: gradeNum,
+              user_id: user.id,
             })
             .select('id')
             .single()
@@ -339,7 +375,8 @@ export default function SchedulePage() {
             week_number: selectedWeek,
             day_of_week: entry.day_of_week,
             period_number: entry.period_number,
-            class_id: classId
+            class_id: classId,
+            user_id: user.id,
           })
         }
       }
