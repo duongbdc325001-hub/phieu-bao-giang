@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
@@ -31,6 +31,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // State lưu thông tin động của người dùng đang đăng nhập
+  const [userInfo, setUserInfo] = useState({
+    fullName: 'Đang tải...',
+    roleOrSubject: 'Giáo viên',
+    initial: 'G'
+  })
+
+  // Lấy thông tin user và profile thực tế từ Supabase khi load trang
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Lấy thông tin từ bảng profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, department, role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const name = profile?.full_name || user.email?.split('@')[0] || 'Giáo viên'
+      const sub = profile?.department || (profile?.role === 'admin' ? 'Quản trị viên' : 'Giáo viên bộ môn')
+      const firstChar = name.charAt(0).toUpperCase()
+
+      setUserInfo({
+        fullName: name,
+        roleOrSubject: sub,
+        initial: firstChar
+      })
+    }
+
+    fetchUserProfile()
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -105,15 +139,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {/* FOOTER NGƯỜI DÙNG */}
+      {/* FOOTER NGƯỜI DÙNG HIỂN THỊ ĐỘNG */}
       <div className="p-4 border-t border-slate-800 space-y-2.5">
         <div className="flex items-center gap-2.5 px-1">
-          <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-xs">
-            D
+          <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-xs shrink-0">
+            {userInfo.initial}
           </div>
           <div className="overflow-hidden">
-            <p className="text-xs font-bold text-slate-200 truncate leading-tight">Bùi Đức Dương</p>
-            <p className="text-[10px] text-slate-400 truncate">Giáo viên Toán</p>
+            <p className="text-xs font-bold text-slate-200 truncate leading-tight">{userInfo.fullName}</p>
+            <p className="text-[10px] text-slate-400 truncate">{userInfo.roleOrSubject}</p>
           </div>
         </div>
 
