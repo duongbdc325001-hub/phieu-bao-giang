@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { 
   CalendarDays, 
   BookOpen, 
-  Users, 
   FileSpreadsheet, 
   TrendingUp, 
   LogOut,
@@ -14,7 +13,10 @@ import {
   Menu,
   X,
   Download,
-  MessageSquare
+  MessageSquare,
+  ShieldAlert,
+  Clock,
+  AlertTriangle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -32,6 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Trạng thái kiểm soát bảo mật và phân quyền
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [accountStatus, setAccountStatus] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string>('teacher')
+  const [userEmail, setUserEmail] = useState<string>('')
+
   // State lưu thông tin động của người dùng đang đăng nhập
   const [userInfo, setUserInfo] = useState({
     fullName: 'Đang tải...',
@@ -39,32 +47,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     initial: 'G'
   })
 
-  // Lấy thông tin user và profile thực tế từ Supabase khi load trang
+  // Lấy thông tin user, kiểm tra trạng thái duyệt và hạn bản quyền
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const checkUserAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      setUserEmail(user.email || '')
 
       // Lấy thông tin từ bảng profiles
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, department, role')
+        .select('full_name, department, role, status, expiry_date')
         .eq('id', user.id)
         .maybeSingle()
 
-      const name = profile?.full_name || user.email?.split('@')[0] || 'Giáo viên'
-      const sub = profile?.department || (profile?.role === 'admin' ? 'Quản trị viên' : 'Giáo viên bộ môn')
-      const firstChar = name.charAt(0).toUpperCase()
+      if (profile) {
+        setUserRole(profile.role || 'teacher')
+        
+        // Kiểm tra xem đã hết hạn bản quyền chưa
+        const isExpired = profile.expiry_date && new Date(profile.expiry_date) < new Date()
+        if (isExpired && profile.role !== 'admin') {
+          setAccountStatus('expired')
+        } else {
+          setAccountStatus(profile.status || 'pending')
+        }
 
-      setUserInfo({
-        fullName: name,
-        roleOrSubject: sub,
-        initial: firstChar
-      })
+        const name = profile.full_name || user.email?.split('@')[0] || 'Giáo viên'
+        const sub = profile.department || (profile.role === 'admin' ? 'Quản trị viên' : 'Giáo viên bộ môn')
+        const firstChar = name.charAt(0).toUpperCase()
+
+        setUserInfo({
+          fullName: name,
+          roleOrSubject: sub,
+          initial: firstChar
+        })
+      } else {
+        setAccountStatus('pending')
+      }
+
+      setCheckingAuth(false)
     }
 
-    fetchUserProfile()
-  }, [supabase])
+    checkUserAccess()
+  }, [router, supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -79,6 +108,80 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // Màn hình chờ khi đang kiểm tra quyền
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs font-bold">
+        Đang kiểm tra quyền truy cập hệ thống...
+      </div>
+    )
+  }
+
+  // CHẶN NẾU TÀI KHOẢN CHỜ DUYỆT (PENDING) VÀ KHÔNG PHẢI ADMIN
+  if (accountStatus === 'pending' && userRole !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+            <Clock className="w-8 h-8 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-slate-900">Tài khoản đang chờ phê duyệt</h1>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Tài khoản <span className="font-bold text-slate-900">{userEmail}</span> của thầy/cô đã được đăng ký thành công nhưng chưa được Quản trị viên kích hoạt.
+            </p>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border text-xs text-slate-500 text-left space-y-1">
+            <p className="font-bold text-slate-700">Hướng dẫn:</p>
+            <p>• Vui lòng liên hệ trực tiếp với Quản trị viên (Thầy Bùi Đức Dương) để được duyệt nhanh chóng.</p>
+            <p>• Sau khi được duyệt, hãy bấm nút kiểm tra lại bên dưới.</p>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+            >
+              Kiểm tra lại trạng thái
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // CHẶN NẾU TÀI KHOẢN ĐÃ HẾT HẠN (EXPIRED) VÀ KHÔNG PHẢI ADMIN
+  if (accountStatus === 'expired' && userRole !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-slate-900">Bản quyền phần mềm đã hết hạn</h1>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Thời hạn sử dụng phần mềm của tài khoản <span className="font-bold text-slate-900">{userEmail}</span> đã kết thúc.
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Đăng xuất tài khoản</span>
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const NavContent = () => (
@@ -125,6 +228,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
+
+          {/* HIỂN THỊ NÚT QUẢN TRỊ ADMIN NẾU LÀ ADMIN */}
+          {userRole === 'admin' && (
+            <Link
+              href="/dashboard/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition duration-150 mt-4 border border-emerald-600/50 ${
+                pathname === '/dashboard/admin'
+                  ? 'bg-emerald-700 text-white shadow-md'
+                  : 'text-emerald-400 hover:bg-emerald-950/40'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4 text-emerald-400" />
+              <span>Quản Trị Admin</span>
+            </Link>
+          )}
         </nav>
 
         {/* NÚT TẢI FILE MẪU NGAY TRONG SIDEBAR */}
