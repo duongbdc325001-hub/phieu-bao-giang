@@ -35,9 +35,25 @@ const VALID_SUBJECTS = [
   'KTPL', 'P', 'N', 'TQ', 'QPAN', 'GDTC', 'GDĐP', 'TrN', 'Nâng cao'
 ]
 
+// Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
+const getCurrentWeekNumber = () => {
+  const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
+  const today = new Date()
+  
+  startDate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  const diffTime = today.getTime() - startDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) return 1
+  const currentWeek = Math.floor(diffDays / 7) + 1
+  return Math.min(Math.max(currentWeek, 1), 35)
+}
+
 export default function SchedulePage() {
   const supabase = createClient()
-  const [selectedWeek, setSelectedWeek] = useState(1)
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber())
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -131,6 +147,34 @@ export default function SchedulePage() {
   useEffect(() => {
     loadScheduleAndSuggestions()
   }, [selectedWeek])
+
+  // Hàm xử lý làm sạch dữ liệu cá nhân
+  const handleResetMyData = async () => {
+    if (!confirm('CẢNH BÁO NGUY HIỂM:\n\nThao tác này sẽ XÓA SẠCH toàn bộ Thời khóa biểu, Phân phối chương trình và Lịch báo giảng của riêng bạn để làm lại từ đầu. Hành động này không thể hoàn tác!\n\nBạn có chắc chắn muốn xóa không?')) return
+
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Không tìm thấy thông tin tài khoản đang đăng nhập!')
+        setLoading(false)
+        return
+      }
+
+      await supabase.from('lesson_overrides').delete().eq('user_id', user.id)
+      await supabase.from('class_curriculums').delete().eq('user_id', user.id)
+      await supabase.from('curriculum_templates').delete().eq('user_id', user.id)
+      await supabase.from('schedule_entries').delete().eq('user_id', user.id)
+      await supabase.from('classes').delete().eq('user_id', user.id)
+
+      alert('Đã dọn sạch toàn bộ dữ liệu cá nhân thành công! Hệ thống sẽ tải lại trang để bạn bắt đầu nhập liệu mới.')
+      window.location.reload()
+    } catch (err: any) {
+      alert('Lỗi khi làm sạch dữ liệu: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSaveCell = async (targetDayId: number, targetPeriod: number, subject: string, classCode: string) => {
     setLoading(true)
@@ -446,6 +490,17 @@ export default function SchedulePage() {
               className="hidden"
             />
           </label>
+
+          {/* NÚT LÀM SẠCH DỮ LIỆU CÁ NHÂN */}
+          <button
+            onClick={handleResetMyData}
+            disabled={loading}
+            title="Xóa sạch dữ liệu cá nhân để làm lại từ đầu"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition shadow-2xs cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>Làm sạch dữ liệu</span>
+          </button>
 
           <button
             onClick={loadScheduleAndSuggestions}

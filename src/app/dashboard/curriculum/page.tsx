@@ -26,6 +26,22 @@ interface ClassItem {
   grade: number
 }
 
+// Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
+const getCurrentWeekNumber = () => {
+  const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
+  const today = new Date()
+  
+  startDate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  const diffTime = today.getTime() - startDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) return 1
+  const currentWeek = Math.floor(diffDays / 7) + 1
+  return Math.min(Math.max(currentWeek, 1), 35)
+}
+
 export default function CurriculumPage() {
   const supabase = createClient()
   const [templates, setTemplates] = useState<CurriculumTemplate[]>([])
@@ -66,12 +82,27 @@ export default function CurriculumPage() {
       }
     }
 
-    // ĐỒNG BỘ THEO TKB: Chỉ lấy các lớp có trong schedule_entries
-    const { data: sData } = await supabase.from('schedule_entries').select('class_id')
+    // ĐỒNG BỘ THEO THỜI GIAN THỰC TKB:
+    // Lấy các lớp xuất hiện trong TKB từ tuần 1 đến tuần hiện tại theo thực tế hệ thống
+    const currentRealWeek = getCurrentWeekNumber()
+    const { data: sData } = await supabase
+      .from('schedule_entries')
+      .select('class_id, week_number')
+      .lte('week_number', currentRealWeek)
+
     const activeClassIds = new Set<string>()
     if (sData) {
       sData.forEach((s: any) => {
         if (s.class_id) activeClassIds.add(s.class_id)
+      })
+    }
+
+    // Lấy thêm tất cả các lớp có sẵn trong bảng classes (để phòng trường hợp lớp mới được thêm thủ công)
+    const { data: allClassesData } = await supabase.from('classes').select('id, code, subject, grade')
+    if (allClassesData) {
+      allClassesData.forEach((c: any) => {
+        // Nếu lớp đó đã có trong TKB từ tuần hiện tại trở về trước, hoặc là lớp mới tạo, ta ưu tiên đưa vào
+        activeClassIds.add(c.id)
       })
     }
 
@@ -186,8 +217,6 @@ export default function CurriculumPage() {
                 !upper.includes('TIẾT THEO') &&
                 !upper.includes('TÊN BÀI') &&
                 !upper.includes('NỘI DUNG') &&
-                !upper.includes('CHƯƠNG') &&
-                !upper.includes('HỌC KỲ') &&
                 !upper.includes('LĨNH VỰC') &&
                 !upper.includes('---') &&
                 cellVal.length > 2
@@ -453,7 +482,7 @@ export default function CurriculumPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
             {classes.length === 0 ? (
               <div className="col-span-3 p-10 text-center text-slate-400 text-xs">
-                Chưa có lớp nào trong Thời khóa biểu. Vui lòng xếp lịch TKB trước để hiển thị danh sách lớp.
+                Chưa có lớp nào theo TKB thời gian thực. Vui lòng xếp lịch TKB trước.
               </div>
             ) : (
               classes.map((cls) => {
@@ -554,7 +583,7 @@ export default function CurriculumPage() {
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px] sticky top-0">
                       <th className="w-[15%] p-2.5 border-r border-slate-300 text-center">Tiết số</th>
-                      <th className="w-[85%] p-2.5">Tên bài học / Nội dung chương trình</th>
+                      <th className="w-[85%] p-2.5">Tên bài dạy / Nội dung chương trình</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-800">

@@ -31,9 +31,25 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy', offset: 5 },
 ]
 
+// Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
+const getCurrentWeekNumber = () => {
+  const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
+  const today = new Date()
+  
+  startDate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  const diffTime = today.getTime() - startDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) return 1
+  const currentWeek = Math.floor(diffDays / 7) + 1
+  return Math.min(Math.max(currentWeek, 1), 35)
+}
+
 export default function ReportsPage() {
   const supabase = createClient()
-  const [selectedWeek, setSelectedWeek] = useState(1)
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber())
   const [schedule, setSchedule] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
@@ -127,10 +143,13 @@ export default function ReportsPage() {
       }
 
       let lessons: any[] = []
-      const hasTemplate = !!templateId
-      if (hasTemplate) {
+      if (templateId) {
         lessons = curriculumItems.filter((item) => item.template_id === templateId)
       }
+      
+      // SỬA TẬN GỐC: Chỉ coi là có template hợp lệ khi tồn tại templateId VÀ danh sách bài học thực sự có dữ liệu (> 0)
+      const hasTemplate = !!templateId && lessons.length > 0
+
       lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
 
       const slotsByWeek = new Map<number, any[]>()
