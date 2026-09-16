@@ -147,7 +147,6 @@ export default function ReportsPage() {
         lessons = curriculumItems.filter((item) => item.template_id === templateId)
       }
       
-      // SỬA TẬN GỐC: Chỉ coi là có template hợp lệ khi tồn tại templateId VÀ danh sách bài học thực sự có dữ liệu (> 0)
       const hasTemplate = !!templateId && lessons.length > 0
 
       lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
@@ -212,7 +211,8 @@ export default function ReportsPage() {
     DAYS.forEach((day) => {
       const daySlots: any[] = []
 
-      for (let p = 1; p <= 5; p++) {
+      // Duyệt qua cả 8 tiết (Tiết 1-5 buổi sáng, Tiết 6-8 tương ứng Tiết 1-3 chiều)
+      for (let p = 1; p <= 8; p++) {
         const matchedSlot = currentWeekSlots.find(
           (s) => Number(s.day_of_week) === day.id && Number(s.period_number) === p
         )
@@ -229,10 +229,13 @@ export default function ReportsPage() {
           const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
           const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
 
+          const periodDisplay = p <= 5 ? `Tiết ${p}` : `Chiều - Tiết ${p - 5}`
+
           daySlots.push({
             entry: matchedSlot,
             day: day.id,
             period: p,
+            periodDisplay: periodDisplay,
             realClassId: matchedSlot.class_id,
             subjectClass: `${subjectName} - ${classCode}`,
             lessonOrder: lessonInfo.order,
@@ -333,7 +336,7 @@ export default function ReportsPage() {
 
           rowCells.push(
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: slot.subjectClass, size: 20 })] })] }),
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(slot.period), size: 20 })] })] }),
+            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: slot.periodDisplay, size: 20 })] })] }),
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: lessonDisplay, size: 20 })] })] }),
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orderDisplay, size: 20 })] })] }),
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: noteText, italics: true, size: 18 })] })] })
@@ -412,7 +415,7 @@ export default function ReportsPage() {
         exportRows.push({
           'Thứ, ngày': `${group.day.name} (${getFormattedDate(group.day.offset)})`,
           'Môn - Lớp': slot.subjectClass,
-          'Tiết TKB': slot.period,
+          'Tiết TKB': slot.periodDisplay,
           'Tên bài dạy': !slot.hasTemplate ? 'CHƯƠNG CÓ PPCT' : (slot.lessonName || ''),
           'Tiết CT': !slot.hasTemplate ? '—' : slot.lessonOrder,
         })
@@ -490,8 +493,8 @@ export default function ReportsPage() {
             <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px]">
               <th className="w-[15%] p-3 border-r border-slate-300 text-center">THỨ, NGÀY</th>
               <th className="w-[16%] p-3 border-r border-slate-300 text-center">MÔN - LỚP</th>
-              <th className="w-[9%] p-3 border-r border-slate-300 text-center">TIẾT TKB</th>
-              <th className="w-[42%] p-3 border-r border-slate-300">TÊN BÀI DẠY THEO PPCT</th>
+              <th className="w-[12%] p-3 border-r border-slate-300 text-center">TIẾT TKB</th>
+              <th className="w-[39%] p-3 border-r border-slate-300">TÊN BÀI DẠY THEO PPCT</th>
               <th className="w-[10%] p-3 border-r border-slate-300 text-center">TIẾT CT</th>
               <th className="w-[8%] p-3 text-center">GHI CHÚ</th>
             </tr>
@@ -524,8 +527,8 @@ export default function ReportsPage() {
                       <td className="p-2 border-r border-slate-300 text-center font-black text-slate-900 text-sm">
                         {slot.subjectClass}
                       </td>
-                      <td className="p-2 border-r border-slate-300 text-center font-black text-emerald-700 text-sm">
-                        {slot.period}
+                      <td className="p-2 border-r border-slate-300 text-center font-black text-emerald-700 text-xs">
+                        {slot.periodDisplay}
                       </td>
                       <td className="p-3 border-r border-slate-300 align-middle">
                         {!slot.hasTemplate ? (

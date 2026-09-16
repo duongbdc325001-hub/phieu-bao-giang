@@ -15,7 +15,6 @@ import {
   Download,
   MessageSquare,
   ShieldAlert,
-  Clock,
   AlertTriangle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -34,9 +33,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Trạng thái kiểm soát bảo mật và phân quyền
+  // Trạng thái kiểm soát bảo mật (chỉ giữ lại kiểm tra đăng nhập và hết hạn bản quyền)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [accountStatus, setAccountStatus] = useState<string | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
   const [userRole, setUserRole] = useState<string>('teacher')
   const [userEmail, setUserEmail] = useState<string>('')
 
@@ -47,7 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     initial: 'G'
   })
 
-  // Lấy thông tin user, kiểm tra trạng thái duyệt và hạn bản quyền
+  // Lấy thông tin user và kiểm tra hạn bản quyền (đã loại bỏ hoàn toàn việc chặn pending)
   useEffect(() => {
     const checkUserAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -61,19 +60,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Lấy thông tin từ bảng profiles
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, department, role, status, expiry_date')
+        .select('full_name, department, role, expiry_date')
         .eq('id', user.id)
         .maybeSingle()
 
       if (profile) {
         setUserRole(profile.role || 'teacher')
         
-        // Kiểm tra xem đã hết hạn bản quyền chưa
-        const isExpired = profile.expiry_date && new Date(profile.expiry_date) < new Date()
-        if (isExpired && profile.role !== 'admin') {
-          setAccountStatus('expired')
-        } else {
-          setAccountStatus(profile.status || 'pending')
+        // Kiểm tra xem đã hết hạn bản quyền chưa (chỉ chặn nếu hết hạn và không phải admin)
+        const expired = profile.expiry_date && new Date(profile.expiry_date) < new Date()
+        if (expired && profile.role !== 'admin') {
+          setIsExpired(true)
         }
 
         const name = profile.full_name || user.email?.split('@')[0] || 'Giáo viên'
@@ -85,8 +82,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           roleOrSubject: sub,
           initial: firstChar
         })
-      } else {
-        setAccountStatus('pending')
       }
 
       setCheckingAuth(false)
@@ -119,47 +114,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  // CHẶN NẾU TÀI KHOẢN CHỜ DUYỆT (PENDING) VÀ KHÔNG PHẢI ADMIN
-  if (accountStatus === 'pending' && userRole !== 'admin') {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-            <Clock className="w-8 h-8 animate-pulse" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-xl font-black text-slate-900">Tài khoản đang chờ phê duyệt</h1>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Tài khoản <span className="font-bold text-slate-900">{userEmail}</span> của thầy/cô đã được đăng ký thành công nhưng chưa được Quản trị viên kích hoạt.
-            </p>
-          </div>
-          <div className="p-4 bg-slate-50 rounded-2xl border text-xs text-slate-500 text-left space-y-1">
-            <p className="font-bold text-slate-700">Hướng dẫn:</p>
-            <p>• Vui lòng liên hệ trực tiếp với Quản trị viên (Thầy Bùi Đức Dương) để được duyệt nhanh chóng.</p>
-            <p>• Sau khi được duyệt, hãy bấm nút kiểm tra lại bên dưới.</p>
-          </div>
-          <div className="pt-2 flex gap-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
-            >
-              Kiểm tra lại trạng thái
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Đăng xuất</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // CHẶN NẾU TÀI KHOẢN ĐÃ HẾT HẠN (EXPIRED) VÀ KHÔNG PHẢI ADMIN
-  if (accountStatus === 'expired' && userRole !== 'admin') {
+  if (isExpired && userRole !== 'admin') {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6">
