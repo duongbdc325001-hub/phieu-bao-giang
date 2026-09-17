@@ -229,7 +229,7 @@ export default function ReportsPage() {
           const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
           const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
 
-          const periodDisplay = p <= 5 ? `Tiết ${p}` : `Chiều - Tiết ${p - 5}`
+          const periodDisplay = p <= 5 ? `${p}` : `Chiều - Tiết ${p - 5}`
 
           daySlots.push({
             entry: matchedSlot,
