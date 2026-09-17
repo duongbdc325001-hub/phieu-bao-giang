@@ -229,7 +229,8 @@ export default function ReportsPage() {
           const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
           const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
 
-          const periodDisplay = p <= 5 ? `${p}` : `Chiều - Tiết ${p - 5}`
+          // BỎ CHỮ "TIẾT", CHỈ HIỂN THỊ SỐ HOẶC "Chiều - [Số]" CHO THOÁNG GỌN
+          const periodDisplay = p <= 5 ? `${p}` : `Chiều - ${p - 5}`
 
           daySlots.push({
             entry: matchedSlot,
@@ -389,6 +390,58 @@ export default function ReportsPage() {
                 children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học)`, italics: true, size: 20 })],
               }),
               new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
+
+              // BẢNG CHỮ KÝ PHÍA DƯỚI (Không khung viền khi in)
+              new Paragraph({ spacing: { before: 300 } }),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                  new TableRow({
+                    children: [
+                      // Góc trái: P.Hiệu Trưởng Nguyễn Tiến Đức
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: noBorders,
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'PHÓ HIỆU TRƯỞNG', bold: true, size: 20 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 1200 },
+                            children: [new TextRun({ text: '(Ký, đóng dấu, ghi rõ họ tên)', italics: true, size: 18 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'Nguyễn Tiến Đức', bold: true, size: 20 })],
+                          }),
+                        ],
+                      }),
+                      // Góc phải: TTCM Nguyễn Ngọc Xuân
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        borders: noBorders,
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'TỔ TRƯỞNG CHUYÊN MÔN', bold: true, size: 20 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 1200 },
+                            children: [new TextRun({ text: '(Ký, ghi rõ họ tên)', italics: true, size: 18 })],
+                          }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'Nguyễn Ngọc Xuân', bold: true, size: 20 })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
             ],
           },
         ],
