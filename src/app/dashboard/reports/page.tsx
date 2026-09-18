@@ -204,8 +204,6 @@ export default function ReportsPage() {
       currentWeekSlots = week1Slots.map((slot) => ({ ...slot, week_number: Number(selectedWeek) }))
     }
 
-    if (currentWeekSlots.length === 0) return []
-
     const weekRows: { day: typeof DAYS[0]; slots: any[] }[] = []
 
     DAYS.forEach((day) => {
@@ -229,7 +227,6 @@ export default function ReportsPage() {
           const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
           const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
 
-          // BỎ CHỮ "TIẾT", CHỈ HIỂN THỊ SỐ HOẶC "Chiều - [Số]" CHO THOÁNG GỌN
           const periodDisplay = p <= 5 ? `${p}` : `Chiều - ${p - 5}`
 
           daySlots.push({
@@ -249,9 +246,27 @@ export default function ReportsPage() {
         }
       }
 
-      if (daySlots.length > 0) {
-        weekRows.push({ day, slots: daySlots })
+      // NẾU NGÀY ĐÓ KHÔNG CÓ TIẾT NÀO, TẠO ĐÚNG 4 DÒNG TRỐNG
+      if (daySlots.length === 0) {
+        for (let emptyP = 1; emptyP <= 4; emptyP++) {
+          daySlots.push({
+            entry: null,
+            day: day.id,
+            period: emptyP,
+            periodDisplay: String(emptyP),
+            realClassId: '',
+            subjectClass: '',
+            lessonOrder: 0,
+            lessonName: '',
+            isSubstitute: false,
+            isOverridden: false,
+            slotOrderInWeek: 0,
+            hasTemplate: true,
+          })
+        }
       }
+
+      weekRows.push({ day, slots: daySlots })
     })
 
     return weekRows
@@ -584,7 +599,9 @@ export default function ReportsPage() {
                         {slot.periodDisplay}
                       </td>
                       <td className="p-3 border-r border-slate-300 align-middle">
-                        {!slot.hasTemplate ? (
+                        {!slot.subjectClass ? (
+                          <span className="text-slate-300">—</span>
+                        ) : !slot.hasTemplate ? (
                           <Link
                             href="/dashboard/curriculum"
                             className="inline-flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-md font-bold shadow-2xs hover:bg-rose-100 transition"
@@ -597,7 +614,9 @@ export default function ReportsPage() {
                         )}
                       </td>
                       <td className="p-2 border-r border-slate-300 text-center align-middle">
-                        {!slot.hasTemplate ? (
+                        {!slot.subjectClass ? (
+                          <span className="text-slate-300">—</span>
+                        ) : !slot.hasTemplate ? (
                           <span className="text-slate-400 font-bold">—</span>
                         ) : (
                           <button
@@ -623,7 +642,9 @@ export default function ReportsPage() {
                         )}
                       </td>
                       <td className="p-2 text-center text-xs font-medium">
-                        {!slot.hasTemplate ? (
+                        {!slot.subjectClass ? (
+                          <span className="text-slate-300">—</span>
+                        ) : !slot.hasTemplate ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Thiếu PPCT</span>
                         ) : slot.isOverridden ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Tùy chỉnh</span>
