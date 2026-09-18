@@ -4,9 +4,18 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Shield, CheckCircle, Clock, AlertTriangle, UserCheck } from 'lucide-react'
 
+interface UserProfile {
+  id: string
+  email: string | null
+  full_name: string | null
+  status: string | null
+  expiry_date: string | null
+  created_at: string
+}
+
 export default function AdminPage() {
   const supabase = createClient()
-  const [users, setUsers] = useState<any[]>([])
+  const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadUsers = async () => {
@@ -16,7 +25,12 @@ export default function AdminPage() {
       .select('*')
       .order('created_at', { ascending: false })
     
-    if (data) setUsers(data)
+    if (error) {
+      console.error('Lỗi tải danh sách profiles:', error.message)
+      alert('Lỗi tải danh sách: ' + error.message)
+    } else if (data) {
+      setUsers(data)
+    }
     setLoading(false)
   }
 
@@ -48,6 +62,9 @@ export default function AdminPage() {
   // Gia hạn thêm 1 năm cho tài khoản
   const handleExtendYear = async (userId: string, currentExpiry: string) => {
     const baseDate = currentExpiry ? new Date(currentExpiry) : new Date()
+    if (baseDate < new Date()) {
+      baseDate.setTime(new Date().getTime())
+    }
     baseDate.setFullYear(baseDate.getFullYear() + 1)
 
     const { error } = await supabase
@@ -102,7 +119,7 @@ export default function AdminPage() {
             {users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-10 text-center text-slate-400">
-                  Chưa có tài khoản nào đăng ký trong hệ thống.
+                  {loading ? 'Đang tải dữ liệu...' : 'Chưa có tài khoản nào đăng ký trong hệ thống.'}
                 </td>
               </tr>
             ) : (
