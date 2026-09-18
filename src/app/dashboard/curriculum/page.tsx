@@ -478,73 +478,90 @@ export default function CurriculumPage() {
             </button>
           </div>
 
-          {/* HIỂN THỊ THÀNH 3 CỘT GỌN GÀNG */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
+          {/* HIỂN THỊ CHIA THEO 3 KHỐI: 10, 11, 12 */}
+          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
             {classes.length === 0 ? (
-              <div className="col-span-3 p-10 text-center text-slate-400 text-xs">
+              <div className="p-10 text-center text-slate-400 text-xs">
                 Chưa có lớp nào theo TKB thời gian thực. Vui lòng xếp lịch TKB trước.
               </div>
             ) : (
-              classes.map((cls) => {
-                const isSelectedCheckbox = selectedClassIds.includes(cls.id)
-
-                const isAssignedToActiveTpl = classMappings.some(
-                  (m) => m.class_id === cls.id && m.template_id === selectedTemplateId
-                )
-
-                const assignedTemplatesForClass = classMappings
-                  .filter((m) => m.class_id === cls.id)
-                  .map((m) => templates.find((t) => t.id === m.template_id))
-                  .filter(Boolean) as CurriculumTemplate[]
+              [10, 11, 12].map((gradeLevel) => {
+                const classesInGrade = classes.filter((cls) => cls.grade === gradeLevel)
+                if (classesInGrade.length === 0) return null
 
                 return (
-                  <div
-                    key={cls.id}
-                    onClick={() => handleToggleClassSelection(cls.id)}
-                    className={`p-2.5 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-1.5 ${
-                      isAssignedToActiveTpl
-                        ? 'bg-emerald-100/90 border-emerald-600 shadow-xs ring-1 ring-emerald-500 font-semibold'
-                        : isSelectedCheckbox
-                        ? 'bg-emerald-50/80 border-emerald-500 text-slate-900 shadow-2xs'
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        {/* HIỂN THỊ GỘP DẠNG: 12N - Môn T (To, đậm rõ nét) */}
-                        <span className={`text-xs block font-black ${isAssignedToActiveTpl ? 'text-emerald-950' : 'text-slate-900'}`}>
-                          {cls.code} - Môn {cls.subject} {isAssignedToActiveTpl && '✓'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={isSelectedCheckbox}
-                          onChange={() => {}}
-                          className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                        />
-                        <span className="text-[11px] font-bold text-slate-700">Chọn</span>
-                      </div>
+                  <div key={gradeLevel} className="space-y-2">
+                    {/* TIÊU ĐỀ KHỐI ĐƯỢC TÔ MÀU NỔI BẬT */}
+                    <div className="sticky top-0 bg-emerald-700 text-white px-3 py-2 rounded-xl border border-emerald-800 text-xs font-black uppercase tracking-wider shadow-xs">
+                      Khối {gradeLevel} ({classesInGrade.length} lớp)
                     </div>
 
-                    {assignedTemplatesForClass.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-200/60">
-                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5 mr-1">
-                          <Layers className="w-3 h-3 text-blue-600" /> Đã lưu:
-                        </span>
-                        {assignedTemplatesForClass.map((tpl) => (
-                          <span
-                            key={tpl.id}
-                            className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
-                              tpl.id === selectedTemplateId
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {classesInGrade.map((cls) => {
+                        const isSelectedCheckbox = selectedClassIds.includes(cls.id)
+
+                        const isAssignedToActiveTpl = classMappings.some(
+                          (m) => m.class_id === cls.id && m.template_id === selectedTemplateId
+                        )
+
+                        const assignedTemplatesForClass = classMappings
+                          .filter((m) => m.class_id === cls.id)
+                          .map((m) => templates.find((t) => t.id === m.template_id))
+                          .filter(Boolean) as CurriculumTemplate[]
+
+                        return (
+                          <div
+                            key={cls.id}
+                            onClick={() => handleToggleClassSelection(cls.id)}
+                            className={`p-2.5 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                              isAssignedToActiveTpl
+                                ? 'bg-emerald-100/90 border-emerald-600 shadow-xs ring-1 ring-emerald-500 font-semibold'
+                                : isSelectedCheckbox
+                                ? 'bg-emerald-50/80 border-emerald-500 text-slate-900 shadow-2xs'
+                                : 'bg-white border-slate-200 hover:bg-slate-50'
                             }`}
                           >
-                            {tpl.title}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className={`text-xs block font-black ${isAssignedToActiveTpl ? 'text-emerald-950' : 'text-slate-900'}`}>
+                                  {cls.code} - Môn {cls.subject} {isAssignedToActiveTpl && '✓'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelectedCheckbox}
+                                  onChange={() => {}}
+                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <span className="text-[11px] font-bold text-slate-700">Chọn</span>
+                              </div>
+                            </div>
+
+                            {assignedTemplatesForClass.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-200/60">
+                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5 mr-1">
+                                  <Layers className="w-3 h-3 text-blue-600" /> Đã lưu:
+                                </span>
+                                {assignedTemplatesForClass.map((tpl) => (
+                                  <span
+                                    key={tpl.id}
+                                    className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                                      tpl.id === selectedTemplateId
+                                        ? 'bg-emerald-200 text-emerald-900'
+                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    }`}
+                                  >
+                                    {tpl.title}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )
               })
