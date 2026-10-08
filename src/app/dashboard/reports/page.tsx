@@ -34,13 +34,13 @@ const DAYS = [
 const getCurrentWeekNumber = () => {
   const startDate = new Date(2026, 8, 7)
   const today = new Date()
-  
+
   startDate.setHours(0, 0, 0, 0)
   today.setHours(0, 0, 0, 0)
-  
+
   const diffTime = today.getTime() - startDate.getTime()
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays < 0) return 1
   const currentWeek = Math.floor(diffDays / 7) + 1
   return Math.min(Math.max(currentWeek, 1), 35)
@@ -67,7 +67,7 @@ export default function ReportsPage() {
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
   const [curriculumItems, setCurriculumItems] = useState<any[]>([])
   const [overrides, setOverrides] = useState<any[]>([])
-  
+
   const [loading, setLoading] = useState(false)
   const [exportingWord, setExportingWord] = useState(false)
 
@@ -87,23 +87,42 @@ export default function ReportsPage() {
     return `${day}/${month}`
   }
 
+  // Supabase mặc định chỉ trả tối đa 1000 dòng mỗi lần. Đọc theo từng trang để không bị cắt mất dữ liệu
+  // (ví dụ nhiều khung PPCT x ~105 tiết, hoặc TKB nhiều tuần).
+  const fetchAll = async (table: string): Promise<any[]> => {
+    const pageSize = 1000
+    let from = 0
+    const all: any[] = []
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1)
+      if (error) throw error
+      if (!data || data.length === 0) break
+      all.push(...data)
+      if (data.length < pageSize) break
+      from += pageSize
+    }
+    return all
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
-      const { data: cData } = await supabase.from('classes').select('*')
-      if (cData) setClasses(cData)
-
-      const { data: sData } = await supabase.from('schedule_entries').select('*')
-      if (sData) setSchedule(sData)
-
-      const { data: ccData } = await supabase.from('class_curriculums').select('*')
-      if (ccData) setClassCurriculums(ccData)
-
-      const { data: itemsData } = await supabase.from('curriculum_items').select('*')
-      if (itemsData) setCurriculumItems(itemsData)
-
-      const { data: ovrData } = await supabase.from('lesson_overrides').select('*')
-      if (ovrData) setOverrides(ovrData)
+      const [cData, sData, ccData, itemsData, ovrData] = await Promise.all([
+        fetchAll('classes'),
+        fetchAll('schedule_entries'),
+        fetchAll('class_curriculums'),
+        fetchAll('curriculum_items'),
+        fetchAll('lesson_overrides'),
+      ])
+      setClasses(cData)
+      setSchedule(sData)
+      setClassCurriculums(ccData)
+      setCurriculumItems(itemsData)
+      setOverrides(ovrData)
     } catch (err) {
       console.error("Lỗi tải dữ liệu:", err)
     } finally {
@@ -113,27 +132,35 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const calculateReportRows = () => {
     if (schedule.length === 0 || classes.length === 0) return []
 
-    const week1Slots = schedule.filter((s) => Number(s.week_number || 1) === 1 && !s.is_substitute)
-
-    const allActiveWeeksSlots: any[] = []
+    // Dựng TKB từng tuần từ 1 đến tuần đang chọn.
+    // Tuần chưa có dữ liệu thì lấy theo tuần liền trước (cùng quy tắc với trang Thời khóa biểu).
+    const weekSlotsMap = new Map<number, any[]>()
+    let prevSlots: any[] = []
     for (let w = 1; w <= selectedWeek; w++) {
       let wSlots = schedule.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
-      if (wSlots.length === 0 && w > 1) {
-        wSlots = week1Slots.map((slot) => ({ ...slot, week_number: w }))
+      if (wSlots.length === 0 && prevSlots.length > 0) {
+        wSlots = prevSlots.map((slot) => ({ ...slot, week_number: w }))
       }
-      wSlots.sort((a, b) => {
+      wSlots = [...wSlots].sort((a, b) => {
         const d1 = Number(a.day_of_week || 2)
         const d2 = Number(b.day_of_week || 2)
         if (d1 !== d2) return d1 - d2
         return Number(a.period_number || 1) - Number(b.period_number || 1)
       })
-      allActiveWeeksSlots.push(...wSlots)
+      weekSlotsMap.set(w, wSlots)
+      prevSlots = wSlots
     }
+
+    const allActiveWeeksSlots: any[] = []
+    weekSlotsMap.forEach((wSlots) => {
+      allActiveWeeksSlots.push(...wSlots)
+    })
 
     const classSlotsMap = new Map<string, any[]>()
     allActiveWeeksSlots.forEach((slot) => {
@@ -144,23 +171,27 @@ export default function ReportsPage() {
       }
     })
 
+    // Các khung PPCT thực sự có bài (để bỏ qua bản gán cũ trỏ vào khung đã bị xóa)
+    const templatesWithItems = new Set<string>(curriculumItems.map((i) => String(i.template_id)))
+
     const lessonMapping = new Map<string, { order: number; name: string; isOverridden: boolean; slotIdx: number; hasTemplate: boolean }>()
 
     classSlotsMap.forEach((slots, classId) => {
       let templateId: string | null = null
-      const matchedRel = classCurriculums.find((cc) => cc.class_id === classId)
+      const relations = classCurriculums.filter((cc) => cc.class_id === classId)
+      const matchedRel = relations.find((cc) => templatesWithItems.has(String(cc.template_id))) || relations[0]
       if (matchedRel) {
-        templateId = matchedRel.template_id
+        templateId = String(matchedRel.template_id)
       } else {
         const cls = classes.find((c) => c.id === classId)
-        if (cls?.template_id) templateId = cls.template_id
+        if (cls?.template_id) templateId = String(cls.template_id)
       }
 
       let lessons: any[] = []
       if (templateId) {
-        lessons = curriculumItems.filter((item) => item.template_id === templateId)
+        lessons = curriculumItems.filter((item) => String(item.template_id) === templateId)
       }
-      
+
       const hasTemplate = !!templateId && lessons.length > 0
       lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
 
@@ -194,7 +225,7 @@ export default function ReportsPage() {
             }
           }
 
-          let foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[assignedOrder - 1]
+          const foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[assignedOrder - 1]
 
           const mapKey = `${w}_${day}_${period}_${classId}`
           if (w === selectedWeek) {
@@ -212,10 +243,7 @@ export default function ReportsPage() {
       }
     })
 
-    let currentWeekSlots = schedule.filter((s) => Number(s.week_number || 1) === Number(selectedWeek) && !s.is_substitute)
-    if (currentWeekSlots.length === 0 && Number(selectedWeek) > 1) {
-      currentWeekSlots = week1Slots.map((slot) => ({ ...slot, week_number: Number(selectedWeek) }))
-    }
+    const currentWeekSlots = weekSlotsMap.get(Number(selectedWeek)) || []
 
     const weekRows: { day: typeof DAYS[0]; slots: any[] }[] = []
 
@@ -237,9 +265,6 @@ export default function ReportsPage() {
             const classCode = cls ? cls.code : (matchedSlot.sub_class_code || 'Lớp')
             const subjectName = cls ? cls.subject : (matchedSlot.sub_subject || 'Toán')
 
-            const classSlotsAll = currentWeekSlots.filter((s) => Number(s.class_id) === Number(matchedSlot.class_id))
-            const slotIdxInWeek = classSlotsAll.findIndex((s) => Number(s.day_of_week) === day.id && s.period_number === p)
-
             const activeWeek = Number(selectedWeek)
             const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
             const lessonInfo = lessonMapping.get(mapKey) || { order: 1, name: '', isOverridden: false, slotIdx: 0, hasTemplate: false }
@@ -255,7 +280,9 @@ export default function ReportsPage() {
               lessonName: lessonInfo.name,
               isSubstitute: matchedSlot.is_substitute || false,
               isOverridden: lessonInfo.isOverridden,
-              slotOrderInWeek: slotIdxInWeek >= 0 ? slotIdxInWeek : 0,
+              // Chỉ số tiết trong tuần của lớp này: dùng đúng chỉ số đã tính ở trên
+              // (trước đây so sánh UUID bằng Number() nên luôn ra 0, lưu nhầm vào tiết đầu tiên)
+              slotOrderInWeek: lessonInfo.slotIdx,
               hasTemplate: lessonInfo.hasTemplate,
             })
           }
@@ -360,11 +387,11 @@ export default function ReportsPage() {
             )
           }
 
-          let subjectClassText = slot.isEmpty ? '' : slot.subjectClass
-          let periodText = String(slot.period)
-          let lessonDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
-          let orderDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : String(slot.lessonOrder))
-          let noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : (slot.isOverridden ? 'Cắt tiết' : ''))
+          const subjectClassText = slot.isEmpty ? '' : slot.subjectClass
+          const periodText = String(slot.period)
+          const lessonDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
+          const orderDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : String(slot.lessonOrder))
+          const noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : (slot.isOverridden ? 'Cắt tiết' : ''))
 
           rowCells.push(
             new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: subjectClassText, size: 20 })] })] }),
@@ -462,7 +489,7 @@ export default function ReportsPage() {
           'Thứ, ngày': `${group.day.name} (${getFormattedDate(group.day.offset)})`,
           'Môn - Lớp': slot.isEmpty ? '' : slot.subjectClass,
           'Tiết TKB': slot.period,
-          'Tên bài dạy': slot.isEmpty ? '' : (!slot.hasTemplate ? 'CHƯƠNG CÓ PPCT' : (slot.lessonName || '')),
+          'Tên bài dạy': slot.isEmpty ? '' : (!slot.hasTemplate ? 'CHƯA CÓ PPCT' : (slot.lessonName || '')),
           'Tiết CT': slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : slot.lessonOrder),
         })
       })

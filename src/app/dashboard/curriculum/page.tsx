@@ -26,20 +26,30 @@ interface ClassItem {
   grade: number
 }
 
-// Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
-const getCurrentWeekNumber = () => {
-  const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
-  const today = new Date()
-  
-  startDate.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-  
-  const diffTime = today.getTime() - startDate.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-  
-  if (diffDays < 0) return 1
-  const currentWeek = Math.floor(diffDays / 7) + 1
-  return Math.min(Math.max(currentWeek, 1), 35)
+// Đoán môn và khối từ tên file PPCT.
+// - Môn: ưu tiên GDĐP/HĐTN, sau đó khớp với các môn đã có trong danh sách lớp (kể cả môn tự đặt), mặc định Toán.
+// - Khối: tìm số 10-12 đứng riêng, hoặc "lớp/khối/k" + số 1-9. Không tìm thấy thì mặc định 12.
+const parseMetadataFromTitle = (title: string, knownSubjects: string[]) => {
+  const titleLower = title.toLowerCase()
+
+  let subject = 'Toán'
+  if (titleLower.includes('gddp')) {
+    subject = 'GDĐP'
+  } else if (titleLower.includes('hdtn')) {
+    subject = 'HĐTN'
+  } else {
+    const tokens = titleLower.split(/[^a-z0-9à-ỹ]+/).filter(Boolean)
+    const hit = knownSubjects.find((s) => s.length >= 2 && tokens.includes(s.toLowerCase()))
+    if (hit) subject = hit
+  }
+
+  let grade = 12
+  const m1012 = titleLower.match(/(?:^|[^0-9])(1[0-2])(?![0-9])/)
+  const mLow = titleLower.match(/(?:lớp|lop|khối|khoi|k)\s*([1-9])(?![0-9])/)
+  if (m1012) grade = parseInt(m1012[1], 10)
+  else if (mLow) grade = parseInt(mLow[1], 10)
+
+  return { subject, grade }
 }
 
 export default function CurriculumPage() {
@@ -48,7 +58,7 @@ export default function CurriculumPage() {
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [classMappings, setClassMappings] = useState<{ template_id: string; class_id: string }[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
-  
+
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -56,18 +66,6 @@ export default function CurriculumPage() {
   const [viewingTemplate, setViewingTemplate] = useState<CurriculumTemplate | null>(null)
   const [curriculumItems, setCurriculumItems] = useState<CurriculumItem[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
-
-  const parseMetadataFromTitle = (title: string) => {
-    const titleLower = title.toLowerCase()
-    let subject = 'Toán'
-    if (titleLower.includes('gddp')) subject = 'GDĐP'
-    else if (titleLower.includes('hdtn')) subject = 'HĐTN'
-
-    let grade = 12
-    if (titleLower.includes('11') || titleLower.includes('k11')) grade = 11
-
-    return { subject, grade }
-  }
 
   const loadData = async () => {
     setLoading(true)
@@ -82,46 +80,16 @@ export default function CurriculumPage() {
       }
     }
 
-    // ĐỒNG BỘ THEO THỜI GIAN THỰC TKB:
-    // Lấy các lớp xuất hiện trong TKB từ tuần 1 đến tuần hiện tại theo thực tế hệ thống
-    const currentRealWeek = getCurrentWeekNumber()
-    const { data: sData } = await supabase
-      .from('schedule_entries')
-      .select('class_id, week_number')
-      .lte('week_number', currentRealWeek)
-
-    const activeClassIds = new Set<string>()
-    if (sData) {
-      sData.forEach((s: any) => {
-        if (s.class_id) activeClassIds.add(s.class_id)
-      })
-    }
-
-    // Lấy thêm tất cả các lớp có sẵn trong bảng classes (để phòng trường hợp lớp mới được thêm thủ công)
-    const { data: allClassesData } = await supabase.from('classes').select('id, code, subject, grade')
-    if (allClassesData) {
-      allClassesData.forEach((c: any) => {
-        // Nếu lớp đó đã có trong TKB từ tuần hiện tại trở về trước, hoặc là lớp mới tạo, ta ưu tiên đưa vào
-        activeClassIds.add(c.id)
-      })
-    }
-
-    let cData: any[] = []
-    if (activeClassIds.size > 0) {
-      const { data } = await supabase
-        .from('classes')
-        .select('id, code, subject, grade')
-        .in('id', Array.from(activeClassIds))
-      if (data) cData = data
-    }
+    // Lấy thẳng toàn bộ lớp của người dùng (RLS đã lọc theo tài khoản).
+    // Cách cũ lấy id từ TKB rồi dùng .in(...) nhưng cuối cùng vẫn gộp tất cả lớp, nên rút gọn lại.
+    const { data: cData } = await supabase.from('classes').select('id, code, subject, grade')
 
     const classMap = new Map<string, ClassItem>()
-
     if (cData && cData.length > 0) {
       cData.forEach((c: any) => {
         const code = (c.code || '').trim().toUpperCase()
         const subject = (c.subject || 'Toán').trim()
-        
+
         if (code) {
           classMap.set(c.id, {
             id: c.id,
@@ -146,6 +114,7 @@ export default function CurriculumPage() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -184,6 +153,9 @@ export default function CurriculumPage() {
     setLoading(true)
     try {
       let successCount = 0
+
+      // Các môn đã có (kể cả môn người dùng tự đặt) để đoán môn từ tên file
+      const knownSubjects = Array.from(new Set(classes.map((c) => c.subject)))
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -266,12 +238,22 @@ export default function CurriculumPage() {
           .eq('title', title)
           .maybeSingle()
 
+        // Ghi nhớ các lớp đang gán khung cũ để gán lại cho khung mới
+        // (class_curriculums.template_id là text, không có khóa ngoại nên không tự xóa theo)
+        let previousClassIds: string[] = []
         if (existingTpl) {
+          const { data: oldMaps } = await supabase
+            .from('class_curriculums')
+            .select('class_id')
+            .eq('template_id', existingTpl.id)
+          previousClassIds = (oldMaps || []).map((m: any) => m.class_id)
+
+          await supabase.from('class_curriculums').delete().eq('template_id', existingTpl.id)
           await supabase.from('curriculum_items').delete().eq('template_id', existingTpl.id)
           await supabase.from('curriculum_templates').delete().eq('id', existingTpl.id)
         }
 
-        const { subject, grade } = parseMetadataFromTitle(title)
+        const { subject, grade } = parseMetadataFromTitle(title, knownSubjects)
 
         const { data: newTpl, error: tplErr } = await supabase
           .from('curriculum_templates')
@@ -301,6 +283,12 @@ export default function CurriculumPage() {
           if (insertErr) {
             console.error('Lỗi upsert curriculum_items:', insertErr.message)
           }
+        }
+
+        if (previousClassIds.length > 0) {
+          await supabase.from('class_curriculums').insert(
+            previousClassIds.map((class_id) => ({ class_id, template_id: newTpl.id }))
+          )
         }
 
         successCount++
@@ -375,6 +363,9 @@ export default function CurriculumPage() {
 
   const activeTemplate = templates.find((t) => t.id === selectedTemplateId)
 
+  // Các khối thực sự có trong dữ liệu (không còn cố định 10, 11, 12)
+  const gradeLevels = Array.from(new Set(classes.map((c) => c.grade))).sort((a, b) => a - b)
+
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
@@ -429,7 +420,7 @@ export default function CurriculumPage() {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                           {tpl.total_lessons} tiết
                         </span>
-                        
+
                         <button
                           onClick={(e) => handleOpenViewModal(tpl, e)}
                           title="Xem chi tiết bảng phân phối chương trình"
@@ -478,14 +469,14 @@ export default function CurriculumPage() {
             </button>
           </div>
 
-          {/* HIỂN THỊ CHIA THEO 3 KHỐI: 10, 11, 12 */}
+          {/* HIỂN THỊ CHIA THEO TỪNG KHỐI CÓ TRONG DỮ LIỆU */}
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
             {classes.length === 0 ? (
               <div className="p-10 text-center text-slate-400 text-xs">
-                Chưa có lớp nào theo TKB thời gian thực. Vui lòng xếp lịch TKB trước.
+                Chưa có lớp nào. Vui lòng xếp lịch TKB trước.
               </div>
             ) : (
-              [10, 11, 12].map((gradeLevel) => {
+              gradeLevels.map((gradeLevel) => {
                 const classesInGrade = classes.filter((cls) => cls.grade === gradeLevel)
                 if (classesInGrade.length === 0) return null
 
