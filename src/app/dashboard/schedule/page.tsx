@@ -24,32 +24,74 @@ const DAYS = [
   { id: 7, name: 'Thứ Bảy' },
 ]
 
-const VALID_CLASS_CODES = [
+// DANH SÁCH GỢI Ý MẶC ĐỊNH (không còn bắt buộc – người dùng có thể nhập mã khác)
+const DEFAULT_CLASS_CODES = [
   '10T1', '10T2', '10L', '10H', '10S', '10TIN', '10V1', '10V2', '10SỬ', '10Đ', '10A1', '10A2', '10P', '10N', '10TQ',
   '11T', '11L', '11H', '11S', '11TIN', '11V', '11SỬ', '11Đ', '11A1', '11A2', '11P', '11N', '11TQ',
   '12T', '12L', '12H', '12S', '12TIN', '12V', '12SỬ', '12Đ', '12A1', '12A2', '12P', '12N', '12TQ'
 ]
 
-const VALID_SUBJECTS = [
-  'T', 'V', 'A', 'L', 'H', 'S', 'SU', 'Đ', 'Tin', 'CN', 
+const DEFAULT_SUBJECTS = [
+  'T', 'V', 'A', 'L', 'H', 'S', 'SU', 'Đ', 'Tin', 'CN',
   'KTPL', 'P', 'N', 'TQ', 'QPAN', 'GDTC', 'GDĐP', 'TrN', 'Nâng cao'
 ]
+
+const MAX_SUBJECT_LEN = 20
+const MAX_CLASS_LEN = 15
+const FORBIDDEN_CHARS = /[<>"'\\,;]/
+
+// Chuẩn hóa môn: bỏ khoảng trắng thừa; nếu trùng (không phân biệt hoa/thường) với môn đã biết thì dùng đúng cách viết đó
+const normalizeSubject = (raw: string, known: string[]): string => {
+  const t = raw.trim().replace(/\s+/g, ' ')
+  const hit = known.find((k) => k.toLowerCase() === t.toLowerCase())
+  return hit ?? t
+}
+
+// Chuẩn hóa mã lớp: bỏ khoảng trắng, viết hoa
+const normalizeClassCode = (raw: string): string => raw.trim().replace(/\s+/g, '').toUpperCase()
+
+// Trả về thông báo lỗi, hoặc null nếu hợp lệ
+const validateSubject = (s: string): string | null => {
+  if (!s) return 'Môn học không được để trống.'
+  if (s.length > MAX_SUBJECT_LEN) return `Mã môn tối đa ${MAX_SUBJECT_LEN} ký tự.`
+  if (FORBIDDEN_CHARS.test(s)) return 'Mã môn chứa ký tự không được phép.'
+  return null
+}
+
+const validateClassCode = (c: string): string | null => {
+  if (!c) return 'Mã lớp không được để trống.'
+  if (c.length > MAX_CLASS_LEN) return `Mã lớp tối đa ${MAX_CLASS_LEN} ký tự.`
+  if (FORBIDDEN_CHARS.test(c)) return 'Mã lớp chứa ký tự không được phép.'
+  return null
+}
+
+// Suy ra khối từ mã lớp (lấy số đứng đầu: 10, 11, 12...). Không có số thì mặc định 10
+const guessGrade = (classCode: string): number => {
+  const m = classCode.match(/^(\d{1,2})/)
+  if (!m) return 10
+  const n = parseInt(m[1], 10)
+  return n >= 1 && n <= 12 ? n : 10
+}
 
 // Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
 const getCurrentWeekNumber = () => {
   const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
   const today = new Date()
-  
+
   startDate.setHours(0, 0, 0, 0)
   today.setHours(0, 0, 0, 0)
-  
+
   const diffTime = today.getTime() - startDate.getTime()
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays < 0) return 1
   const currentWeek = Math.floor(diffDays / 7) + 1
   return Math.min(Math.max(currentWeek, 1), 35)
 }
+
+// Thêm giá trị mới vào danh sách gợi ý nếu chưa có
+const addUnique = (list: string[], value: string) =>
+  list.some((x) => x.toLowerCase() === value.toLowerCase()) ? list : [...list, value]
 
 export default function SchedulePage() {
   const supabase = createClient()
@@ -57,8 +99,9 @@ export default function SchedulePage() {
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
 
-  const [availableClasses] = useState<string[]>(VALID_CLASS_CODES)
-  const [availableSubjects] = useState<string[]>(VALID_SUBJECTS)
+  // Gợi ý = danh sách mặc định + các lớp/môn người dùng đã tạo trước đó
+  const [availableClasses, setAvailableClasses] = useState<string[]>(DEFAULT_CLASS_CODES)
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>(DEFAULT_SUBJECTS)
   const [movingSlot, setMovingSlot] = useState<{ subject: string; classCode: string } | null>(null)
 
   const [editingCell, setEditingCell] = useState<{
@@ -68,6 +111,35 @@ export default function SchedulePage() {
     classCode: string
     isExisting: boolean
   } | null>(null)
+
+  // Nạp các lớp/môn đã có của người dùng để làm gợi ý
+  const loadKnownOptions = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data } = await supabase
+      .from('classes')
+      .select('code, subject')
+      .eq('user_id', user.id)
+
+    if (!data) return
+
+    setAvailableClasses((prev) => {
+      let next = prev
+      data.forEach((c: any) => { if (c.code) next = addUnique(next, c.code) })
+      return next
+    })
+    setAvailableSubjects((prev) => {
+      let next = prev
+      data.forEach((c: any) => { if (c.subject) next = addUnique(next, c.subject) })
+      return next
+    })
+  }
+
+  useEffect(() => {
+    loadKnownOptions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadScheduleAndSuggestions = async () => {
     setLoading(true)
@@ -160,6 +232,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     loadScheduleAndSuggestions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWeek])
 
   // Hàm xử lý làm sạch dữ liệu cá nhân
@@ -201,17 +274,19 @@ export default function SchedulePage() {
         return
       }
 
-      const subSubject = subject.trim()
-      const subClassCode = classCode.trim().toUpperCase()
+      const subSubject = normalizeSubject(subject, availableSubjects)
+      const subClassCode = normalizeClassCode(classCode)
 
-      if (!subSubject || !subClassCode) {
-        alert('Vui lòng chọn đầy đủ Môn học và Mã lớp!')
+      // Kiểm tra định dạng (cho phép nhập mã ngoài danh sách có sẵn)
+      const subjectErr = validateSubject(subSubject)
+      if (subjectErr) {
+        alert(subjectErr)
         setLoading(false)
         return
       }
-
-      if (!VALID_SUBJECTS.includes(subSubject)) {
-        alert(`Mã môn học "${subSubject}" không hợp lệ!`)
+      const classErr0 = validateClassCode(subClassCode)
+      if (classErr0) {
+        alert(classErr0)
         setLoading(false)
         return
       }
@@ -228,16 +303,12 @@ export default function SchedulePage() {
       if (existingClass) {
         classId = existingClass.id
       } else {
-        let gradeNum = 10
-        if (subClassCode.startsWith('12')) gradeNum = 12
-        else if (subClassCode.startsWith('11')) gradeNum = 11
-
         const { data: newClass, error: classErr } = await supabase
           .from('classes')
           .insert({
             code: subClassCode,
             subject: subSubject,
-            grade: gradeNum,
+            grade: guessGrade(subClassCode),
             user_id: user.id,
           })
           .select('id')
@@ -274,6 +345,10 @@ export default function SchedulePage() {
         })
         if (insertErr) throw insertErr
       }
+
+      // Ghi nhớ lớp/môn mới vào danh sách gợi ý
+      setAvailableSubjects((prev) => addUnique(prev, subSubject))
+      setAvailableClasses((prev) => addUnique(prev, subClassCode))
 
       setEditingCell(null)
       setMovingSlot(null)
@@ -370,13 +445,15 @@ export default function SchedulePage() {
         dayColumns.forEach(({ dayId, colIdx }) => {
           const cellValue = String(row[colIdx] || '').trim()
           if (cellValue && cellValue !== 'NaN' && cellValue !== '-') {
+            // Định dạng ô: "MÔN - LỚP". Phần sau dấu '-' đầu tiên là mã lớp
+            // (nên mã lớp có chứa '-' vẫn đọc đúng)
             const parts = cellValue.split('-').map((p) => p.trim())
             if (parts.length >= 2) {
               rawEntries.push({
                 day_of_week: dayId,
                 period_number: periodNumber,
                 subject: parts[0],
-                classCode: parts[1]
+                classCode: parts.slice(1).join('-')
               })
             }
           }
@@ -389,49 +466,67 @@ export default function SchedulePage() {
         return
       }
 
-      await supabase
-        .from('schedule_entries')
-        .delete()
-        .eq('week_number', selectedWeek)
-        .eq('user_id', user.id)
-
-      const finalEntriesToInsert: any[] = []
+      // Bước 1: kiểm tra + chuẩn hóa từng dòng, KHÔNG còn loại bỏ mã ngoài danh sách có sẵn
+      const validEntries: { day_of_week: number; period_number: number; subject: string; classCode: string }[] = []
+      const skipped: string[] = []
 
       for (const entry of rawEntries) {
-        const subSubject = entry.subject
-        const subClassCode = entry.classCode.toUpperCase()
-
-        if (!VALID_SUBJECTS.includes(subSubject) || !VALID_CLASS_CODES.includes(subClassCode)) {
-          continue 
+        const subSubject = normalizeSubject(String(entry.subject), availableSubjects)
+        const subClassCode = normalizeClassCode(String(entry.classCode))
+        const err = validateSubject(subSubject) || validateClassCode(subClassCode)
+        if (err) {
+          skipped.push(`${subSubject || '?'} - ${subClassCode || '?'}`)
+          continue
         }
+        validEntries.push({
+          day_of_week: entry.day_of_week,
+          period_number: entry.period_number,
+          subject: subSubject,
+          classCode: subClassCode,
+        })
+      }
 
-        let gradeNum = 10
-        if (subClassCode.startsWith('12')) gradeNum = 12
-        else if (subClassCode.startsWith('11')) gradeNum = 11
+      if (validEntries.length === 0) {
+        alert('Không có tiết nào hợp lệ trong file. Dữ liệu cũ được giữ nguyên.')
+        setLoading(false)
+        return
+      }
 
-        let { data: existingClass } = await supabase
-          .from('classes')
-          .select('id')
-          .eq('code', subClassCode)
-          .eq('subject', subSubject)
-          .eq('user_id', user.id)
-          .maybeSingle()
+      // Bước 2: tạo/tìm lớp (có cache để không truy vấn lặp lại cho cùng một lớp-môn)
+      const classCache = new Map<string, string>()
+      const finalEntriesToInsert: any[] = []
 
-        let classId = existingClass?.id
+      for (const entry of validEntries) {
+        const key = `${entry.classCode}|${entry.subject}`
+        let classId = classCache.get(key)
 
         if (!classId) {
-          const { data: newClass } = await supabase
+          const { data: existingClass } = await supabase
             .from('classes')
-            .insert({
-              code: subClassCode,
-              subject: subSubject,
-              grade: gradeNum,
-              user_id: user.id,
-            })
             .select('id')
-            .single()
+            .eq('code', entry.classCode)
+            .eq('subject', entry.subject)
+            .eq('user_id', user.id)
+            .maybeSingle()
 
-          if (newClass) classId = newClass.id
+          classId = existingClass?.id
+
+          if (!classId) {
+            const { data: newClass } = await supabase
+              .from('classes')
+              .insert({
+                code: entry.classCode,
+                subject: entry.subject,
+                grade: guessGrade(entry.classCode),
+                user_id: user.id,
+              })
+              .select('id')
+              .single()
+
+            if (newClass) classId = newClass.id
+          }
+
+          if (classId) classCache.set(key, classId)
         }
 
         if (classId) {
@@ -445,12 +540,29 @@ export default function SchedulePage() {
         }
       }
 
-      if (finalEntriesToInsert.length > 0) {
-        const { error: insertErr } = await supabase.from('schedule_entries').insert(finalEntriesToInsert)
-        if (insertErr) throw insertErr
+      if (finalEntriesToInsert.length === 0) {
+        throw new Error('Không tạo được lớp học nào từ file. Dữ liệu cũ được giữ nguyên.')
       }
 
-      alert(`Đã nạp thành công ${finalEntriesToInsert.length} tiết học (bao gồm cả sáng và chiều) cho Tuần ${selectedWeek}!`)
+      // Bước 3: chỉ xóa TKB cũ của tuần sau khi chắc chắn đã có dữ liệu mới để ghi
+      await supabase
+        .from('schedule_entries')
+        .delete()
+        .eq('week_number', selectedWeek)
+        .eq('user_id', user.id)
+
+      const { error: insertErr } = await supabase.from('schedule_entries').insert(finalEntriesToInsert)
+      if (insertErr) throw insertErr
+
+      // Cập nhật gợi ý với các lớp/môn mới từ file
+      setAvailableSubjects((prev) => validEntries.reduce((acc, e) => addUnique(acc, e.subject), prev))
+      setAvailableClasses((prev) => validEntries.reduce((acc, e) => addUnique(acc, e.classCode), prev))
+
+      let msg = `Đã nạp thành công ${finalEntriesToInsert.length} tiết học (bao gồm cả sáng và chiều) cho Tuần ${selectedWeek}!`
+      if (skipped.length > 0) {
+        msg += `\n\nBỏ qua ${skipped.length} ô không hợp lệ: ${skipped.slice(0, 5).join(', ')}${skipped.length > 5 ? '...' : ''}`
+      }
+      alert(msg)
       loadScheduleAndSuggestions()
     } catch (err: any) {
       alert('Lỗi nhập file Excel: ' + err.message)
@@ -472,6 +584,14 @@ export default function SchedulePage() {
     { periodNum: 8, label: 'Tiết 3 (Chiều)', isAfternoonHeader: false },
   ]
 
+  // Trong popup: báo cho người dùng biết khi họ nhập mã mới ngoài danh sách
+  const isNewSubject =
+    !!editingCell?.subject.trim() &&
+    !availableSubjects.some((s) => s.toLowerCase() === editingCell.subject.trim().toLowerCase())
+  const isNewClass =
+    !!editingCell?.classCode.trim() &&
+    !availableClasses.includes(normalizeClassCode(editingCell.classCode))
+
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
       {/* HEADER */}
@@ -479,8 +599,8 @@ export default function SchedulePage() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">Thời Khóa Biểu</h1>
           <p className="text-xs text-slate-500">
-            {movingSlot 
-              ? `🎯 Đang chọn [${movingSlot.subject} - ${movingSlot.classCode}]. Click vào ô bất kỳ để di chuyển đến!` 
+            {movingSlot
+              ? `🎯 Đang chọn [${movingSlot.subject} - ${movingSlot.classCode}]. Click vào ô bất kỳ để di chuyển đến!`
               : '💡 Mẹo: Bạn có thể kéo thả tiết học giữa các ô, bấm nút "Di chuyển" hoặc click vào ô để sửa/xóa.'}
           </p>
         </div>
@@ -658,31 +778,49 @@ export default function SchedulePage() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Môn học chuẩn:</label>
-                <select
+                <label className="block font-bold text-slate-700 mb-1">Môn học (chọn gợi ý hoặc tự nhập):</label>
+                <input
+                  type="text"
+                  list="subject-options"
                   value={editingCell.subject}
+                  maxLength={MAX_SUBJECT_LEN}
+                  placeholder="VD: T, Tin, hoặc môn mới..."
                   onChange={(e) => setEditingCell({ ...editingCell, subject: e.target.value })}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="">-- Chọn mã môn học --</option>
-                  {availableSubjects.map((sub, idx) => (
-                    <option key={idx} value={sub}>{sub}</option>
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <datalist id="subject-options">
+                  {availableSubjects.map((sub) => (
+                    <option key={sub} value={sub} />
                   ))}
-                </select>
+                </datalist>
+                {isNewSubject && (
+                  <p className="mt-1 text-[11px] text-amber-700 font-medium">
+                    Môn mới "{editingCell.subject.trim()}" sẽ được tạo và lưu vào gợi ý.
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Mã lớp học chuẩn:</label>
-                <select
+                <label className="block font-bold text-slate-700 mb-1">Mã lớp (chọn gợi ý hoặc tự nhập):</label>
+                <input
+                  type="text"
+                  list="class-options"
                   value={editingCell.classCode}
+                  maxLength={MAX_CLASS_LEN}
+                  placeholder="VD: 10T1, 12A3, hoặc lớp mới..."
                   onChange={(e) => setEditingCell({ ...editingCell, classCode: e.target.value })}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="">-- Chọn mã lớp học --</option>
-                  {availableClasses.map((cls, idx) => (
-                    <option key={idx} value={cls}>Lớp {cls}</option>
+                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
+                />
+                <datalist id="class-options">
+                  {availableClasses.map((cls) => (
+                    <option key={cls} value={cls} />
                   ))}
-                </select>
+                </datalist>
+                {isNewClass && (
+                  <p className="mt-1 text-[11px] text-amber-700 font-medium">
+                    Lớp mới "{normalizeClassCode(editingCell.classCode)}" sẽ được tạo tự động.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">
