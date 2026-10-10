@@ -17,6 +17,7 @@ import {
   WidthType,
   VerticalAlign,
   BorderStyle,
+  HeightRule,
 } from 'docx'
 import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
 
@@ -57,6 +58,32 @@ const formatPeriodLabel = (periodVal: any) => {
     return `C-${num - 5}`
   }
   return str
+}
+
+// Dựng danh sách dòng của MỘT NGÀY cho phiếu Word: luôn đủ 5 dòng Tiết 1 -> 5
+// (tiết nào không dạy thì để dòng trống nhưng vẫn ghi số tiết); tiết chiều (C-1, C-2...) chỉ thêm khi có dạy.
+const buildExportSlots = (slots: any[]): any[] => {
+  const real = slots.filter((s) => !s.isEmpty)
+  const morningLabels = ['1', '2', '3', '4', '5']
+  const rows: any[] = []
+  morningLabels.forEach((label) => {
+    const matched = real.filter((s) => String(s.period) === label)
+    if (matched.length > 0) {
+      rows.push(...matched)
+    } else {
+      rows.push({
+        isEmpty: true,
+        period: label,
+        subjectClass: '',
+        lessonOrder: '',
+        lessonName: '',
+        noteLabel: '',
+        hasTemplate: true,
+      })
+    }
+  })
+  rows.push(...real.filter((s) => !morningLabels.includes(String(s.period))))
+  return rows
 }
 
 const MAX_WEEK = 35
@@ -499,31 +526,49 @@ export default function ReportsPage() {
 
     setExportingWord(true)
     try {
+      // Độ rộng cột cố định (DXA) để Word, WPS, LibreOffice và trình xem trên điện thoại hiển thị giống nhau.
+      // Tổng = 9026 = bề rộng nội dung khổ A4 với lề 2,54 cm.
+      const COL_W = [1264, 1625, 1083, 3249, 903, 902]
+      const TABLE_W = COL_W.reduce((sum, w) => sum + w, 0)
+      const MIN_ROW_H = 240 // chiều cao tối thiểu mỗi dòng (~0,42 cm) để các dòng trống đều với dòng có chữ
+
+      const makeCell = (
+        text: string,
+        colIdx: number,
+        opts: { bold?: boolean; italics?: boolean; size?: number; align?: any } = {}
+      ) =>
+        new TableCell({
+          width: { size: COL_W[colIdx], type: WidthType.DXA },
+          verticalAlign: VerticalAlign.CENTER,
+          children: [
+            new Paragraph({
+              alignment: opts.align ?? AlignmentType.CENTER,
+              children: [new TextRun({ text, bold: opts.bold, italics: opts.italics, size: opts.size ?? 20 })],
+            }),
+          ],
+        })
+
+      const headerTexts = ['Thứ, ngày', 'Môn - Lớp', 'Tiết TKB', 'Tên bài dạy', 'Tiết CT', 'Ghi chú']
       const tableRows: TableRow[] = [
         new TableRow({
-          children: [
-            new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Thứ, ngày', bold: true, size: 21 })] })] }),
-            new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Môn - Lớp', bold: true, size: 21 })] })] }),
-            new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tiết TKB', bold: true, size: 21 })] })] }),
-            new TableCell({ width: { size: 36, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tên bài dạy', bold: true, size: 21 })] })] }),
-            new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Tiết CT', bold: true, size: 21 })] })] }),
-            new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Ghi chú', bold: true, size: 21 })] })] }),
-          ],
+          tableHeader: true, // lặp lại dòng tiêu đề nếu bảng sang trang 2
+          children: headerTexts.map((t, i) => makeCell(t, i, { bold: true, size: 21 })),
         }),
       ]
 
       reportData.forEach((group) => {
         const dayName = group.day.name
         const dayDate = getFormattedDate(group.day.offset)
+        const exportSlots = buildExportSlots(group.slots)
 
-        group.slots.forEach((slot, sIdx) => {
-          const isFirstSlot = sIdx === 0
+        exportSlots.forEach((slot, sIdx) => {
           const rowCells: TableCell[] = []
 
-          if (isFirstSlot) {
+          if (sIdx === 0) {
             rowCells.push(
               new TableCell({
-                rowSpan: group.slots.length,
+                width: { size: COL_W[0], type: WidthType.DXA },
+                rowSpan: exportSlots.length,
                 verticalAlign: VerticalAlign.CENTER,
                 children: [
                   new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: dayName, bold: true, size: 21 })] }),
@@ -540,40 +585,53 @@ export default function ReportsPage() {
           const noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : slot.noteLabel)
 
           rowCells.push(
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: subjectClassText, size: 20 })] })] }),
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: periodText, size: 20 })] })] }),
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: lessonDisplay, size: 20 })] })] }),
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orderDisplay, size: 20 })] })] }),
-            new TableCell({ verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: noteText, italics: true, size: 18 })] })] })
+            makeCell(subjectClassText, 1),
+            makeCell(periodText, 2),
+            makeCell(lessonDisplay, 3, { align: AlignmentType.LEFT }),
+            makeCell(orderDisplay, 4),
+            makeCell(noteText, 5, { italics: true, size: 18 })
           )
 
-          tableRows.push(new TableRow({ children: rowCells }))
+          tableRows.push(
+            new TableRow({
+              height: { value: MIN_ROW_H, rule: HeightRule.AT_LEAST },
+              cantSplit: true,
+              children: rowCells,
+            })
+          )
         })
       })
 
-      const invisibleBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' }
+      const invisibleBorder = { style: BorderStyle.NIL, size: 0, color: 'auto' }
       const noBorders = { top: invisibleBorder, bottom: invisibleBorder, left: invisibleBorder, right: invisibleBorder }
+      const noTableBorders = { ...noBorders, insideHorizontal: invisibleBorder, insideVertical: invisibleBorder }
 
       const doc = new Document({
         sections: [
           {
             children: [
               new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
+                width: { size: TABLE_W, type: WidthType.DXA },
+                columnWidths: [4550, 4476],
+                borders: noTableBorders,
                 rows: [
                   new TableRow({
                     children: [
                       new TableCell({
-                        width: { size: 45, type: WidthType.PERCENTAGE },
+                        width: { size: 4550, type: WidthType.DXA },
                         borders: noBorders,
+                        margins: { left: 60, right: 60 },
+                        verticalAlign: VerticalAlign.CENTER,
                         children: [
-                          new Paragraph({ children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', bold: true, size: 20 })] }),
-                          new Paragraph({ children: [new TextRun({ text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ', bold: true, size: 20 })] }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', bold: true, size: 20 })] }),
+                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ', bold: true, size: 20 })] }),
                         ],
                       }),
                       new TableCell({
-                        width: { size: 55, type: WidthType.PERCENTAGE },
+                        width: { size: 4476, type: WidthType.DXA },
                         borders: noBorders,
+                        margins: { left: 60, right: 60 },
+                        verticalAlign: VerticalAlign.CENTER,
                         children: [
                           new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 20 })] }),
                           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 21 })] }),
@@ -593,7 +651,7 @@ export default function ReportsPage() {
                 spacing: { after: 240 },
                 children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học)`, italics: true, size: 20 })],
               }),
-              new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
+              new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: COL_W, rows: tableRows }),
               // CHỮ KÝ TỔ TRƯỞNG CHUYÊN MÔN CĂN PHẢI (KHÔNG DÙNG BẢNG PHỤ)
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
@@ -653,7 +711,7 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">Lịch Báo Giảng</h1>
-          <p className="text-xs text-slate-500">Ngày nghỉ tự động hiển thị 4 dòng rỗng giữ chỗ.</p>
+          <p className="text-xs text-slate-500">Ngày nghỉ tự động hiển thị 4 dòng rỗng giữ chỗ. Phiếu Word luôn xuất đủ 5 dòng (Tiết 1–5) mỗi ngày.</p>
         </div>
 
         <div className="flex items-center gap-2">
