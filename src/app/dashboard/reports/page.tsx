@@ -60,6 +60,44 @@ const formatPeriodLabel = (periodVal: any) => {
   return str
 }
 
+// Màu nhãn môn học: mỗi môn luôn ra cùng một màu để quét mắt theo môn cho nhanh
+const SUBJECT_STYLES = [
+  'bg-emerald-50 text-emerald-800 ring-emerald-200',
+  'bg-sky-50 text-sky-800 ring-sky-200',
+  'bg-violet-50 text-violet-800 ring-violet-200',
+  'bg-amber-50 text-amber-800 ring-amber-200',
+  'bg-rose-50 text-rose-800 ring-rose-200',
+  'bg-teal-50 text-teal-800 ring-teal-200',
+  'bg-indigo-50 text-indigo-800 ring-indigo-200',
+  'bg-orange-50 text-orange-800 ring-orange-200',
+]
+const subjectStyle = (subject: string) => {
+  let h = 0
+  for (let i = 0; i < subject.length; i++) h = (h * 31 + subject.charCodeAt(i)) >>> 0
+  return SUBJECT_STYLES[h % SUBJECT_STYLES.length]
+}
+
+// Đường kẻ: ngăn cách NGÀY và CỘT đậm; ngăn cách giữa các TIẾT trong một ngày mảnh (xem ruleInner trong DAY_THEMES)
+const DAY_RULE = 'border-t-2 border-slate-400'
+const COL_RULE = 'border-l-2 border-slate-300'
+
+// Mỗi thứ một tông màu nhạt riêng: thanh bên trái, ô ngày, nền các dòng trong ngày và đường kẻ.
+// (Viết đủ tên class để Tailwind nhận ra, không ghép chuỗi động.)
+const DAY_THEMES: Record<number, { bar: string; cell: string; row: string; pill: string; ruleTop: string; ruleInner: string }> = {
+  2: { bar: 'border-emerald-500', cell: 'bg-emerald-100/60', row: 'bg-emerald-50/50', pill: 'text-emerald-700 ring-emerald-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-emerald-200' },
+  3: { bar: 'border-sky-500', cell: 'bg-sky-100/60', row: 'bg-sky-50/50', pill: 'text-sky-700 ring-sky-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-sky-200' },
+  4: { bar: 'border-violet-500', cell: 'bg-violet-100/60', row: 'bg-violet-50/50', pill: 'text-violet-700 ring-violet-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-violet-200' },
+  5: { bar: 'border-amber-500', cell: 'bg-amber-100/60', row: 'bg-amber-50/50', pill: 'text-amber-700 ring-amber-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-amber-200' },
+  6: { bar: 'border-rose-500', cell: 'bg-rose-100/60', row: 'bg-rose-50/50', pill: 'text-rose-700 ring-rose-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-rose-200' },
+  7: { bar: 'border-teal-500', cell: 'bg-teal-100/60', row: 'bg-teal-50/50', pill: 'text-teal-700 ring-teal-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-teal-200' },
+}
+
+// "TrN - 12SỬ" -> { subject: 'TrN', code: '12SỬ' }
+const splitSubjectClass = (text: string) => {
+  const i = text.indexOf(' - ')
+  return i === -1 ? { subject: '', code: text } : { subject: text.slice(0, i), code: text.slice(i + 3) }
+}
+
 // Dựng danh sách dòng của MỘT NGÀY cho phiếu Word: luôn đủ 5 dòng Tiết 1 -> 5
 // (tiết nào không dạy thì để dòng trống nhưng vẫn ghi số tiết); tiết chiều (C-1, C-2...) chỉ thêm khi có dạy.
 const buildExportSlots = (slots: any[]): any[] => {
@@ -711,7 +749,7 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">Lịch Báo Giảng</h1>
-          <p className="text-xs text-slate-500">Ngày nghỉ tự động hiển thị 4 dòng rỗng giữ chỗ. Phiếu Word luôn xuất đủ 5 dòng (Tiết 1–5) mỗi ngày.</p>
+          <p className="text-xs text-slate-500">Ngày không có tiết hiển thị gọn một dòng. Phiếu Word luôn xuất đủ 5 dòng (Tiết 1–5) mỗi ngày.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -758,111 +796,178 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-xs">
-        <span className="font-bold text-emerald-950">Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}</span>
-        <span className="font-black text-emerald-800">Tổng: {totalSlotsCount} tiết dạy</span>
+      {/* TÓM TẮT TUẦN */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+        <p className="text-sm text-emerald-900">
+          <span className="font-bold">Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}</span>
+          <span className="ml-2 text-emerald-700">
+            {getFormattedDate(0)} – {getFormattedDate(5)}
+          </span>
+        </p>
+        <p className="text-xs text-slate-600">
+          Tổng <span className="mx-0.5 text-base font-bold text-emerald-800">{totalSlotsCount}</span> tiết dạy
+        </p>
       </div>
 
       {/* BẢNG BÁO GIẢNG */}
-      <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">
-        <table className="w-full table-fixed border-collapse text-left text-xs">
-          <thead>
-            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px]">
-              <th className="w-[15%] p-3 border-r border-slate-300 text-center">THỨ, NGÀY</th>
-              <th className="w-[16%] p-3 border-r border-slate-300 text-center">MÔN - LỚP</th>
-              <th className="w-[9%] p-3 border-r border-slate-300 text-center">TIẾT TKB</th>
-              <th className="w-[42%] p-3 border-r border-slate-300">TÊN BÀI DẠY THEO PPCT</th>
-              <th className="w-[10%] p-3 border-r border-slate-300 text-center">TIẾT CT</th>
-              <th className="w-[8%] p-3 text-center">GHI CHÚ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 text-slate-800">
-            {reportData.map((group) => {
-              return group.slots.map((slot: any, idx: number) => {
-                const isFirst = idx === 0
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] table-fixed border-collapse text-left">
+            <colgroup>
+              <col className="w-[13%]" />
+              <col className="w-[19%]" />
+              <col className="w-[9%]" />
+              <col className="w-[39%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+            </colgroup>
+            <thead>
+              <tr className="border-b-2 border-slate-400 bg-slate-50 text-xs font-semibold text-slate-600">
+                <th className="px-3 py-3 text-center">Thứ, ngày</th>
+                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Môn - lớp</th>
+                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Tiết TKB</th>
+                <th className={`px-4 py-3 ${COL_RULE}`}>Tên bài dạy theo PPCT</th>
+                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Tiết CT</th>
+                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.map((group) => {
+                const isDayOff = group.slots.every((s: any) => s.isEmpty)
+                const theme = DAY_THEMES[group.day.id] || DAY_THEMES[2]
 
-                return (
-                  <tr key={`${group.day.id}_p${slot.period}_${idx}`} className="hover:bg-slate-50/80 transition">
-                    {isFirst && (
-                      <td
-                        rowSpan={group.slots.length}
-                        className="p-2.5 border-r border-slate-300 text-center font-black bg-slate-50/60 align-middle"
-                      >
-                        <span className="text-xs font-black text-slate-900 block">{group.day.name}</span>
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full inline-block mt-1">
-                          {getFormattedDate(group.day.offset)}
+                // Ô "Thứ, ngày": thanh xanh bên trái cho ngày có tiết, xám cho ngày không có tiết
+                const dayCell = (rowSpan: number) => (
+                  <td
+                    rowSpan={rowSpan}
+                    className={`border-l-4 px-3 py-3 text-center align-middle ${
+                      isDayOff ? 'border-slate-200 bg-slate-50' : `${theme.bar} ${theme.cell}`
+                    }`}
+                  >
+                    <span className="block text-sm font-bold text-slate-900">{group.day.name}</span>
+                    <span
+                      className={`mt-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                        isDayOff ? 'text-slate-500 ring-slate-200' : theme.pill
+                      }`}
+                    >
+                      {getFormattedDate(group.day.offset)}
+                    </span>
+                  </td>
+                )
+
+                if (isDayOff) {
+                  return (
+                    <tr key={`off_${group.day.id}`} className={DAY_RULE}>
+                      {dayCell(1)}
+                      <td colSpan={5} className={`px-4 py-3 text-sm italic text-slate-400 ${COL_RULE}`}>
+                        Không có tiết dạy
+                      </td>
+                    </tr>
+                  )
+                }
+
+                return group.slots.map((slot: any, idx: number) => {
+                  const isFirst = idx === 0
+                  const { subject, code } = splitSubjectClass(slot.subjectClass || '')
+                  const isAfternoon = String(slot.period).toUpperCase().startsWith('C-')
+                  const noteStyle =
+                    slot.noteLabel === 'Đảo tiết'
+                      ? 'bg-violet-50 text-violet-800 ring-violet-200'
+                      : 'bg-amber-50 text-amber-800 ring-amber-200'
+
+                  return (
+                    <tr
+                      key={`${group.day.id}_p${slot.period}_${idx}`}
+                      className={`group transition-colors hover:bg-white/70 ${theme.row} ${
+                        isFirst ? theme.ruleTop : theme.ruleInner
+                      }`}
+                    >
+                      {isFirst && dayCell(group.slots.length)}
+
+                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                        <span className="inline-flex items-center gap-1.5">
+                          {subject && (
+                            <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${subjectStyle(subject)}`}>
+                              {subject}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-slate-900">{code}</span>
                         </span>
                       </td>
-                    )}
-                    <td className="p-2 border-r border-slate-300 text-center font-black text-slate-900 text-sm">
-                      {slot.isEmpty ? <span className="text-slate-300">—</span> : slot.subjectClass}
-                    </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-black text-emerald-700 text-sm">
-                      {slot.period}
-                    </td>
-                    <td className="p-3 border-r border-slate-300 align-middle">
-                      {slot.isEmpty ? (
-                        <span className="text-slate-300 italic">—</span>
-                      ) : !slot.hasTemplate ? (
-                        <Link
-                          href="/dashboard/curriculum"
-                          className="inline-flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-md font-bold shadow-2xs hover:bg-rose-100 transition"
-                        >
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Chưa có PPCT — Bấm để gán ngay</span>
-                        </Link>
-                      ) : (
-                        <span className="text-slate-900 font-semibold text-sm leading-relaxed line-clamp-2">{slot.lessonName}</span>
-                      )}
-                    </td>
-                    <td className="p-2 border-r border-slate-300 text-center align-middle">
-                      {slot.isEmpty ? (
-                        <span className="text-slate-300">—</span>
-                      ) : !slot.hasTemplate ? (
-                        <span className="text-slate-400 font-bold">—</span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setEditingSlot({
-                              classId: slot.realClassId,
-                              slotIdx: slot.slotOrderInWeek,
-                              currentOrder: Number(slot.lessonOrder) || 1,
-                              isOverridden: slot.isOverridden,
-                              tIdx: slot.timelineIndex,
-                            })
-                            setEditMode('cut')
-                            setReorderNumber('')
-                            setTargetLessonOrder(Number(slot.lessonOrder) || 1)
-                          }}
-                          className={`px-2.5 py-1 rounded-md inline-flex items-center justify-center gap-1 font-black text-xs cursor-pointer transition ${
-                            slot.isOverridden
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
-                              : 'text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100'
-                          }`}
-                          title="Bấm để đổi số tiết CT"
-                        >
-                          <span>{slot.lessonOrder}</span>
-                          <ArrowLeftRight className="w-2.5 h-2.5 opacity-60" />
-                        </button>
-                      )}
-                    </td>
-                    <td className="p-2 text-center text-xs font-medium">
-                      {slot.isEmpty ? (
-                        <span className="text-slate-300">—</span>
-                      ) : !slot.hasTemplate ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Thiếu PPCT</span>
-                      ) : slot.noteLabel ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">{slot.noteLabel}</span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })
-            })}
-          </tbody>
-        </table>
+
+                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                        {isAfternoon ? (
+                          <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">
+                            {slot.period}
+                          </span>
+                        ) : (
+                          <span className="text-sm font-semibold tabular-nums text-slate-600">{slot.period}</span>
+                        )}
+                      </td>
+
+                      <td className={`px-4 py-2.5 align-middle ${COL_RULE}`}>
+                        {!slot.hasTemplate ? (
+                          <Link
+                            href="/dashboard/curriculum"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200 transition hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                          >
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>Chưa có PPCT, bấm để gán ngay</span>
+                          </Link>
+                        ) : (
+                          <span title={slot.lessonName} className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">
+                            {slot.lessonName}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                        {slot.hasTemplate && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSlot({
+                                classId: slot.realClassId,
+                                slotIdx: slot.slotOrderInWeek,
+                                currentOrder: Number(slot.lessonOrder) || 1,
+                                isOverridden: slot.isOverridden,
+                                tIdx: slot.timelineIndex,
+                              })
+                              setEditMode('cut')
+                              setReorderNumber('')
+                              setTargetLessonOrder(Number(slot.lessonOrder) || 1)
+                            }}
+                            title="Bấm để cắt tiết hoặc đảo tiết"
+                            className={`inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ring-1 ring-inset transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+                              slot.isOverridden
+                                ? noteStyle
+                                : 'bg-white text-slate-900 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500'
+                            }`}
+                          >
+                            <span>{slot.lessonOrder}</span>
+                            <ArrowLeftRight className="h-3 w-3 opacity-40 transition group-hover:opacity-100" />
+                          </button>
+                        )}
+                      </td>
+
+                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                        {!slot.hasTemplate ? (
+                          <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">
+                            Thiếu PPCT
+                          </span>
+                        ) : slot.noteLabel ? (
+                          <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${noteStyle}`}>
+                            {slot.noteLabel}
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )
+                })
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* POPUP ĐIỀU CHỈNH TIẾN ĐỘ */}
