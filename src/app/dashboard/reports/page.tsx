@@ -632,7 +632,7 @@ export default function ReportsPage() {
 
           tableRows.push(
             new TableRow({
-              height: { value: MIN_ROW_H, rule: HeightRule.AT_LEAST },
+              height: { value: MIN_ROW_H, rule: HeightRule.ATLEAST },
               cantSplit: true,
               children: rowCells,
             })
