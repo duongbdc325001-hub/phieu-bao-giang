@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [soOpen, setSoOpen] = useState(true) // mở/đóng nhóm Sổ báo giảng
+  const [soOpen, setSoOpen] = useState(false) // mặc định đóng, bấm "Sổ báo giảng" mới hiện các mục con
 
   // Trạng thái kiểm soát bảo mật (chỉ giữ lại kiểm tra đăng nhập và hết hạn bản quyền)
   const [checkingAuth, setCheckingAuth] = useState(true)
