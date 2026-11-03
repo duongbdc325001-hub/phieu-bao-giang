@@ -1,0 +1,5190 @@
+{
+ "template": "BGD-2025-40-8-6",
+ "name": "Phiếu TLTN 2025 của Bộ (40-8-6, mã đề 4 số)",
+ "units": "pt; goc tren-trai trang; y huong xuong",
+ "page": {
+  "w": 558.72,
+  "h": 811.44
+ },
+ "corner_markers": {
+  "TL": [
+   18.4,
+   22.0
+  ],
+  "TR": [
+   538.7,
+   22.0
+  ],
+  "BR": [
+   538.7,
+   791.4
+  ],
+  "BL": [
+   18.4,
+   791.4
+  ]
+ },
+ "corner_marker_size": 15.1,
+ "local_markers": [
+  [
+   370.4,
+   22.0
+  ],
+  [
+   18.4,
+   250.0
+  ],
+  [
+   368.0,
+   250.0
+  ],
+  [
+   538.7,
+   250.0
+  ],
+  [
+   476.4,
+   152.9
+  ],
+  [
+   476.4,
+   234.7
+  ],
+  [
+   156.2,
+   287.0
+  ],
+  [
+   278.5,
+   287.2
+  ],
+  [
+   401.2,
+   287.2
+  ],
+  [
+   156.4,
+   433.1
+  ],
+  [
+   278.5,
+   433.1
+  ],
+  [
+   401.2,
+   433.1
+  ],
+  [
+   156.4,
+   454.0
+  ],
+  [
+   278.5,
+   454.0
+  ],
+  [
+   401.2,
+   454.0
+  ],
+  [
+   156.4,
+   540.1
+  ],
+  [
+   278.6,
+   540.0
+  ],
+  [
+   401.2,
+   540.1
+  ],
+  [
+   121.6,
+   550.4
+  ],
+  [
+   200.0,
+   550.4
+  ],
+  [
+   356.8,
+   550.4
+  ],
+  [
+   435.0,
+   550.4
+  ],
+  [
+   121.6,
+   771.6
+  ],
+  [
+   200.2,
+   771.6
+  ],
+  [
+   278.3,
+   771.6
+  ],
+  [
+   356.8,
+   771.6
+  ],
+  [
+   435.0,
+   771.6
+  ]
+ ],
+ "local_marker_size": 7.5,
+ "bubble_radius": 4.6,
+ "normalized_note": "Đo từ file PDF gốc 'Phiếu TLTN 2025 mã đề 4 số đen trắng' (vector, chính xác tuyệt đối)",
+ "layout": {
+  "part1": 40,
+  "part2": 8,
+  "part3": 6,
+  "sbd_digits": 8,
+  "made_digits": 4
+ },
+ "bubbles": [
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "0",
+   "x": 382.44,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "1",
+   "x": 382.44,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "2",
+   "x": 382.44,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "3",
+   "x": 382.44,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "4",
+   "x": 382.44,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "5",
+   "x": 382.44,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "6",
+   "x": 382.44,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "7",
+   "x": 382.44,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "8",
+   "x": 382.44,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_1",
+   "value": "9",
+   "x": 382.44,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "0",
+   "x": 393.96,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "1",
+   "x": 393.96,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "2",
+   "x": 393.96,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "3",
+   "x": 393.96,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "4",
+   "x": 393.96,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "5",
+   "x": 393.96,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "6",
+   "x": 393.96,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "7",
+   "x": 393.96,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "8",
+   "x": 393.96,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_2",
+   "value": "9",
+   "x": 393.96,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "0",
+   "x": 405.48,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "1",
+   "x": 405.48,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "2",
+   "x": 405.48,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "3",
+   "x": 405.48,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "4",
+   "x": 405.48,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "5",
+   "x": 405.48,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "6",
+   "x": 405.48,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "7",
+   "x": 405.48,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "8",
+   "x": 405.48,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_3",
+   "value": "9",
+   "x": 405.48,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "0",
+   "x": 417.0,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "1",
+   "x": 417.0,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "2",
+   "x": 417.0,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "3",
+   "x": 417.0,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "4",
+   "x": 417.0,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "5",
+   "x": 417.0,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "6",
+   "x": 417.0,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "7",
+   "x": 417.0,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "8",
+   "x": 417.0,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_4",
+   "value": "9",
+   "x": 417.0,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "0",
+   "x": 428.28,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "1",
+   "x": 428.28,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "2",
+   "x": 428.28,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "3",
+   "x": 428.28,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "4",
+   "x": 428.28,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "5",
+   "x": 428.28,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "6",
+   "x": 428.28,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "7",
+   "x": 428.28,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "8",
+   "x": 428.28,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_5",
+   "value": "9",
+   "x": 428.28,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "0",
+   "x": 439.32,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "1",
+   "x": 439.32,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "2",
+   "x": 439.32,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "3",
+   "x": 439.32,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "4",
+   "x": 439.32,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "5",
+   "x": 439.32,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "6",
+   "x": 439.32,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "7",
+   "x": 439.32,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "8",
+   "x": 439.32,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_6",
+   "value": "9",
+   "x": 439.32,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "0",
+   "x": 450.84,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "1",
+   "x": 450.84,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "2",
+   "x": 450.84,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "3",
+   "x": 450.84,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "4",
+   "x": 450.84,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "5",
+   "x": 450.84,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "6",
+   "x": 450.84,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "7",
+   "x": 450.84,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "8",
+   "x": 450.84,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_7",
+   "value": "9",
+   "x": 450.84,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "0",
+   "x": 462.12,
+   "y": 79.29,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "1",
+   "x": 462.12,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "2",
+   "x": 462.12,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "3",
+   "x": 462.12,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "4",
+   "x": 462.12,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "5",
+   "x": 462.12,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "6",
+   "x": 462.12,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "7",
+   "x": 462.12,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "8",
+   "x": 462.12,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "sbd",
+   "key": "sbd_8",
+   "value": "9",
+   "x": 462.12,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "0",
+   "x": 490.44,
+   "y": 79.32,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "1",
+   "x": 490.44,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "2",
+   "x": 490.44,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "3",
+   "x": 490.44,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "4",
+   "x": 490.44,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "5",
+   "x": 490.44,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "6",
+   "x": 490.44,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "7",
+   "x": 490.44,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "8",
+   "x": 490.44,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_1",
+   "value": "9",
+   "x": 490.44,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "0",
+   "x": 501.96,
+   "y": 79.32,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "1",
+   "x": 501.96,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "2",
+   "x": 501.96,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "3",
+   "x": 501.96,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "4",
+   "x": 501.96,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "5",
+   "x": 501.96,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "6",
+   "x": 501.96,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "7",
+   "x": 501.96,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "8",
+   "x": 501.96,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_2",
+   "value": "9",
+   "x": 501.96,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "0",
+   "x": 513.24,
+   "y": 79.32,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "1",
+   "x": 513.24,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "2",
+   "x": 513.24,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "3",
+   "x": 513.24,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "4",
+   "x": 513.24,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "5",
+   "x": 513.24,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "6",
+   "x": 513.24,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "7",
+   "x": 513.24,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "8",
+   "x": 513.24,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_3",
+   "value": "9",
+   "x": 513.24,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "0",
+   "x": 524.28,
+   "y": 79.32,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "1",
+   "x": 524.28,
+   "y": 95.64,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "2",
+   "x": 524.28,
+   "y": 111.96,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "3",
+   "x": 524.28,
+   "y": 128.28,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "4",
+   "x": 524.28,
+   "y": 144.6,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "5",
+   "x": 524.28,
+   "y": 160.92,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "6",
+   "x": 524.28,
+   "y": 177.24,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "7",
+   "x": 524.28,
+   "y": 193.56,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "8",
+   "x": 524.28,
+   "y": 209.88,
+   "r": 4.8
+  },
+  {
+   "region": "made",
+   "key": "made_4",
+   "value": "9",
+   "x": 524.28,
+   "y": 226.2,
+   "r": 4.8
+  },
+  {
+   "region": "part1",
+   "key": "p1_q1",
+   "value": "A",
+   "x": 64.2,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q1",
+   "value": "B",
+   "x": 88.92,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q1",
+   "value": "C",
+   "x": 113.4,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q1",
+   "value": "D",
+   "x": 137.4,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q2",
+   "value": "A",
+   "x": 64.2,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q2",
+   "value": "B",
+   "x": 88.92,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q2",
+   "value": "C",
+   "x": 113.4,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q2",
+   "value": "D",
+   "x": 137.4,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q3",
+   "value": "A",
+   "x": 64.2,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q3",
+   "value": "B",
+   "x": 88.92,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q3",
+   "value": "C",
+   "x": 113.4,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q3",
+   "value": "D",
+   "x": 137.4,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q4",
+   "value": "A",
+   "x": 64.2,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q4",
+   "value": "B",
+   "x": 88.92,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q4",
+   "value": "C",
+   "x": 113.4,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q4",
+   "value": "D",
+   "x": 137.4,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q5",
+   "value": "A",
+   "x": 64.2,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q5",
+   "value": "B",
+   "x": 88.92,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q5",
+   "value": "C",
+   "x": 113.4,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q5",
+   "value": "D",
+   "x": 137.4,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q6",
+   "value": "A",
+   "x": 64.2,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q6",
+   "value": "B",
+   "x": 88.92,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q6",
+   "value": "C",
+   "x": 113.4,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q6",
+   "value": "D",
+   "x": 137.4,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q7",
+   "value": "A",
+   "x": 64.2,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q7",
+   "value": "B",
+   "x": 88.92,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q7",
+   "value": "C",
+   "x": 113.4,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q7",
+   "value": "D",
+   "x": 137.4,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q8",
+   "value": "A",
+   "x": 64.2,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q8",
+   "value": "B",
+   "x": 88.92,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q8",
+   "value": "C",
+   "x": 113.4,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q8",
+   "value": "D",
+   "x": 137.4,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q9",
+   "value": "A",
+   "x": 64.2,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q9",
+   "value": "B",
+   "x": 88.92,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q9",
+   "value": "C",
+   "x": 113.4,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q9",
+   "value": "D",
+   "x": 137.4,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q10",
+   "value": "A",
+   "x": 64.2,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q10",
+   "value": "B",
+   "x": 88.92,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q10",
+   "value": "C",
+   "x": 113.4,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q10",
+   "value": "D",
+   "x": 137.4,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q11",
+   "value": "A",
+   "x": 186.6,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q11",
+   "value": "B",
+   "x": 211.08,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q11",
+   "value": "C",
+   "x": 235.56,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q11",
+   "value": "D",
+   "x": 259.8,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q12",
+   "value": "A",
+   "x": 186.6,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q12",
+   "value": "B",
+   "x": 211.08,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q12",
+   "value": "C",
+   "x": 235.56,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q12",
+   "value": "D",
+   "x": 259.8,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q13",
+   "value": "A",
+   "x": 186.6,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q13",
+   "value": "B",
+   "x": 211.08,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q13",
+   "value": "C",
+   "x": 235.56,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q13",
+   "value": "D",
+   "x": 259.8,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q14",
+   "value": "A",
+   "x": 186.6,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q14",
+   "value": "B",
+   "x": 211.08,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q14",
+   "value": "C",
+   "x": 235.56,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q14",
+   "value": "D",
+   "x": 259.8,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q15",
+   "value": "A",
+   "x": 186.6,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q15",
+   "value": "B",
+   "x": 211.08,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q15",
+   "value": "C",
+   "x": 235.56,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q15",
+   "value": "D",
+   "x": 259.8,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q16",
+   "value": "A",
+   "x": 186.6,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q16",
+   "value": "B",
+   "x": 211.08,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q16",
+   "value": "C",
+   "x": 235.56,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q16",
+   "value": "D",
+   "x": 259.8,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q17",
+   "value": "A",
+   "x": 186.6,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q17",
+   "value": "B",
+   "x": 211.08,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q17",
+   "value": "C",
+   "x": 235.56,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q17",
+   "value": "D",
+   "x": 259.8,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q18",
+   "value": "A",
+   "x": 186.6,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q18",
+   "value": "B",
+   "x": 211.08,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q18",
+   "value": "C",
+   "x": 235.56,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q18",
+   "value": "D",
+   "x": 259.8,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q19",
+   "value": "A",
+   "x": 186.6,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q19",
+   "value": "B",
+   "x": 211.08,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q19",
+   "value": "C",
+   "x": 235.56,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q19",
+   "value": "D",
+   "x": 259.8,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q20",
+   "value": "A",
+   "x": 186.6,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q20",
+   "value": "B",
+   "x": 211.08,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q20",
+   "value": "C",
+   "x": 235.56,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q20",
+   "value": "D",
+   "x": 259.8,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q21",
+   "value": "A",
+   "x": 308.76,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q21",
+   "value": "B",
+   "x": 333.24,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q21",
+   "value": "C",
+   "x": 357.72,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q21",
+   "value": "D",
+   "x": 381.96,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q22",
+   "value": "A",
+   "x": 308.76,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q22",
+   "value": "B",
+   "x": 333.24,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q22",
+   "value": "C",
+   "x": 357.72,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q22",
+   "value": "D",
+   "x": 381.96,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q23",
+   "value": "A",
+   "x": 308.76,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q23",
+   "value": "B",
+   "x": 333.24,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q23",
+   "value": "C",
+   "x": 357.72,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q23",
+   "value": "D",
+   "x": 381.96,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q24",
+   "value": "A",
+   "x": 308.76,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q24",
+   "value": "B",
+   "x": 333.24,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q24",
+   "value": "C",
+   "x": 357.72,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q24",
+   "value": "D",
+   "x": 381.96,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q25",
+   "value": "A",
+   "x": 308.76,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q25",
+   "value": "B",
+   "x": 333.24,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q25",
+   "value": "C",
+   "x": 357.72,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q25",
+   "value": "D",
+   "x": 381.96,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q26",
+   "value": "A",
+   "x": 308.76,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q26",
+   "value": "B",
+   "x": 333.24,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q26",
+   "value": "C",
+   "x": 357.72,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q26",
+   "value": "D",
+   "x": 381.96,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q27",
+   "value": "A",
+   "x": 308.76,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q27",
+   "value": "B",
+   "x": 333.24,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q27",
+   "value": "C",
+   "x": 357.72,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q27",
+   "value": "D",
+   "x": 381.96,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q28",
+   "value": "A",
+   "x": 308.76,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q28",
+   "value": "B",
+   "x": 333.24,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q28",
+   "value": "C",
+   "x": 357.72,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q28",
+   "value": "D",
+   "x": 381.96,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q29",
+   "value": "A",
+   "x": 308.76,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q29",
+   "value": "B",
+   "x": 333.24,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q29",
+   "value": "C",
+   "x": 357.72,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q29",
+   "value": "D",
+   "x": 381.96,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q30",
+   "value": "A",
+   "x": 308.76,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q30",
+   "value": "B",
+   "x": 333.24,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q30",
+   "value": "C",
+   "x": 357.72,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q30",
+   "value": "D",
+   "x": 381.96,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q31",
+   "value": "A",
+   "x": 431.4,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q31",
+   "value": "B",
+   "x": 455.88,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q31",
+   "value": "C",
+   "x": 480.36,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q31",
+   "value": "D",
+   "x": 504.12,
+   "y": 307.08,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q32",
+   "value": "A",
+   "x": 431.4,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q32",
+   "value": "B",
+   "x": 455.88,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q32",
+   "value": "C",
+   "x": 480.36,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q32",
+   "value": "D",
+   "x": 504.12,
+   "y": 319.8,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q33",
+   "value": "A",
+   "x": 431.4,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q33",
+   "value": "B",
+   "x": 455.88,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q33",
+   "value": "C",
+   "x": 480.36,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q33",
+   "value": "D",
+   "x": 504.12,
+   "y": 332.28,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q34",
+   "value": "A",
+   "x": 431.4,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q34",
+   "value": "B",
+   "x": 455.88,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q34",
+   "value": "C",
+   "x": 480.36,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q34",
+   "value": "D",
+   "x": 504.12,
+   "y": 344.76,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q35",
+   "value": "A",
+   "x": 431.4,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q35",
+   "value": "B",
+   "x": 455.88,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q35",
+   "value": "C",
+   "x": 480.36,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q35",
+   "value": "D",
+   "x": 504.12,
+   "y": 357.48,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q36",
+   "value": "A",
+   "x": 431.4,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q36",
+   "value": "B",
+   "x": 455.88,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q36",
+   "value": "C",
+   "x": 480.36,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q36",
+   "value": "D",
+   "x": 504.12,
+   "y": 370.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q37",
+   "value": "A",
+   "x": 431.4,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q37",
+   "value": "B",
+   "x": 455.88,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q37",
+   "value": "C",
+   "x": 480.36,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q37",
+   "value": "D",
+   "x": 504.12,
+   "y": 383.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q38",
+   "value": "A",
+   "x": 431.4,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q38",
+   "value": "B",
+   "x": 455.88,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q38",
+   "value": "C",
+   "x": 480.36,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q38",
+   "value": "D",
+   "x": 504.12,
+   "y": 395.7,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q39",
+   "value": "A",
+   "x": 431.4,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q39",
+   "value": "B",
+   "x": 455.88,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q39",
+   "value": "C",
+   "x": 480.36,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q39",
+   "value": "D",
+   "x": 504.12,
+   "y": 408.18,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q40",
+   "value": "A",
+   "x": 431.4,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q40",
+   "value": "B",
+   "x": 455.88,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q40",
+   "value": "C",
+   "x": 480.36,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part1",
+   "key": "p1_q40",
+   "value": "D",
+   "x": 504.12,
+   "y": 420.84,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_a",
+   "value": "D",
+   "x": 64.2,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_a",
+   "value": "S",
+   "x": 88.68,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_b",
+   "value": "D",
+   "x": 64.2,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_b",
+   "value": "S",
+   "x": 88.68,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_c",
+   "value": "D",
+   "x": 64.2,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_c",
+   "value": "S",
+   "x": 88.68,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_d",
+   "value": "D",
+   "x": 64.2,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q1_d",
+   "value": "S",
+   "x": 88.68,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_a",
+   "value": "D",
+   "x": 113.64,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_a",
+   "value": "S",
+   "x": 137.64,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_b",
+   "value": "D",
+   "x": 113.64,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_b",
+   "value": "S",
+   "x": 137.64,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_c",
+   "value": "D",
+   "x": 113.64,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_c",
+   "value": "S",
+   "x": 137.64,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_d",
+   "value": "D",
+   "x": 113.64,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q2_d",
+   "value": "S",
+   "x": 137.64,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k0"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_a",
+   "value": "D",
+   "x": 187.08,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_a",
+   "value": "S",
+   "x": 211.56,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_b",
+   "value": "D",
+   "x": 187.08,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_b",
+   "value": "S",
+   "x": 211.56,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_c",
+   "value": "D",
+   "x": 187.08,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_c",
+   "value": "S",
+   "x": 211.56,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_d",
+   "value": "D",
+   "x": 187.08,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q3_d",
+   "value": "S",
+   "x": 211.56,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_a",
+   "value": "D",
+   "x": 236.04,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_a",
+   "value": "S",
+   "x": 260.4,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_b",
+   "value": "D",
+   "x": 236.04,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_b",
+   "value": "S",
+   "x": 260.4,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_c",
+   "value": "D",
+   "x": 236.04,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_c",
+   "value": "S",
+   "x": 260.4,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_d",
+   "value": "D",
+   "x": 236.04,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q4_d",
+   "value": "S",
+   "x": 260.4,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k1"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_a",
+   "value": "D",
+   "x": 309.0,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_a",
+   "value": "S",
+   "x": 333.48,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_b",
+   "value": "D",
+   "x": 309.0,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_b",
+   "value": "S",
+   "x": 333.48,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_c",
+   "value": "D",
+   "x": 309.0,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_c",
+   "value": "S",
+   "x": 333.48,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_d",
+   "value": "D",
+   "x": 309.0,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q5_d",
+   "value": "S",
+   "x": 333.48,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_a",
+   "value": "D",
+   "x": 358.68,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_a",
+   "value": "S",
+   "x": 383.16,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_b",
+   "value": "D",
+   "x": 358.68,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_b",
+   "value": "S",
+   "x": 383.16,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_c",
+   "value": "D",
+   "x": 358.68,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_c",
+   "value": "S",
+   "x": 383.16,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_d",
+   "value": "D",
+   "x": 358.68,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q6_d",
+   "value": "S",
+   "x": 383.16,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k2"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_a",
+   "value": "D",
+   "x": 431.88,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_a",
+   "value": "S",
+   "x": 456.36,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_b",
+   "value": "D",
+   "x": 431.88,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_b",
+   "value": "S",
+   "x": 456.36,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_c",
+   "value": "D",
+   "x": 431.88,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_c",
+   "value": "S",
+   "x": 456.36,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_d",
+   "value": "D",
+   "x": 431.88,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q7_d",
+   "value": "S",
+   "x": 456.36,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_a",
+   "value": "D",
+   "x": 480.84,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_a",
+   "value": "S",
+   "x": 505.32,
+   "y": 490.2,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_b",
+   "value": "D",
+   "x": 480.84,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_b",
+   "value": "S",
+   "x": 505.32,
+   "y": 502.68,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_c",
+   "value": "D",
+   "x": 480.84,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_c",
+   "value": "S",
+   "x": 505.32,
+   "y": 515.16,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_d",
+   "value": "D",
+   "x": 480.84,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part2",
+   "key": "p2_q8_d",
+   "value": "S",
+   "x": 505.32,
+   "y": 527.88,
+   "r": 4.6,
+   "block": "p1_k3"
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "-",
+   "x": 60.36,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": ",",
+   "x": 77.16,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": ",",
+   "x": 94.18,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "0",
+   "x": 60.36,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "0",
+   "x": 77.16,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "0",
+   "x": 94.18,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "0",
+   "x": 111.0,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "1",
+   "x": 60.36,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "1",
+   "x": 77.16,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "1",
+   "x": 94.18,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "1",
+   "x": 111.0,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "2",
+   "x": 60.36,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "2",
+   "x": 77.16,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "2",
+   "x": 94.18,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "2",
+   "x": 111.0,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "3",
+   "x": 60.36,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "3",
+   "x": 77.16,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "3",
+   "x": 94.18,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "3",
+   "x": 111.0,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "4",
+   "x": 60.36,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "4",
+   "x": 77.16,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "4",
+   "x": 94.18,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "4",
+   "x": 111.0,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "5",
+   "x": 60.36,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "5",
+   "x": 77.16,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "5",
+   "x": 94.18,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "5",
+   "x": 111.0,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "6",
+   "x": 60.36,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "6",
+   "x": 77.16,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "6",
+   "x": 94.18,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "6",
+   "x": 111.0,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "7",
+   "x": 60.36,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "7",
+   "x": 77.16,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "7",
+   "x": 94.18,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "7",
+   "x": 111.0,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "8",
+   "x": 60.36,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "8",
+   "x": 77.16,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "8",
+   "x": 94.18,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "8",
+   "x": 111.0,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c1",
+   "value": "9",
+   "x": 60.36,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c2",
+   "value": "9",
+   "x": 77.16,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c3",
+   "value": "9",
+   "x": 94.18,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q1_c4",
+   "value": "9",
+   "x": 111.0,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "-",
+   "x": 138.58,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": ",",
+   "x": 155.16,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": ",",
+   "x": 172.2,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "0",
+   "x": 138.58,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "0",
+   "x": 155.16,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "0",
+   "x": 172.2,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "0",
+   "x": 189.0,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "1",
+   "x": 138.58,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "1",
+   "x": 155.16,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "1",
+   "x": 172.2,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "1",
+   "x": 189.0,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "2",
+   "x": 138.58,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "2",
+   "x": 155.16,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "2",
+   "x": 172.2,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "2",
+   "x": 189.0,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "3",
+   "x": 138.58,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "3",
+   "x": 155.16,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "3",
+   "x": 172.2,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "3",
+   "x": 189.0,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "4",
+   "x": 138.58,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "4",
+   "x": 155.16,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "4",
+   "x": 172.2,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "4",
+   "x": 189.0,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "5",
+   "x": 138.58,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "5",
+   "x": 155.16,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "5",
+   "x": 172.2,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "5",
+   "x": 189.0,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "6",
+   "x": 138.58,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "6",
+   "x": 155.16,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "6",
+   "x": 172.2,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "6",
+   "x": 189.0,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "7",
+   "x": 138.58,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "7",
+   "x": 155.16,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "7",
+   "x": 172.2,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "7",
+   "x": 189.0,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "8",
+   "x": 138.58,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "8",
+   "x": 155.16,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "8",
+   "x": 172.2,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "8",
+   "x": 189.0,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c1",
+   "value": "9",
+   "x": 138.58,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c2",
+   "value": "9",
+   "x": 155.16,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c3",
+   "value": "9",
+   "x": 172.2,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q2_c4",
+   "value": "9",
+   "x": 189.0,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "-",
+   "x": 216.6,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": ",",
+   "x": 233.4,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": ",",
+   "x": 250.44,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "0",
+   "x": 216.6,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "0",
+   "x": 233.4,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "0",
+   "x": 250.44,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "0",
+   "x": 267.24,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "1",
+   "x": 216.6,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "1",
+   "x": 233.4,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "1",
+   "x": 250.44,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "1",
+   "x": 267.24,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "2",
+   "x": 216.6,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "2",
+   "x": 233.4,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "2",
+   "x": 250.44,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "2",
+   "x": 267.24,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "3",
+   "x": 216.6,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "3",
+   "x": 233.4,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "3",
+   "x": 250.44,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "3",
+   "x": 267.24,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "4",
+   "x": 216.6,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "4",
+   "x": 233.4,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "4",
+   "x": 250.44,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "4",
+   "x": 267.24,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "5",
+   "x": 216.6,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "5",
+   "x": 233.4,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "5",
+   "x": 250.44,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "5",
+   "x": 267.24,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "6",
+   "x": 216.6,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "6",
+   "x": 233.4,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "6",
+   "x": 250.44,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "6",
+   "x": 267.24,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "7",
+   "x": 216.6,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "7",
+   "x": 233.4,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "7",
+   "x": 250.44,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "7",
+   "x": 267.24,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "8",
+   "x": 216.6,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "8",
+   "x": 233.4,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "8",
+   "x": 250.44,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "8",
+   "x": 267.24,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c1",
+   "value": "9",
+   "x": 216.6,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c2",
+   "value": "9",
+   "x": 233.4,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c3",
+   "value": "9",
+   "x": 250.44,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q3_c4",
+   "value": "9",
+   "x": 267.24,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "-",
+   "x": 294.84,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": ",",
+   "x": 312.12,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": ",",
+   "x": 329.16,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "0",
+   "x": 294.84,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "0",
+   "x": 312.12,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "0",
+   "x": 329.16,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "0",
+   "x": 345.96,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "1",
+   "x": 294.84,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "1",
+   "x": 312.12,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "1",
+   "x": 329.16,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "1",
+   "x": 345.96,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "2",
+   "x": 294.84,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "2",
+   "x": 312.12,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "2",
+   "x": 329.16,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "2",
+   "x": 345.96,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "3",
+   "x": 294.84,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "3",
+   "x": 312.12,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "3",
+   "x": 329.16,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "3",
+   "x": 345.96,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "4",
+   "x": 294.84,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "4",
+   "x": 312.12,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "4",
+   "x": 329.16,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "4",
+   "x": 345.96,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "5",
+   "x": 294.84,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "5",
+   "x": 312.12,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "5",
+   "x": 329.16,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "5",
+   "x": 345.96,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "6",
+   "x": 294.84,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "6",
+   "x": 312.12,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "6",
+   "x": 329.16,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "6",
+   "x": 345.96,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "7",
+   "x": 294.84,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "7",
+   "x": 312.12,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "7",
+   "x": 329.16,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "7",
+   "x": 345.96,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "8",
+   "x": 294.84,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "8",
+   "x": 312.12,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "8",
+   "x": 329.16,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "8",
+   "x": 345.96,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c1",
+   "value": "9",
+   "x": 294.84,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c2",
+   "value": "9",
+   "x": 312.12,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c3",
+   "value": "9",
+   "x": 329.16,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q4_c4",
+   "value": "9",
+   "x": 345.96,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "-",
+   "x": 373.56,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": ",",
+   "x": 390.36,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": ",",
+   "x": 407.4,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "0",
+   "x": 373.56,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "0",
+   "x": 390.36,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "0",
+   "x": 407.4,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "0",
+   "x": 424.2,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "1",
+   "x": 373.56,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "1",
+   "x": 390.36,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "1",
+   "x": 407.4,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "1",
+   "x": 424.2,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "2",
+   "x": 373.56,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "2",
+   "x": 390.36,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "2",
+   "x": 407.4,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "2",
+   "x": 424.2,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "3",
+   "x": 373.56,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "3",
+   "x": 390.36,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "3",
+   "x": 407.4,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "3",
+   "x": 424.2,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "4",
+   "x": 373.56,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "4",
+   "x": 390.36,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "4",
+   "x": 407.4,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "4",
+   "x": 424.2,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "5",
+   "x": 373.56,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "5",
+   "x": 390.36,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "5",
+   "x": 407.4,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "5",
+   "x": 424.2,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "6",
+   "x": 373.56,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "6",
+   "x": 390.36,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "6",
+   "x": 407.4,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "6",
+   "x": 424.2,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "7",
+   "x": 373.56,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "7",
+   "x": 390.36,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "7",
+   "x": 407.4,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "7",
+   "x": 424.2,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "8",
+   "x": 373.56,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "8",
+   "x": 390.36,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "8",
+   "x": 407.4,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "8",
+   "x": 424.2,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c1",
+   "value": "9",
+   "x": 373.56,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c2",
+   "value": "9",
+   "x": 390.36,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c3",
+   "value": "9",
+   "x": 407.4,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q5_c4",
+   "value": "9",
+   "x": 424.2,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "-",
+   "x": 451.8,
+   "y": 602.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": ",",
+   "x": 468.36,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": ",",
+   "x": 485.4,
+   "y": 615.2,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "0",
+   "x": 451.8,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "0",
+   "x": 468.36,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "0",
+   "x": 485.4,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "0",
+   "x": 502.37,
+   "y": 629.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "1",
+   "x": 451.8,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "1",
+   "x": 468.36,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "1",
+   "x": 485.4,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "1",
+   "x": 502.37,
+   "y": 641.64,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "2",
+   "x": 451.8,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "2",
+   "x": 468.36,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "2",
+   "x": 485.4,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "2",
+   "x": 502.37,
+   "y": 655.08,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "3",
+   "x": 451.8,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "3",
+   "x": 468.36,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "3",
+   "x": 485.4,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "3",
+   "x": 502.37,
+   "y": 668.28,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "4",
+   "x": 451.8,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "4",
+   "x": 468.36,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "4",
+   "x": 485.4,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "4",
+   "x": 502.37,
+   "y": 680.76,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "5",
+   "x": 451.8,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "5",
+   "x": 468.36,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "5",
+   "x": 485.4,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "5",
+   "x": 502.37,
+   "y": 693.48,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "6",
+   "x": 451.8,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "6",
+   "x": 468.36,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "6",
+   "x": 485.4,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "6",
+   "x": 502.37,
+   "y": 706.68,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "7",
+   "x": 451.8,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "7",
+   "x": 468.36,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "7",
+   "x": 485.4,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "7",
+   "x": 502.37,
+   "y": 719.16,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "8",
+   "x": 451.8,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "8",
+   "x": 468.36,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "8",
+   "x": 485.4,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "8",
+   "x": 502.37,
+   "y": 732.6,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c1",
+   "value": "9",
+   "x": 451.8,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c2",
+   "value": "9",
+   "x": 468.36,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c3",
+   "value": "9",
+   "x": 485.4,
+   "y": 745.8,
+   "r": 4.6
+  },
+  {
+   "region": "part3",
+   "key": "p3_q6_c4",
+   "value": "9",
+   "x": 502.37,
+   "y": 745.8,
+   "r": 4.6
+  }
+ ]
+}

@@ -13,6 +13,7 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
    - ④ Soát câu lỗi.
    - ⑤ Điểm: xuất Excel 6 trang và ảnh đã chấm.
 3. Mẫu phiếu tự nhận khi chấm (`public/omr/templates/`):
+   - **Phiếu TLTN 2025 của Bộ, mã đề 4 số** (`phieu_bgd_2025`): đo từ file PDF gốc (bản in: `public/omr/print/phieu_bgd_2025_ma_de_4_so.pdf`).
    - **40-8-6 mẫu phiếu thi có ô Giám thị 1, 2** (`phieu_40_8_6_gt`): đo từ phiếu quét thật của trường; SBD/mã đề in sẵn chữ số trong ô.
    - 40-8-6 và 32-6-12 của app (PDF để in: `public/omr/print/`).
 

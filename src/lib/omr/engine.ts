@@ -11,7 +11,7 @@ export interface DetectResult {
 
 const BASE = "/omr/";
 // Mẫu phiếu tự nhận khi chấm. Thêm mẫu: đặt file *_toado.json vào public/omr/templates/ rồi thêm tên vào đây (và sw.js).
-const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt"];
+const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_bgd_2025"];
 
 async function get(path: string, kind: "text"): Promise<string>;
 async function get(path: string, kind: "buf"): Promise<ArrayBuffer>;
