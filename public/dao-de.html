@@ -70,6 +70,13 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .opt span{display:flex;flex-direction:column}
 .opt small{color:var(--mute);font-size:.84rem}
 
+/* Bỏ qua soát số báo danh */
+.skip{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 18px;background:var(--bg);cursor:pointer;transition:border-color .15s}
+.skip:has(input:checked){border-color:var(--acc)}
+.skip input{margin-top:4px;width:20px;height:20px;accent-color:var(--acc);flex:none}
+.skip span{display:flex;flex-direction:column;font-weight:600}
+.skip small{color:var(--mute);font-size:.84rem;font-weight:400}
+
 /* Màn hình chờ */
 #busy{position:fixed;inset:0;background:rgba(10,15,30,.5);display:flex;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px)}
 #busy .bx{background:var(--card);color:var(--ink);border-radius:14px;padding:26px 30px;text-align:center;width:min(340px,86vw);box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -170,6 +177,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <section id="out" class="card" hidden>
 <b>Đã tạo xong</b>
 <div class="files" id="files"></div>
+<label class="skip"><input id="skipSBD" type="checkbox"><span>Bỏ qua soát số báo danh khi chấm<small>Dùng khi chấm bằng điện thoại cá nhân: chỉ đọc mã đề và đáp án, không báo lỗi thiếu/trùng số báo danh</small></span></label>
 <b>Đáp án</b>
 <div class="tw" style="margin-top:10px"><table id="key"></table></div>
 </section>
@@ -438,6 +446,11 @@ const getVal = (id, fallback) => {
   return el.value.trim() || el.placeholder || fallback || '';
 };
 
+// Bỏ qua soát số báo danh: nhớ lựa chọn trên máy này
+const SKIP_KEY='cham-bai:bo-qua-sbd';
+try{$('skipSBD').checked=localStorage.getItem(SKIP_KEY)==='1'}catch(e){}
+$('skipSBD').onchange=()=>{try{localStorage.setItem(SKIP_KEY,$('skipSBD').checked?'1':'0')}catch(e){}};
+
 // Màn hình chờ
 const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,20)));
 const busy=(on,t,s,pct)=>{
@@ -576,13 +589,15 @@ $('go').onclick=async()=>{
   cb.title = 'Mở phần Chấm bài với đáp án các mã đề vừa tạo';
   cb.style.flexBasis = '100%';
   cb.onclick = () => {
+    const skipSBD = $('skipSBD').checked;
     try {
       localStorage.setItem('cham-bai:tu-dao-de', JSON.stringify({
         name, codes, at: Date.now(),
+        skipSBD,
         keys: keys.map(k => k.map(x => ({ lab: String(x.lab), val: String(x.val) })))
       }));
     } catch (e) { alert('Không chuyển được đáp án: ' + e.message); return; }
-    (window.top || window).location.href = '/dashboard/cham-bai';
+    (window.top || window).location.href = '/dashboard/cham-bai' + (skipSBD ? '?boQuaSBD=1' : '');
   };
   za.after(cb);
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');

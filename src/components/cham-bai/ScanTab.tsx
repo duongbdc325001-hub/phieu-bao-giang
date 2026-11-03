@@ -3,7 +3,7 @@
 import { Camera, ImagePlus, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { type Ctl, classify } from "@/lib/omr/controller";
-import { studentName, type SheetRec } from "@/lib/omr/session";
+import { sbdShown, studentName, type SheetRec } from "@/lib/omr/session";
 import { CameraScan } from "./CameraScan";
 import { WholeSheet } from "./BubbleView";
 import { ACCEPT, sourcesFromFile } from "@/lib/omr/sources";
@@ -57,13 +57,13 @@ export function ScanTab({ ctl }: { ctl: Ctl }) {
             {list.map((sh) => {
               const pending = !sh.ok && sh.error == null;
               const c = classify(s, sh);
-              const name = sh.ok ? studentName(s, sh.sbd) : null;
+              const name = sh.ok && sbdShown(s, sh) ? studentName(s, sh.sbd) : null;
               return (
                 <li key={sh.id} className={`flex items-center gap-3 py-2 ${sh.dropped ? "opacity-50" : ""}`}>
                   <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${pending ? "bg-slate-300" : c === "good" ? "bg-emerald-500" : c === "warn" ? "bg-amber-500" : "bg-red-500"}`} />
                   <button className="min-w-0 flex-1 text-left" onClick={() => sh.has_warped && setShow(sh)}>
                     <div className="truncate text-sm font-medium">
-                      {pending ? "Đang đọc…" : sh.ok ? `SBD ${sh.sbd} · Mã ${sh.made}` : "Không đọc được"}
+                      {pending ? "Đang đọc…" : sh.ok ? (sbdShown(s, sh) ? `SBD ${sh.sbd} · Mã ${sh.made}` : `Mã ${sh.made} · ${sh.name}`) : "Không đọc được"}
                       {name && <span className="font-normal text-slate-500"> · {name}</span>}
                     </div>
                     <div className="truncate text-xs text-slate-500">
@@ -86,7 +86,7 @@ export function ScanTab({ ctl }: { ctl: Ctl }) {
       </Card>
 
       {cam && <CameraScan ctl={ctl} onClose={() => setCam(false)} />}
-      <Modal open={!!show} onClose={() => setShow(null)} title={show?.ok ? `SBD ${show.sbd} · Mã ${show.made}` : show?.name} full>
+      <Modal open={!!show} onClose={() => setShow(null)} title={show?.ok && sbdShown(s, show) ? `SBD ${show.sbd} · Mã ${show.made}` : show?.ok ? `Mã ${show.made} · ${show.name}` : show?.name} full>
         {show && <WholeSheet sid={s.id} sh={show} />}
       </Modal>
     </div>

@@ -6,7 +6,7 @@ import type { Ctl } from "@/lib/omr/controller";
 import { omr } from "@/lib/omr/engine";
 import { buildResultXlsx, gradedImageName, gradedSpec, questionColumns, sortedActive, statsOf } from "@/lib/omr/export";
 import { getImage } from "@/lib/omr/store";
-import { type Session, type SheetRec, idQueue, qQueue, readyToGrade, studentName } from "@/lib/omr/session";
+import { type Session, type SheetRec, idQueue, qQueue, readyToGrade, sbdShown, studentName } from "@/lib/omr/session";
 import { Badge, Btn, Card, Modal, downloadBytes, toast } from "./ui";
 
 // Tên file không dấu: một số trình duyệt đổi tên file có dấu thành "download".
@@ -33,7 +33,7 @@ export function ResultsTab({ ctl }: { ctl: Ctl }) {
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
           {noKeys && <li>Chưa có đáp án (bước ①)</li>}
           {!s.sheets.some((x) => !x.dropped && x.ok) && <li>Chưa có phiếu đọc được (bước ②)</li>}
-          {nId > 0 && <li>Còn {nId} phiếu cần soát SBD / mã đề (bước ③)</li>}
+          {nId > 0 && <li>Còn {nId} phiếu cần soát {s.skip_sbd ? "mã đề" : "SBD / mã đề"} (bước ③)</li>}
           {nQ > 0 && <li>Còn {nQ} câu cần soát (bước ④)</li>}
         </ul>
       </Card>
@@ -109,8 +109,8 @@ export function ResultsTab({ ctl }: { ctl: Ctl }) {
               {sheets.map((sh) => (
                 <tr key={sh.id} className="cursor-pointer border-b border-slate-100 hover:bg-emerald-50/50" onClick={() => setShow(sh)}>
                   <td className="px-4 py-2">
-                    <div className="font-mono">{sh.sbd}{Object.keys(sh.edits).length > 0 && <span className="ml-1 font-sans text-xs text-amber-600">✎{Object.keys(sh.edits).length}</span>}</div>
-                    {studentName(s, sh.sbd) && <div className="max-w-[9rem] truncate text-xs text-slate-500 sm:max-w-none">{studentName(s, sh.sbd)}</div>}
+                    <div className={sbdShown(s, sh) ? "font-mono" : "max-w-[9rem] truncate text-xs sm:max-w-none"}>{sbdShown(s, sh) || sh.name}{Object.keys(sh.edits).length > 0 && <span className="ml-1 font-sans text-xs text-amber-600">✎{Object.keys(sh.edits).length}</span>}</div>
+                    {sbdShown(s, sh) && studentName(s, sh.sbd) && <div className="max-w-[9rem] truncate text-xs text-slate-500 sm:max-w-none">{studentName(s, sh.sbd)}</div>}
                   </td>
                   <td className="py-2 font-mono">{sh.made}</td>
                   <td className="px-1 py-2 text-right tabular-nums">{sh.grade!.p1.toFixed(2)}</td>
@@ -149,7 +149,7 @@ export function ResultsTab({ ctl }: { ctl: Ctl }) {
       </Card>
 
       <Modal open={!!show} onClose={() => setShow(null)} full
-        title={show && <span>SBD {show.sbd} · Mã {show.made} · <Badge tone="green">{show.grade?.tong.toFixed(2)}</Badge></span>}>
+        title={show && <span>{sbdShown(s, show) ? `SBD ${show.sbd}` : show.name} · Mã {show.made} · <Badge tone="green">{show.grade?.tong.toFixed(2)}</Badge></span>}>
         {show && <GradedView s={s} sh={show} />}
       </Modal>
     </div>

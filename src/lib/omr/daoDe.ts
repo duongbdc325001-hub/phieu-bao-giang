@@ -14,6 +14,8 @@ export interface DaoDePayload {
   codes: string[];
   keys: { lab: string; val: string }[][];
   at?: number;
+  /** giáo viên tích "Bỏ qua soát số báo danh khi chấm" ở trang đảo đề */
+  skipSBD?: boolean;
 }
 
 const SEC: Record<string, Part> = { I: "I", II: "II", III: "III", "1": "I", "2": "II", "3": "III" };
@@ -52,9 +54,10 @@ const uid = () =>
 
 /** Tạo bài chấm mới (có thể kèm đáp án). Trả về id để mở trang chấm. */
 export async function createSession(
-  name: string, dapAn?: string | Record<string, KeyMap>, source = "Đảo đề", errors: string[] = [],
+  name: string, dapAn?: string | Record<string, KeyMap>, source = "Đảo đề", errors: string[] = [], skipSbd = false,
 ): Promise<string> {
   const s = newSession(uid(), name);
+  if (skipSbd) s.skip_sbd = true;
   if (dapAn) {
     s.keys = typeof dapAn === "string" ? decodeKeysText(dapAn) : dapAn;
     for (const m of Object.keys(s.keys)) s.key_source[m] = source;

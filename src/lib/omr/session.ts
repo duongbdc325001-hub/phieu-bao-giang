@@ -95,6 +95,8 @@ export interface Session {
   graded: boolean; graded_at: string | null;
   tpls: Record<string, TplInfo>;
   next_id: number;
+  /** bỏ qua soát SBD (chấm bằng điện thoại cá nhân, học sinh không cần tô SBD): chỉ soát mã đề */
+  skip_sbd?: boolean;
 }
 
 export interface Problem { code: string; msg: string; blocking: boolean }
@@ -204,21 +206,28 @@ export function idProblems(s: Session, sh: SheetRec): Problem[] {
   const out: Problem[] = [];
   const { sbd, made } = sh;
   const bad = (x: string) => x.includes("?") || x.includes("*");
-  if (bad(sbd)) out.push({ code: "sbd", msg: "SBD tô thiếu / tô 2 ô", blocking: true });
-  else if (sh.flags.some((f) => f.startsWith("sbd_")) && !sh.id_done)
-    out.push({ code: "sbd_mo", msg: "SBD tô nhạt, cần xác nhận", blocking: false });
+  const skip = !!s.skip_sbd;
+  if (!skip) {
+    if (bad(sbd)) out.push({ code: "sbd", msg: "SBD tô thiếu / tô 2 ô", blocking: true });
+    else if (sh.flags.some((f) => f.startsWith("sbd_")) && !sh.id_done)
+      out.push({ code: "sbd_mo", msg: "SBD tô nhạt, cần xác nhận", blocking: false });
+  }
   if (bad(made)) out.push({ code: "made", msg: "Mã đề tô thiếu / tô 2 ô", blocking: true });
   else if (sh.flags.some((f) => f.startsWith("made_")) && !sh.id_done)
     out.push({ code: "made_mo", msg: "Mã đề tô nhạt, cần xác nhận", blocking: false });
   if (Object.keys(s.keys).length && !(made in s.keys) && !bad(made))
     out.push({ code: "made_lech", msg: `Mã đề ${made} không có trong đáp án`, blocking: true });
+  // bỏ qua SBD: chỉ cảnh báo (không chặn) khi SBD đọc rõ mà trùng – thường là chụp lại cùng một phiếu
   const dup = active(s).filter((o) => o !== sh && o.ok && o.sbd === sbd && o.made === made);
-  if (dup.length && !sbd.includes("?"))
-    out.push({ code: "trung", msg: `Trùng SBD + mã đề với ${dup.map((o) => o.name).join(", ")}`, blocking: true });
-  if (Object.keys(s.students).length && !sbd.includes("?") && studentName(s, sbd) == null)
+  if (dup.length && (skip ? /^\d+$/.test(sbd) : !sbd.includes("?")))
+    out.push({ code: "trung", msg: `Trùng SBD + mã đề với ${dup.map((o) => o.name).join(", ")}`, blocking: !skip });
+  if (!skip && Object.keys(s.students).length && !sbd.includes("?") && studentName(s, sbd) == null)
     out.push({ code: "ngoai_ds", msg: "SBD không có trong danh sách lớp", blocking: false });
   return out;
 }
+
+/** SBD để hiển thị / xuất file: đang bỏ qua soát SBD mà SBD đọc không rõ thì để trống. */
+export const sbdShown = (s: Session, sh: SheetRec) => (s.skip_sbd && /[^\d]/.test(sh.sbd) ? "" : sh.sbd);
 
 export function idQueue(s: Session): [SheetRec, Problem[]][] {
   const q: [SheetRec, Problem[]][] = [];

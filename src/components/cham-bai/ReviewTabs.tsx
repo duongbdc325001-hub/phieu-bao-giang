@@ -6,7 +6,7 @@ import type { Ctl } from "@/lib/omr/controller";
 import type { Session } from "@/lib/omr/session";
 import {
   type QItem, type SheetRec, answerFromGroups, dispAnswer, groupsFromAnswer, groupsOf, idProblems, idQueue,
-  madeDigits, normInput, qItems, reasonVi, sbdDigits, studentName, tplOf, validMade, validP3, validSbd,
+  madeDigits, normInput, qItems, reasonVi, sbdDigits, sbdShown, studentName, tplOf, validMade, validP3, validSbd,
 } from "@/lib/omr/session";
 import { BubbleView, WholeSheet, flaggedTopMarks, suspectMarks } from "./BubbleView";
 import { Btn, Modal, toast } from "./ui";
@@ -25,7 +25,8 @@ export function IdTab({ ctl }: { ctl: Ctl }) {
   const s = ctl.s!;
   const q = idQueue(s);
   const [cur, setCur] = useState<SheetRec | null>(null);
-  if (!q.length) return <Empty text={s.sheets.some((x) => !x.dropped) ? "SBD và mã đề đều ổn." : "Chưa có phiếu nào."} />;
+  const skip = !!s.skip_sbd;
+  if (!q.length) return <Empty text={s.sheets.some((x) => !x.dropped) ? (skip ? "Mã đề đều ổn (đang bỏ qua soát SBD)." : "SBD và mã đề đều ổn.") : "Chưa có phiếu nào."} />;
   return (
     <div className="space-y-3">
       <Btn tone="primary" className="w-full py-3" onClick={() => setCur(q[0][0])}><Play size={18} />Soát lần lượt {q.length} phiếu</Btn>
@@ -33,7 +34,7 @@ export function IdTab({ ctl }: { ctl: Ctl }) {
         {q.map(([sh, pr]) => (
           <li key={sh.id}>
             <button className="w-full px-4 py-2.5 text-left hover:bg-slate-50" onClick={() => setCur(sh)}>
-              <div className="text-sm font-medium">{sh.ok ? `SBD ${sh.sbd} · Mã đề ${sh.made}` : sh.name}</div>
+              <div className="text-sm font-medium">{sh.ok ? (skip ? `Mã đề ${sh.made} · ${sh.name}` : `SBD ${sh.sbd} · Mã đề ${sh.made}`) : sh.name}</div>
               <div className={`text-xs ${pr.some((p) => p.blocking) ? "text-red-600" : "text-amber-700"}`}>{pr.map((p) => p.msg).join(" • ")}</div>
             </button>
           </li>
@@ -65,6 +66,7 @@ function IdReviewer({ ctl, first, onClose }: { ctl: Ctl; first: SheetRec; onClos
   const [made, setMade] = useState(first.made);
   const [whole, setWhole] = useState(false);
   const t = tplOf(s, sh);
+  const skip = !!s.skip_sbd;
   const show = (x: SheetRec) => { setSh(x); setSel(idSel(s, x)); setSbd(x.sbd); setMade(x.made); };
 
   const selChanged = (v: Record<string, string>) => {
@@ -88,13 +90,13 @@ function IdReviewer({ ctl, first, onClose }: { ctl: Ctl; first: SheetRec; onClos
 
   const next = () => {
     const rest = idQueue(s).map(([x]) => x).filter((x) => x !== sh);
-    if (!rest.length) { toast("✓ Đã soát xong SBD / mã đề"); onClose(); return; }
+    if (!rest.length) { toast(skip ? "✓ Đã soát xong mã đề" : "✓ Đã soát xong SBD / mã đề"); onClose(); return; }
     show(rest.find((x) => x.id > sh.id) ?? rest[0]);
   };
   const confirmIt = () => {
     if (!t) return;
     const a = sbd.trim(), b = made.trim();
-    if (!validSbd(a, sbdDigits(t))) { toast(`SBD phải có 4–${sbdDigits(t)} chữ số`, true); return; }
+    if (!skip && !validSbd(a, sbdDigits(t))) { toast(`SBD phải có 4–${sbdDigits(t)} chữ số`, true); return; }
     if (!validMade(b, madeDigits(t))) { toast(`Mã đề phải đủ ${madeDigits(t)} chữ số`, true); return; }
     const err = ctl.confirmId(sh, a, b);
     if (err.length) { alert(`Chưa xác nhận được:\n${err.join("\n")}`); return; }
@@ -102,10 +104,10 @@ function IdReviewer({ ctl, first, onClose }: { ctl: Ctl; first: SheetRec; onClos
   };
 
   const pr = idProblems(s, sh);
-  const name = Object.keys(s.students).length ? studentName(s, sbd.trim()) : null;
-  const groups = t ? [...Array.from({ length: sbdDigits(t) }, (_, k) => `sbd_${k + 1}`), ...Array.from({ length: madeDigits(t) }, (_, k) => `made_${k + 1}`)] : [];
+  const name = Object.keys(s.students).length && !skip ? studentName(s, sbd.trim()) : null;
+  const groups = t ? [...(skip ? [] : Array.from({ length: sbdDigits(t) }, (_, k) => `sbd_${k + 1}`)), ...Array.from({ length: madeDigits(t) }, (_, k) => `made_${k + 1}`)] : [];
   return (
-    <Modal open onClose={onClose} full title={`Soát SBD / Mã đề · còn ${idQueue(s).length}`}>
+    <Modal open onClose={onClose} full title={`${skip ? "Soát mã đề" : "Soát SBD / Mã đề"} · còn ${idQueue(s).length}`}>
       <div className="flex h-full flex-col">
         <div className="flex items-center gap-2 px-4 pt-3 text-xs text-slate-500">
           <span className="min-w-0 flex-1 truncate">{sh.name}</span>
@@ -119,11 +121,11 @@ function IdReviewer({ ctl, first, onClose }: { ctl: Ctl; first: SheetRec; onClos
             <div className="min-h-[260px] flex-1 p-3">
               <BubbleView sid={s.id} sh={sh} tpl={t} groups={groups} sel={sel} marks={flaggedTopMarks(sh, t)} pad={{ l: 40, t: 60, r: 30, b: 30 }} onChange={selChanged} />
             </div>
-            <div className="grid grid-cols-2 gap-3 px-4">
-              <label className="text-xs text-slate-500">SBD
+            <div className={`grid gap-3 px-4 ${skip ? "grid-cols-1" : "grid-cols-2"}`}>
+              {!skip && <label className="text-xs text-slate-500">SBD
                 <input value={sbd} inputMode="numeric" onChange={(e) => textChanged(e.target.value, made)}
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-lg text-slate-900" />
-              </label>
+              </label>}
               <label className="text-xs text-slate-500">Mã đề
                 <input value={made} inputMode="numeric" onChange={(e) => textChanged(sbd, e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-lg text-slate-900" />
@@ -174,7 +176,7 @@ export function QTab({ ctl }: { ctl: Ctl }) {
                 <button className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50" onClick={() => setStart(it)}>
                   {done ? <CircleCheck size={18} className="shrink-0 text-emerald-500" /> : <Circle size={18} className="shrink-0 text-amber-500" />}
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">Câu {it.key} · SBD {it.sh.sbd} · Mã {it.sh.made}</span>
+                    <span className="block text-sm font-medium">Câu {it.key} · {sbdShown(s, it.sh) ? `SBD ${it.sh.sbd}` : it.sh.name} · Mã {it.sh.made}</span>
                     <span className="block text-xs text-slate-500">{it.why} · máy đọc: {dispAnswer(it.key, it.sh.answers[it.key] ?? "")}</span>
                   </span>
                 </button>
@@ -254,7 +256,7 @@ function QReviewer({ ctl, onlyPending, start, onClose }: { ctl: Ctl; onlyPending
       <div className="flex h-full flex-col">
         <div className="px-4 pt-3">
           <p className="text-lg font-bold">Câu {key} — {it.why}</p>
-          <p className="text-xs text-slate-500">SBD {it.sh.sbd} · Mã đề {it.sh.made} · {it.sh.name}{done ? " · đã soát" : ""}</p>
+          <p className="text-xs text-slate-500">{sbdShown(s, it.sh) ? `SBD ${it.sh.sbd} · ` : ""}Mã đề {it.sh.made} · {it.sh.name}{done ? " · đã soát" : ""}</p>
           {it.why === reasonVi.nhieu_o && (
             <p className="mt-1 text-xs text-red-600">Tô nhiều ô là sai quy chế → mặc định KHÔNG CHẤM câu này. Nếu chỉ là vết tẩy, bấm vào ô học sinh chọn rồi Xác nhận.</p>
           )}
