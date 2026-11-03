@@ -1,0 +1,21 @@
+ĐÁP ÁN - 4 MÃ ĐỀ
+
+Mã 101:
+Phần I: 1D 2C 3D 4B 5B 6D 7C 8B 9B 10B 11A 12C
+Phần II: 1SĐSĐ 2SĐĐS 3SĐĐĐ 4ĐSĐĐ
+Phần III: 1=2 2=96 3=-54 4=7 5=0.1 6=44
+
+Mã 102:
+Phần I: 1D 2C 3A 4A 5A 6D 7D 8B 9D 10C 11B 12C
+Phần II: 1ĐSĐS 2ĐĐSĐ 3SĐĐS 4ĐĐĐS
+Phần III: 1=44 2=0.1 3=7 4=96 5=2 6=-54
+
+Mã 103:
+Phần I: 1D 2C 3A 4C 5A 6A 7D 8C 9A 10C 11A 12B
+Phần II: 1ĐĐĐS 2ĐĐSĐ 3ĐSSĐ 4ĐSĐS
+Phần III: 1=-54 2=2 3=96 4=0.1 5=44 6=7
+
+Mã 104:
+Phần I: 1D 2C 3A 4D 5B 6B 7A 8D 9D 10A 11D 12A
+Phần II: 1SĐSĐ 2ĐĐĐS 3SSĐĐ 4ĐĐĐS
+Phần III: 1=7 2=44 3=0.1 4=2 5=-54 6=96
