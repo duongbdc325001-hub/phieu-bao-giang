@@ -52,7 +52,7 @@ export function SessionList() {
           : list.length === 0 ? (
             <div className="space-y-2 py-4 text-center text-sm text-slate-600">
               <p>Chưa có bài chấm nào.</p>
-              <p className="text-xs text-slate-500">In phiếu: <a className="text-emerald-700 underline" href="/omr/print/phieu_40_8_6_den_trang.pdf" target="_blank">40-8-6</a> · <a className="text-emerald-700 underline" href="/omr/print/phieu_32_6_12_v2_den_trang.pdf" target="_blank">32-6-12</a></p>
+              <p className="text-xs text-slate-500">In phiếu: <a className="text-emerald-700 underline" href="/omr/print/phieu_bgd_2025_ma_de_4_so.pdf" target="_blank">Bộ 2025 (40-8-6)</a> · <a className="text-emerald-700 underline" href="/omr/print/phieu_40_8_6_den_trang.pdf" target="_blank">40-8-6</a> · <a className="text-emerald-700 underline" href="/omr/print/phieu_32_6_12_v2_den_trang.pdf" target="_blank">32-6-12</a></p>
             </div>
           ) : (
             <ul className="-my-2 divide-y divide-slate-100">
