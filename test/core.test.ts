@@ -6,7 +6,7 @@ import {
 } from "@/lib/omr/keys";
 import {
   type SheetRec, type Session, confirmId, configWarnings, dispAnswer, dropSheet, gradeAll, gradeSheet,
-  idProblems, inKey, maxScore, newSession, newSheet, normKeyP3, p3Equal, readyToGrade, validP3,
+  idProblems, inKey, maxScore, newSession, newSheet, normKeyP3, p3Equal, readyToGrade, sbdShown, validP3,
 } from "@/lib/omr/session";
 import { gradedImageName } from "@/lib/omr/export";
 
@@ -120,6 +120,26 @@ describe("Soát SBD / mã đề", () => {
     expect(confirmId(s, a)).toEqual([]);
     expect(idProblems(s, c).map((p) => p.code)).toEqual(expect.arrayContaining(["sbd", "made_lech"]));
     expect(readyToGrade(s)).toBe(false);
+  });
+
+  test("Bỏ qua soát SBD: chỉ chặn vì mã đề, SBD trống / trùng không chặn", () => {
+    const s = newSession("t", "t");
+    s.keys = { "0001": newKey() };
+    s.skip_sbd = true;
+    const add = (sbd: string, made: string) => {
+      const sh = newSheet(s, `f${s.sheets.length}.jpg`);
+      Object.assign(sh, { ok: true, sbd, made });
+      return sh;
+    };
+    const a = add("??????", "0001"), b = add("??????", "0001"), c = add("12*4", "0001"), d = add("??????", "0009");
+    for (const sh of [a, b, c]) expect(idProblems(s, sh)).toEqual([]);
+    expect(idProblems(s, d).map((p) => p.code)).toEqual(["made_lech"]);
+    dropSheet(s, d);
+    expect(readyToGrade(s)).toBe(true);
+    expect(sbdShown(s, a)).toBe("");
+    expect(gradedImageName(a)).toBe("______" + "_0001_f0.jpg");
+    s.skip_sbd = false;
+    expect(idProblems(s, a).map((p) => p.code)).toContain("sbd");
   });
 });
 

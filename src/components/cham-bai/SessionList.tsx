@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { omr } from "@/lib/omr/engine";
 import { createSession, keysFromDaoDe, takeDaoDePayload } from "@/lib/omr/daoDe";
 import { type SessionSummary, deleteSession, listSessions, persist } from "@/lib/omr/store";
-import { BASE_PATH } from "./SessionView";
+import { BASE_PATH, SKIP_SBD_PREF } from "./SessionView";
 import { Badge, Btn, Card } from "./ui";
 
 export function SessionList() {
@@ -20,7 +20,7 @@ export function SessionList() {
     if (p) {
       const { keys, errors } = keysFromDaoDe(p);
       const d = new Date();
-      createSession(`${p.name || "Đề"} (${d.getDate()}/${d.getMonth() + 1})`, keys, `Đảo đề: ${p.name || ""}`.trim(), errors)
+      createSession(`${p.name || "Đề"} (${d.getDate()}/${d.getMonth() + 1})`, keys, `Đảo đề: ${p.name || ""}`.trim(), errors, p.skipSBD === true)
         .then((id) => router.replace(`${BASE_PATH}/${id}`));
       return;
     }
@@ -33,7 +33,9 @@ export function SessionList() {
     const d = new Date();
     const name = prompt("Tên bài chấm (ví dụ: KT 15p Toán 12A1)", `Bài chấm ${d.getDate()}/${d.getMonth() + 1}`)?.trim();
     if (!name) return;
-    const id = await createSession(name);
+    let skip = false;
+    try { skip = localStorage.getItem(SKIP_SBD_PREF) === "1"; } catch { /* chế độ riêng tư */ }
+    const id = await createSession(name, undefined, undefined, [], skip);
     router.push(`${BASE_PATH}/${id}`);
   };
 

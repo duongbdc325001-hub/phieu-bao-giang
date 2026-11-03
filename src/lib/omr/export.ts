@@ -1,7 +1,7 @@
 // Xuất kết quả: Excel 6 trang giống bản máy tính / điện thoại + mô tả vẽ ảnh đã chấm (lõi C++ omr_annotate).
 import {
   type Session, type SheetRec, active, gradeAll, groupsFromAnswer, keyFor, maxScore, pyRound, pyRound2,
-  studentName, tplOf, sbdDigits, madeDigits,
+  studentName, tplOf, sbdDigits, madeDigits, sbdShown,
 } from "./session";
 
 const ORDER: Record<string, number> = { I: 0, II: 1, III: 2 };
@@ -49,7 +49,9 @@ export function statsOf(s: Session): Stats {
 /** Tên ảnh đã chấm: SBD_mãđề_têngốc.jpg */
 export function gradedImageName(sh: SheetRec): string {
   const stem = sh.name.includes(".") ? sh.name.slice(0, sh.name.lastIndexOf(".")) : sh.name;
-  return `${sh.sbd}_${sh.made}_${stem}.jpg`;
+  // ? và * (SBD tô thiếu / tô 2 ô, khi bỏ qua soát SBD) không được dùng trong tên file Windows
+  const safe = (x: string) => x.replace(/[^\w-]/g, "_");
+  return `${safe(sh.sbd)}_${safe(sh.made)}_${stem}.jpg`;
 }
 
 /** Mô tả vẽ (JSON cho omr_annotate): xanh lá đúng, đỏ sai, xanh dương = đáp án đúng. Màu BGR như OpenCV. */
@@ -126,7 +128,7 @@ export async function buildResultXlsx(s: Session): Promise<Uint8Array> {
     ["STT", "SBD", "Họ tên", "Mã đề", "Phần I", "Phần II", "Phần III", "Tổng điểm", "Số câu đã sửa tay", "File ảnh"],
     sheets.map((sh, n) => {
       const g = sh.grade!;
-      return [n + 1, sh.sbd, studentName(s, sh.sbd) ?? "", sh.made, g.p1, g.p2, g.p3, { v: g.tong, style: 5 },
+      return [n + 1, sbdShown(s, sh), (sbdShown(s, sh) && studentName(s, sh.sbd)) || "", sh.made, g.p1, g.p2, g.p3, { v: g.tong, style: 5 },
         Object.keys(sh.edits).length, sh.name];
     }),
     { 0: 6, 1: 12, 2: 26, 3: 8, 4: 9, 5: 9, 6: 9, 7: 11, 8: 11, 9: 34 });
@@ -136,7 +138,7 @@ export async function buildResultXlsx(s: Session): Promise<Uint8Array> {
   for (let j = 2; j < qcols.length + 2; j++) w2[j] = 6;
   sheet("Chi tiet", ["SBD", "Mã đề", ...qcols], sheets.map((sh) => {
     const det = sh.grade!.detail;
-    return [sh.sbd, sh.made, ...qcols.map((k): Cell =>
+    return [sbdShown(s, sh), sh.made, ...qcols.map((k): Cell =>
       det[k] ? { v: det[k][0], style: k in sh.edits ? 4 : det[k][2] ? 2 : 3 } : "")];
   }), w2);
 

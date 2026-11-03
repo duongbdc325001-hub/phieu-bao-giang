@@ -15,7 +15,7 @@ export type ReadSignal = "good" | "warn" | "bad";
 /** Phân loại phiếu vừa đọc để báo tiếng / màu (như AppFeedback.classify). */
 export function classify(s: Session, sh: SheetRec): ReadSignal {
   if (!sh.ok) return "bad";
-  const badId = /[?*]/.test(sh.sbd) || /[?*]/.test(sh.made) || (Object.keys(s.keys).length > 0 && !(sh.made in s.keys));
+  const badId = (!s.skip_sbd && /[?*]/.test(sh.sbd)) || /[?*]/.test(sh.made) || (Object.keys(s.keys).length > 0 && !(sh.made in s.keys));
   if (badId) return "bad";
   return sh.flags.length ? "warn" : "good";
 }
@@ -156,6 +156,8 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
       mutate((s) => { setId(s, sh, { sbd, made }); err = confirmId(s, sh); });
       return err;
     },
+    /** Bật/tắt bỏ qua soát SBD (chấm bằng điện thoại cá nhân, chỉ cần mã đề). */
+    setSkipSbd: (v: boolean) => mutate((s) => { s.skip_sbd = v; s.graded = false; }),
     drop: (sh: SheetRec, reason?: string) => mutate((s) => dropSheet(s, sh, reason)),
     restore: (sh: SheetRec) => mutate((s) => restoreSheet(s, sh)),
     remove: (sh: SheetRec) => mutate((s) => { s.sheets = s.sheets.filter((x) => x !== sh); s.graded = false; }),
