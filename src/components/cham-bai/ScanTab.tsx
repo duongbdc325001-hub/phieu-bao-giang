@@ -6,7 +6,8 @@ import { type Ctl, classify } from "@/lib/omr/controller";
 import { studentName, type SheetRec } from "@/lib/omr/session";
 import { CameraScan } from "./CameraScan";
 import { WholeSheet } from "./BubbleView";
-import { Badge, Btn, Card, Modal } from "./ui";
+import { ACCEPT, sourcesFromFile } from "@/lib/omr/sources";
+import { Badge, Btn, Card, Modal, toast } from "./ui";
 
 export function ScanTab({ ctl }: { ctl: Ctl }) {
   const s = ctl.s!;
@@ -15,8 +16,21 @@ export function ScanTab({ ctl }: { ctl: Ctl }) {
   const [show, setShow] = useState<SheetRec | null>(null);
   const noKeys = Object.keys(s.keys).length === 0;
 
+  const [opening, setOpening] = useState(false);
   const onFiles = async (fs: FileList | null) => {
-    for (const f of [...(fs ?? [])]) ctl.addFile(f.name, await f.arrayBuffer());
+    setOpening(true);
+    try {
+      for (const f of [...(fs ?? [])]) {
+        try {
+          const srcs = await sourcesFromFile(f);
+          if (!srcs.length) toast(`${f.name}: không có trang nào`, true);
+          for (const src of srcs) ctl.addSource(src.name, src.load);
+          if (srcs.length > 1) toast(`${f.name}: ${srcs.length} trang`);
+        } catch (e) {
+          toast(`Không mở được ${f.name}: ${(e as Error).message}`, true);
+        }
+      }
+    } finally { setOpening(false); }
   };
 
   const list = [...s.sheets].reverse();
@@ -26,16 +40,18 @@ export function ScanTab({ ctl }: { ctl: Ctl }) {
       {noKeys && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Chưa có đáp án – vẫn chụp được, nạp đáp án sau ở bước ①.</p>}
       <div className="grid grid-cols-2 gap-2">
         <Btn tone="primary" className="py-4 text-base" onClick={() => setCam(true)}><Camera size={22} />Chụp bằng camera</Btn>
-        <Btn className="py-4 text-base" onClick={() => fileIn.current?.click()}><ImagePlus size={22} />Chọn ảnh có sẵn</Btn>
+        <Btn className="py-4 text-base" disabled={opening} onClick={() => fileIn.current?.click()}>
+          {opening ? <Loader2 size={22} className="animate-spin" /> : <ImagePlus size={22} />}Chọn ảnh / PDF scan
+        </Btn>
       </div>
-      <input ref={fileIn} type="file" accept="image/*" multiple hidden onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      <input ref={fileIn} type="file" accept={ACCEPT} multiple hidden onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
 
       <Card
         title={`Phiếu đã thêm · ${nOk} đọc được / ${s.sheets.length}`}
         right={ctl.reading > 0 && <span className="flex items-center gap-1 text-xs text-slate-500"><Loader2 size={14} className="animate-spin" />Đang đọc {ctl.reading}</span>}
       >
         {list.length === 0 ? (
-          <p className="text-sm text-slate-500">Chưa có phiếu. Chụp thẳng, đủ sáng, thấy đủ 4 ô vuông đen ở góc phiếu.</p>
+          <p className="text-sm text-slate-500">Chưa có phiếu. Chụp thẳng, đủ sáng, thấy đủ 4 ô vuông đen ở góc phiếu. Hoặc chọn ảnh / file scan (JPG, PNG, PDF, TIFF – PDF/TIFF nhiều trang thì mỗi trang 1 phiếu).</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {list.map((sh) => {

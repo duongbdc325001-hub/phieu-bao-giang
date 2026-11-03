@@ -3,6 +3,7 @@
 // Tương đương SessionController (lib/app_state.dart) của app điện thoại.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { omr } from "./engine";
+import type { Loaded } from "./sources";
 import { getSession, putImage, putSession } from "./store";
 import {
   type Session, type SheetRec, applyRead, confirmId, dropSheet, gradeAll, newSheet, nowStr, readyToGrade,
@@ -34,7 +35,8 @@ export function beep(kind: ReadSignal) {
   } catch { /* trình duyệt chặn âm thanh: bỏ qua */ }
 }
 
-type Job = { sh: SheetRec } & ({ file: ArrayBuffer } | { img: ImageData });
+// load: giải mã ảnh khi tới lượt (file scan PDF/TIFF nhiều trang không chiếm bộ nhớ cùng lúc)
+type Job = { sh: SheetRec; load: () => Promise<Loaded> };
 
 /** onSaved: gọi (chậm 3 giây, khi có mạng) sau mỗi lần lưu – dùng để đồng bộ lên Supabase nếu muốn. */
 export function useSessionController(id: string, onSaved?: (s: Session) => Promise<void> | void) {
@@ -106,9 +108,13 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
         setReading(queue.current.length + 1);
         let r;
         try {
-          r = "file" in job ? await omr().readFile(job.file) : await omr().readRgba(job.img);
+          let src: Loaded;
+          try { src = await job.load(); }
+          catch (e) { throw new Error(`Không mở được file ảnh (${(e as Error).message || "định dạng không hỗ trợ"})`); }
+          r = "file" in src ? await omr().readFile(src.file) : await omr().readRgba(src.img);
         } catch (e) {
-          r = { json: { ok: false, error: `Lõi chấm lỗi: ${(e as Error).message}` }, warped: null };
+          const m = (e as Error).message;
+          r = { json: { ok: false, error: m.startsWith("Không mở") ? m : `Lõi chấm lỗi: ${m}` }, warped: null };
         }
         const s = ref.current;
         if (!s) break;
@@ -122,21 +128,16 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
     }
   }, [mutate]);
 
-  const addFile = useCallback((name: string, bytes: ArrayBuffer) => {
+  /** Thêm 1 phiếu; load() được gọi khi tới lượt chấm. */
+  const addSource = useCallback((name: string, load: () => Promise<Loaded>) => {
     let sh!: SheetRec;
     mutate((s) => { sh = newSheet(s, name); });
-    queue.current.push({ sh, file: bytes });
+    queue.current.push({ sh, load });
     pump();
     return sh;
   }, [mutate, pump]);
 
-  const addFrame = useCallback((name: string, img: ImageData) => {
-    let sh!: SheetRec;
-    mutate((s) => { sh = newSheet(s, name); });
-    queue.current.push({ sh, img });
-    pump();
-    return sh;
-  }, [mutate, pump]);
+  const addFrame = useCallback((name: string, img: ImageData) => addSource(name, async () => ({ img })), [addSource]);
 
   const onRead = useCallback((fn: (sh: SheetRec) => void) => {
     listeners.current.add(fn);
@@ -144,7 +145,7 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
   }, []);
 
   return {
-    s: sess, ver, loaded, initialStep, reading, mutate, addFile, addFrame, onRead,
+    s: sess, ver, loaded, initialStep, reading, mutate, addSource, addFrame, onRead,
     setAnswer: (sh: SheetRec, key: string, v: string) => mutate((s) => setAnswer(s, sh, key, v)),
     setAnswerCols: (sh: SheetRec, key: string, cols: string[]) => mutate((s) => {
       setAnswer(s, sh, key, cols.join(""));
