@@ -45,10 +45,31 @@ function imageSource(f: File): Source {
   };
 }
 
+// pdf.js 3.11 bản "legacy" (chạy được cả Safari cũ), đặt sẵn ở public/omr/ và nạp khi cần:
+// không cho qua bộ đóng gói vì bản này có nhánh Node đòi gói "canvas".
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let pdfjsP: Promise<any> | null = null;
+function loadPdfjs(): Promise<any> {
+  pdfjsP ??= new Promise((res, rej) => {
+    const w = window as any;
+    if (w.pdfjsLib) { res(w.pdfjsLib); return; }
+    const el = document.createElement("script");
+    el.src = "/omr/pdf.min.js";
+    el.onload = () => {
+      const lib = w.pdfjsLib;
+      if (!lib) { rej(new Error("không nạp được thư viện PDF")); return; }
+      lib.GlobalWorkerOptions.workerSrc = "/omr/pdf.worker.min.js";
+      res(lib);
+    };
+    el.onerror = () => { pdfjsP = null; rej(new Error("không tải được thư viện PDF")); };
+    document.head.appendChild(el);
+  });
+  return pdfjsP;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 async function pdfSources(f: File): Promise<Source[]> {
-  // bản "legacy" chạy được cả Safari cũ; worker phục vụ sẵn ở /omr/
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
-  pdfjs.GlobalWorkerOptions.workerSrc = "/omr/pdf.worker.min.js";
+  const pdfjs = await loadPdfjs();
   const doc = await pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
   const n = doc.numPages;
   return Array.from({ length: n }, (_, i) => ({
@@ -68,6 +89,7 @@ async function pdfSources(f: File): Promise<Source[]> {
     },
   }));
 }
+
 
 interface UtifIfd { width: number; height: number; [k: string]: unknown }
 interface Utif {
