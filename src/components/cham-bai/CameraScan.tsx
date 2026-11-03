@@ -3,12 +3,20 @@
 // Dịch từ lib/ui/camera_screen.dart. Chế độ "qr" dùng để quét QR đáp án.
 import { Camera, Flashlight, FlashlightOff, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { omr } from "@/lib/omr/engine";
+import { omrLive } from "@/lib/omr/engine";
 import { type Ctl, beep, classify } from "@/lib/omr/controller";
 import type { SheetRec } from "@/lib/omr/session";
 
 type Pt = [number, number];
 const move = (a: Pt[], b: Pt[]) => Math.max(...a.map((p, i) => Math.hypot(p[0] - b[i][0], p[1] - b[i][1])));
+/** Hai lần chụp cùng 1 phiếu: >= 90% câu đọc giống nhau (cho phép lệch vài ô tô mờ). */
+function sameSheet(a: Record<string, string>, b: Record<string, string>) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  if (!keys.size) return true;
+  let same = 0;
+  for (const k of keys) if ((a[k] ?? "") === (b[k] ?? "")) same++;
+  return same / keys.size >= 0.9;
+}
 const area = (q: Pt[]) => Math.abs(q.reduce((s, a, i) => { const b = q[(i + 1) % 4]; return s + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2;
 
 function grab(video: HTMLVideoElement, maxSide: number, cv: HTMLCanvasElement): ImageData {
@@ -36,7 +44,7 @@ function useCamera(active = true) {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error("insecure");
         st = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } },
         });
         if (!alive) { st.getTracks().forEach((t) => t.stop()); return; }
         const track = st.getVideoTracks()[0];
@@ -116,13 +124,28 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   const [capturing, setCapturing] = useState(false);
   const [count, setCount] = useState(0);
   const [results, setResults] = useState<SheetRec[]>([]);
-  const st = useRef({ hist: [] as Pt[][], missing: 0, locked: false, capturing: false, auto: true, mine: new Set<number>(), sound: true });
+  const [steady, setSteady] = useState(0); // 0..1: giữ yên được bao lâu
+  const [skipped, setSkipped] = useState(0);
+  const st = useRef({
+    hist: [] as Pt[][], missing: 0, locked: false, capturing: false, auto: true, mine: new Set<number>(), sound: true,
+    lockQuad: null as Pt[] | null, lockAt: 0, last: null as SheetRec | null,
+  });
   useEffect(() => { st.current.auto = auto; st.current.sound = sound; }, [auto, sound]);
 
   useEffect(() => ctl.onRead((sh) => {
-    if (!st.current.mine.has(sh.id)) return;
+    const s = st.current;
+    if (!s.mine.has(sh.id)) return;
+    // chụp lại đúng phiếu vừa chụp (cùng SBD, mã đề, đáp án) -> bỏ, không tính trùng
+    const prev = s.last;
+    if (prev && prev.ok && sh.ok && prev.sbd === sh.sbd && prev.made === sh.made && sameSheet(prev.answers, sh.answers)) {
+      ctl.remove(sh);
+      setCount((c) => c - 1);
+      setSkipped((n) => n + 1);
+      return;
+    }
+    if (sh.ok) s.last = sh;
     setResults((l) => [sh, ...l.filter((x) => x !== sh)].slice(0, 4));
-    if (st.current.sound && ctl.s && classify(ctl.s, sh) !== "good") beep(classify(ctl.s, sh));
+    if (s.sound && ctl.s && classify(ctl.s, sh) !== "good") beep(classify(ctl.s, sh));
   }), [ctl]);
 
   const capture = useCallback(() => {
@@ -140,8 +163,11 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     st.current.mine.add(sh.id);
     setCount((c) => c + 1);
     st.current.locked = true;
+    st.current.lockQuad = st.current.hist[st.current.hist.length - 1] ?? null;
+    st.current.lockAt = Date.now();
     setLocked(true);
     st.current.hist = [];
+    setSteady(0);
     setTimeout(() => { st.current.capturing = false; setCapturing(false); }, 350);
   }, [ctl]);
 
@@ -155,27 +181,38 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
       if (!busy && v && v.videoWidth && !document.hidden && !st.current.capturing) {
         busy = true;
         try {
-          const r = await omr().detect(grab(v, 900, small.current!));
+          const r = await omrLive().detect(grab(v, 800, small.current!));
           if (!alive) return;
           const s = st.current;
           if (r.found && r.corners) {
             const cs = r.corners as Pt[];
             s.missing = 0;
             setCorners(cs);
+            // mở khoá chụp phiếu tiếp: phiếu dịch chỗ rõ (đã đổi phiếu) hoặc đã 2 giây
+            // (ảnh chụp lại đúng phiếu cũ sẽ tự bị bỏ khi đọc xong)
+            if (s.locked && ((s.lockQuad && move(s.lockQuad, cs) > 0.06) || Date.now() - s.lockAt > 2000)) {
+              s.locked = false; setLocked(false); s.hist = [];
+            }
+            // giữ yên: so khung hiện tại với 2 khung trước (nới cho cầm tay)
+            const prev = s.hist[s.hist.length - 1];
+            if (prev && move(prev, cs) > 0.025) s.hist = [];
             s.hist.push(cs);
             if (s.hist.length > 3) s.hist.shift();
-            const stable = s.hist.length === 3 && move(s.hist[0], s.hist[2]) < 0.015 && move(s.hist[1], s.hist[2]) < 0.015;
-            if (s.auto && !s.locked && stable && area(cs) > 0.22) capture();
+            const big = area(cs) > 0.18;
+            setSteady(big ? s.hist.length / 3 : 0);
+            const stable = s.hist.length >= 3 && move(s.hist[0], cs) < 0.03;
+            if (s.auto && !s.locked && big && stable) capture();
           } else {
             s.missing++;
             setCorners(null);
             s.hist = [];
-            if (s.missing >= 3) { s.locked = false; setLocked(false); } // phiếu đã rời khung
+            setSteady(0);
+            if (s.missing >= 2) { s.locked = false; setLocked(false); } // phiếu đã rời khung
           }
         } catch { /* bỏ khung lỗi */ }
         busy = false;
       }
-      setTimeout(tick, 120);
+      setTimeout(tick, 60);
     };
     tick();
     return () => { alive = false; };
@@ -184,7 +221,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   const hint = capturing ? "Đang chụp…"
     : locked ? "Đã chụp ✓  Đổi sang phiếu tiếp theo"
     : !corners ? "Đưa cả phiếu vào khung, thấy đủ 4 ô vuông đen ở góc"
-    : area(corners) <= 0.22 ? "Đưa camera lại gần hơn"
+    : area(corners) <= 0.18 ? "Đưa camera lại gần hơn"
     : auto ? "Giữ yên máy…" : "Đã thấy phiếu – bấm nút chụp";
 
   const color = locked ? "#0284c7" : "#16a34a";
@@ -193,6 +230,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
       <div className="flex items-center gap-1 px-2 py-2" style={{ paddingTop: "max(env(safe-area-inset-top), 8px)" }}>
         <button onClick={onClose} className="rounded-full p-2 hover:bg-white/10" aria-label="Đóng"><X /></button>
         <span className="text-base">Đã chụp {count}</span>
+        {skipped > 0 && <span className="ml-1 text-xs text-white/60">(bỏ {skipped} ảnh trùng)</span>}
         {ctl.reading > 0 && <span className="ml-2 text-xs text-white/70">· đang đọc {ctl.reading}</span>}
         <div className="flex-1" />
         <button onClick={() => setSound(!sound)} className="rounded-full p-2 hover:bg-white/10" aria-label="Âm báo">{sound ? <Volume2 /> : <VolumeX />}</button>
@@ -223,6 +261,9 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
         )}
       </div>
 
+      <div className="mx-auto mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
+        <div className="h-full rounded-full bg-emerald-400 transition-all duration-150" style={{ width: `${(locked ? 1 : steady) * 100}%` }} />
+      </div>
       <p className="px-3 py-2 text-center text-[15px]">{hint}</p>
       <div className="flex h-9 gap-1.5 overflow-x-auto px-3">
         {results.map((sh) => {
@@ -267,7 +308,7 @@ export function QrScan({ onText, onClose }: { onText: (t: string) => void; onClo
       if (!busy && v?.videoWidth) {
         busy = true;
         try {
-          const t = await omr().qrFromRgba(grab(v, 1280, cv.current!));
+          const t = await omrLive().qrFromRgba(grab(v, 1280, cv.current!));
           if (t && alive && !done.current) { done.current = true; beep("good"); onText(t); return; }
         } catch { /* bỏ qua */ }
         busy = false;

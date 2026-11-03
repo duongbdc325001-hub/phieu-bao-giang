@@ -103,4 +103,8 @@ class OmrEngine {
 }
 
 let inst: OmrEngine | null = null;
+let live: OmrEngine | null = null;
+/** Lõi dùng để chấm phiếu (mỗi phiếu vài giây). */
 export const omr = () => (inst ??= new OmrEngine());
+/** Lõi riêng cho camera (dò phiếu / QR mỗi khung hình): không phải xếp hàng chờ phiếu đang chấm. */
+export const omrLive = () => (live ??= new OmrEngine());
