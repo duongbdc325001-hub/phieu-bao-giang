@@ -568,6 +568,23 @@ $('go').onclick=async()=>{
   za.href = URL.createObjectURL(zb);
   za.download = name + '_cac_ma_de.zip';
   files.prepend(za);
+
+  // Nút "Chấm bài này": gửi đáp án sang phần Chấm bài (cùng web) rồi mở luôn bài chấm mới
+  const cb = document.createElement('button');
+  cb.type = 'button';
+  cb.textContent = '✅ Chấm bài này';
+  cb.title = 'Mở phần Chấm bài với đáp án các mã đề vừa tạo';
+  cb.style.flexBasis = '100%';
+  cb.onclick = () => {
+    try {
+      localStorage.setItem('cham-bai:tu-dao-de', JSON.stringify({
+        name, codes, at: Date.now(),
+        keys: keys.map(k => k.map(x => ({ lab: String(x.lab), val: String(x.val) })))
+      }));
+    } catch (e) { alert('Không chuyển được đáp án: ' + e.message); return; }
+    (window.top || window).location.href = '/dashboard/cham-bai';
+  };
+  za.after(cb);
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   $('key').innerHTML='<tr><th>Câu</th>'+codes.map(c=>`<th>${c}</th>`).join('')+'</tr>'+keys[0].map((k,i)=>`<tr><td>${k.lab}</td>${keys.map(x=>`<td>${esc(x[i].val)}</td>`).join('')}</tr>`).join('');
   busy(true,'Hoàn tất!','',100);

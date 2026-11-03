@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Chấm bài: file JS do emscripten sinh ra từ lõi C++ (wasm/build.sh)
+    "public/omr/omr.js",
   ]),
 ]);
 

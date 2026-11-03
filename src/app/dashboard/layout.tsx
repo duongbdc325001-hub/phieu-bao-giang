@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   Shuffle,
   ChevronDown,
-  ClipboardList
+  ClipboardList,
+  ScanLine
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -40,6 +41,8 @@ const bigState = (active: boolean) =>
 
 // "Đảo đề" là chức năng ngang hàng với cả nhóm Sổ báo giảng
 const DAO_DE: NavItem = { href: '/dashboard/dao-de', label: 'Đảo đề', icon: Shuffle }
+// "Chấm bài": chấm phiếu trắc nghiệm bằng camera (lõi C++ của app điện thoại chạy trên trình duyệt)
+const CHAM_BAI: NavItem = { href: '/dashboard/cham-bai', label: 'Chấm bài', icon: ScanLine }
 const LIEN_HE: NavItem = { href: '/dashboard/contact', label: 'Liên hệ', icon: MessageSquare }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -158,7 +161,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const renderLink = (item: NavItem, nested = false, big = false) => {
     const Icon = item.icon
-    const isActive = pathname === item.href
+    // Chấm bài có trang con /dashboard/cham-bai/[id]
+    const isActive = pathname === item.href || (item.href === CHAM_BAI.href && pathname.startsWith(item.href + '/'))
     return (
       <Link
         key={item.href}
@@ -230,6 +234,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* ĐẢO ĐỀ: chức năng riêng, ngang hàng với Sổ báo giảng */}
           {renderLink(DAO_DE, false, true)}
+
+          {/* CHẤM BÀI: chấm phiếu trắc nghiệm bằng camera điện thoại */}
+          {renderLink(CHAM_BAI, false, true)}
 
           <p className="px-3.5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Hỗ trợ
