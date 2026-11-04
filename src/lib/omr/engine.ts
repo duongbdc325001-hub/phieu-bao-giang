@@ -13,6 +13,14 @@ const BASE = "/omr/";
 // Mẫu phiếu tự nhận khi chấm. Thêm mẫu: đặt file *_toado.json vào public/omr/templates/ rồi thêm tên vào đây (và sw.js).
 const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt"];
 
+/** Trình duyệt có WebAssembly SIMD (Chrome 91+, Safari 16.4+) -> dùng lõi omr-simd.wasm (nhanh ~2 lần), không thì omr.wasm. */
+export const hasWasmSimd = (() => {
+  try {
+    return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
+  } catch { return false; }
+})();
+const WASM = hasWasmSimd ? "omr-simd.wasm" : "omr.wasm";
+
 async function get(path: string, kind: "text"): Promise<string>;
 async function get(path: string, kind: "buf"): Promise<ArrayBuffer>;
 async function get(path: string, kind: "text" | "buf") {
@@ -36,11 +44,11 @@ class OmrEngine {
     });
   }
 
-  /** Tải lõi (omr.js + omr.wasm ~4 MB) + 2 mẫu phiếu qua trang rồi khởi động Worker – chỉ 1 lần. */
+  /** Tải lõi (omr.js + omr-simd.wasm ~5,5 MB hoặc omr.wasm ~4,3 MB) + mẫu phiếu qua trang rồi khởi động Worker – chỉ 1 lần. */
   init() {
     this.initP ??= (async () => {
       const [glue, worker, wasm, ...tpls] = await Promise.all([
-        get("omr.js", "text"), get("omr-worker.js", "text"), get("omr.wasm", "buf"),
+        get("omr.js", "text"), get("omr-worker.js", "text"), get(WASM, "buf"),
         ...TEMPLATES.map((t) => get(`templates/${t}_toado.json`, "text")),
       ]);
       const url = URL.createObjectURL(new Blob([glue, "\n;\n", worker], { type: "text/javascript" }));

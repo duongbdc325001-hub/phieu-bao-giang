@@ -623,6 +623,55 @@ static void align_digit_blocks(const cv::Mat& gray32, const Template& T, const P
     }
 }
 
+// Lọc min/max 1 chiều cửa sổ [i-a, i-a+L-1] (cắt theo biên ảnh, ngoài ảnh bỏ qua) – thuật toán van Herk/Gil-Werman,
+// O(1) mỗi điểm, kết quả trùng khít với cv::erode/dilate kernel chữ nhật (biên mặc định) và open_line cũ.
+template <typename T, bool MAX>
+static void minmax_rows(const cv::Mat& src, cv::Mat& dst, int L, int a) {
+    int n = src.cols;
+    dst.create(src.size(), src.type());
+    vector<T> g(n), h(n);
+    auto op = [](T x, T y) { return MAX ? (x > y ? x : y) : (x < y ? x : y); };
+    for (int r = 0; r < src.rows; r++) {
+        const T* p = src.ptr<T>(r); T* o = dst.ptr<T>(r);
+        for (int b = 0; b < n; b += L) {
+            int e = std::min(b + L, n);
+            g[b] = p[b]; for (int i = b + 1; i < e; i++) g[i] = op(g[i - 1], p[i]);
+            h[e - 1] = p[e - 1]; for (int i = e - 2; i >= b; i--) h[i] = op(h[i + 1], p[i]);
+        }
+        for (int i = 0; i < n; i++) {
+            int lo = std::max(i - a, 0), hi = std::min(i - a + L - 1, n - 1);
+            o[i] = op(h[lo], g[hi]);
+        }
+    }
+}
+template <typename T, bool MAX>
+static void minmax_cols(const cv::Mat& src, cv::Mat& dst, int L, int a) {
+    int n = src.rows, w = src.cols;
+    dst.create(src.size(), src.type());
+    cv::Mat G(src.size(), src.type()), Hh(src.size(), src.type());
+    auto op = [](T x, T y) { return MAX ? (x > y ? x : y) : (x < y ? x : y); };
+    for (int b = 0; b < n; b += L) {
+        int e = std::min(b + L, n);
+        std::memcpy(G.ptr<T>(b), src.ptr<T>(b), w * sizeof(T));
+        for (int i = b + 1; i < e; i++) { const T* p = src.ptr<T>(i); const T* q = G.ptr<T>(i - 1); T* o = G.ptr<T>(i); for (int x = 0; x < w; x++) o[x] = op(q[x], p[x]); }
+        std::memcpy(Hh.ptr<T>(e - 1), src.ptr<T>(e - 1), w * sizeof(T));
+        for (int i = e - 2; i >= b; i--) { const T* p = src.ptr<T>(i); const T* q = Hh.ptr<T>(i + 1); T* o = Hh.ptr<T>(i); for (int x = 0; x < w; x++) o[x] = op(q[x], p[x]); }
+    }
+    for (int i = 0; i < n; i++) {
+        int lo = std::max(i - a, 0), hi = std::min(i - a + L - 1, n - 1);
+        const T* hp = Hh.ptr<T>(lo); const T* gp = G.ptr<T>(hi); T* o = dst.ptr<T>(i);
+        for (int x = 0; x < w; x++) o[x] = op(hp[x], gp[x]);
+    }
+}
+// Đóng hình thái kernel vuông k x k (k lẻ, neo giữa) cho ảnh float – trùng cv::morphologyEx(MORPH_CLOSE, ones(k,k)).
+static void rect_close32f(const cv::Mat& src, cv::Mat& dst, int k) {
+    int a = k / 2; cv::Mat t1, t2, t3;
+    minmax_rows<float, true>(src, t1, k, a);
+    minmax_cols<float, true>(t1, t2, k, a);
+    minmax_rows<float, false>(t2, t3, k, a);
+    minmax_cols<float, false>(t3, dst, k, a);
+}
+
 // ------------------------------------------------------------------ 5. đo độ đậm
 struct Meas {
     vector<float> scores, streak;
@@ -633,7 +682,8 @@ static Meas measure(const cv::Mat& chan, const Template& T, const Pos& pos, doub
     int nb = (int)T.bubbles.size();
     cv::Mat paper, norm;
     int ks = (int)(9 * S);
-    cv::morphologyEx(chan, paper, cv::MORPH_CLOSE, cv::Mat::ones(ks, ks, CV_8U));
+    if (chan.type() == CV_32F && (ks & 1)) rect_close32f(chan, paper, ks);   // nhanh, kết quả trùng khít morphologyEx
+    else cv::morphologyEx(chan, paper, cv::MORPH_CLOSE, cv::Mat::ones(ks, ks, CV_8U));
     cv::GaussianBlur(paper, paper, cv::Size(0, 0), 6 * S);
     cv::Mat pm; cv::max(paper, 1.0, pm);
     cv::divide(chan, pm, norm);
@@ -777,29 +827,13 @@ static Dec decide_digit(const vector<double>& s, const vector<string>& values, d
 }
 
 // Mở hình thái bằng đoạn thẳng dài L (giống cv::morphologyEx MORPH_OPEN với kernel 1xL hoặc Lx1, neo ở giữa):
-// co (ngoài ảnh coi như 1) rồi giãn (ngoài ảnh coi như 0). Chạy O(n) bằng tổng tích lũy.
+// co (ngoài ảnh coi như 1) rồi giãn (ngoài ảnh coi như 0).
 static cv::Mat open_line(const cv::Mat& src, int L, bool vertical) {
-    cv::Mat s = vertical ? src.t() : src;      // xử lý theo hàng
-    cv::Mat er(s.size(), CV_8U), out(s.size(), CV_8U);
-    int n = s.cols, a = L / 2;
-    vector<int> ps(n + 1), pe(n + 1);
-    for (int r = 0; r < s.rows; r++) {
-        const uchar* p = s.ptr<uchar>(r); uchar* e = er.ptr<uchar>(r); uchar* o = out.ptr<uchar>(r);
-        ps[0] = 0; for (int i = 0; i < n; i++) ps[i + 1] = ps[i] + (p[i] ? 1 : 0);
-        for (int i = 0; i < n; i++) {
-            int lo = i - a, hi = i - a + L - 1;              // cửa sổ [lo, hi]
-            int clo = std::max(lo, 0), chi = std::min(hi, n - 1);
-            int need = chi - clo + 1;
-            e[i] = (need <= 0 || ps[chi + 1] - ps[clo] == need) ? 1 : 0;
-        }
-        pe[0] = 0; for (int i = 0; i < n; i++) pe[i + 1] = pe[i] + e[i];
-        for (int i = 0; i < n; i++) {
-            int lo = i - a, hi = i - a + L - 1;
-            int clo = std::max(lo, 0), chi = std::min(hi, n - 1);
-            o[i] = (chi >= clo && pe[chi + 1] - pe[clo] > 0) ? 1 : 0;
-        }
-    }
-    return vertical ? cv::Mat(out.t()) : out;
+    // src nhị phân 0/1 (CV_8U): co rồi giãn bằng đoạn thẳng dài L (cửa sổ cắt theo biên) – như bản cũ, không cần chuyển vị
+    int a = L / 2; cv::Mat er, out;
+    if (vertical) { minmax_cols<uchar, false>(src, er, L, a); minmax_cols<uchar, true>(er, out, L, a); }
+    else { minmax_rows<uchar, false>(src, er, L, a); minmax_rows<uchar, true>(er, out, L, a); }
+    return out;
 }
 
 static cv::Mat scan_streaks(const cv::Mat& img) {
@@ -812,8 +846,9 @@ static cv::Mat scan_streaks(const cv::Mat& img) {
     dark.convertTo(dark, CV_8U);
     cv::Mat v = open_line(dark, (int)(0.25 * h), true);
     cv::Mat hz = open_line(dark, (int)(0.25 * w), false);
-    cv::Mat t1 = open_line(v, 9, false), t2 = open_line(hz, 9, true);
-    v = v & (t1 == 0) / 255; hz = hz & (t2 == 0) / 255;
+    // vạch dọc/ngang thường không có: bỏ qua bước lọc bề dày khi ảnh rỗng (kết quả như cũ)
+    if (cv::countNonZero(v)) { cv::Mat t1 = open_line(v, 9, false); v = v & (t1 == 0) / 255; }
+    if (cv::countNonZero(hz)) { cv::Mat t2 = open_line(hz, 9, true); hz = hz & (t2 == 0) / 255; }
     cv::Mat m = v | hz;
     if (cv::countNonZero(m) == 0) return cv::Mat();
     cv::dilate(m, m, cv::Mat::ones(3, 3, CV_8U));

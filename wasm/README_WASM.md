@@ -29,13 +29,22 @@ Sửa lõi ở app rồi chép đè 2 file đó vào đây, build lại là web 
      -DCMAKE_C_FLAGS=-fwasm-exceptions -DCMAKE_CXX_FLAGS=-fwasm-exceptions
    make -j8 && make install
    ```
+3. OpenCV **4.10** bản **SIMD** (cho `omr-simd.wasm`): chạy lại bước 2 vào thư mục khác (ví dụ `ocv-build-simd`,
+   cài vào `$HOME/ocv-wasm-simd`), chỉ đổi 3 cờ:
+   `-DCV_ENABLE_INTRINSICS=ON -DCMAKE_C_FLAGS="-fwasm-exceptions -msimd128" -DCMAKE_CXX_FLAGS="-fwasm-exceptions -msimd128"`
 
 ## Build
 ```bash
-OCV=$HOME/ocv-wasm ./wasm/build.sh      # ra public/omr/omr.js + omr.wasm (~4,3 MB, nén còn ~1,4 MB)
+OCV=$HOME/ocv-wasm OCV_SIMD=$HOME/ocv-wasm-simd ./wasm/build.sh
+# ra public/omr/omr.js + omr.wasm (~4,3 MB, máy cũ) + omr-simd.wasm (~5,6 MB, nhanh ~2 lần)
 ```
 
 ## Ghi chú kỹ thuật
 - `-fwasm-exceptions`: lõi dùng try/catch nhiều. Cần Safari 15.2+ / Chrome 95+ (iPhone iOS 15.2 trở lên).
-- Không bật SIMD / đa luồng để chạy được trên máy cũ và không cần header COOP/COEP.
+- Có 2 bản lõi: `omr-simd.wasm` (WebAssembly SIMD: Chrome 91+, Safari 16.4+) và `omr.wasm` (máy cũ).
+  `engine.ts` và `sw.js` tự chọn bản theo trình duyệt. Hai bản cho kết quả chấm giống nhau.
+- Không bật đa luồng để không cần header COOP/COEP.
+- Tối ưu v1.5.4 (so với v1.5.3): lọc min/max O(1) (van Herk) thay cho phép đóng hình thái 27×27 trong `measure`
+  và `open_line` trong `scan_streaks`; bỏ bước lọc bề dày khi không có vạch quét. Kết quả trùng khít bản cũ
+  (đối chiếu 38 phiếu thật: giống hệt từng điểm ô).
 - Đã đối chiếu với bản native (OpenCV 4.6): 2 ảnh mẫu `vi_du_anh/` ra **giống hệt** từng câu, SBD, mã đề, cờ lỗi.
