@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/omr/:file(omr\\.wasm|omr\\.js|omr-worker\\.js)',
+        source: '/omr/:file(omr\\.wasm|omr-simd\\.wasm|omr\\.js|omr-worker\\.js)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
       },
     ]
