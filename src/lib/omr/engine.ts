@@ -73,6 +73,15 @@ class OmrEngine {
     return this.initP;
   }
 
+  /** Tắt Worker, trả bộ nhớ (~330 MB) cho máy. Gọi lại init() sẽ khởi động lại. */
+  close() {
+    this.w?.terminate();
+    this.w = null;
+    this.initP = null;
+    for (const p of this.pending.values()) p.rej(new Error("Lõi chấm đã tắt"));
+    this.pending.clear();
+  }
+
   /** Chấm file ảnh (JPG/PNG, tự xoay theo EXIF). */
   async readFile(bytes: ArrayBuffer, maxSide = 2600): Promise<ReadResult> {
     await this.init();
@@ -116,3 +125,27 @@ let live: OmrEngine | null = null;
 export const omr = () => (inst ??= new OmrEngine());
 /** Lõi riêng cho camera (dò phiếu / QR mỗi khung hình): không phải xếp hàng chờ phiếu đang chấm. */
 export const omrLive = () => (live ??= new OmrEngine());
+
+/** Số luồng chấm song song. Mỗi luồng giữ ~330 MB bộ nhớ, nên chỉ chạy 2 luồng khi Chrome báo máy có
+ *  từ 8 GB RAM (navigator.deviceMemory làm tròn theo luỹ thừa 2: máy 6-8 GB thường báo 8) và từ 6 nhân CPU.
+ *  Máy 4 GB, iPhone/Safari (không báo RAM) giữ 1 luồng như cũ. */
+export function readerCount(): number {
+  if (typeof navigator === "undefined") return 1;
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  const cpu = navigator.hardwareConcurrency || 1;
+  return mem != null && mem >= 8 && cpu >= 6 ? 2 : 1;
+}
+const extra: OmrEngine[] = [];
+const idleT: (ReturnType<typeof setTimeout> | undefined)[] = [];
+/** Lõi chấm của luồng i (0 = lõi chính omr()). Luồng phụ chỉ khởi động khi có từ 2 phiếu chờ. */
+export function omrReader(i: number): OmrEngine {
+  if (i === 0) return omr();
+  clearTimeout(idleT[i]);
+  return (extra[i] ??= new OmrEngine());
+}
+/** Luồng phụ rảnh 60 giây thì tắt để trả bộ nhớ. */
+export function idleReader(i: number) {
+  if (i === 0 || !extra[i]) return;
+  clearTimeout(idleT[i]);
+  idleT[i] = setTimeout(() => extra[i]?.close(), 60_000);
+}
