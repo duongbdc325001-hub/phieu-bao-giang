@@ -11,7 +11,7 @@ export interface DetectResult {
 
 const BASE = "/omr/";
 // Mẫu phiếu tự nhận khi chấm. Thêm mẫu: đặt file *_toado.json vào public/omr/templates/ rồi thêm tên vào đây (và sw.js).
-const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt"];
+const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_toan_12_4_6"];
 
 /** Trình duyệt có WebAssembly SIMD (Chrome 91+, Safari 16.4+) -> dùng lõi omr-simd.wasm (nhanh ~2 lần), không thì omr.wasm. */
 export const hasWasmSimd = (() => {

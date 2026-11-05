@@ -6,7 +6,7 @@ import {
 } from "@/lib/omr/keys";
 import {
   type SheetRec, type Session, confirmId, configWarnings, dispAnswer, dropSheet, gradeAll, gradeSheet,
-  idProblems, inKey, maxScore, newSession, newSheet, normKeyP3, p3Equal, readyToGrade, sbdShown, validP3,
+  idProblems, inKey, madeKey, maxScore, newSession, newSheet, normKeyP3, p3Equal, readyToGrade, sbdShown, validP3,
 } from "@/lib/omr/session";
 import { gradedImageName } from "@/lib/omr/export";
 
@@ -141,6 +141,21 @@ describe("Soát SBD / mã đề", () => {
     s.skip_sbd = false;
     expect(idProblems(s, a).map((p) => p.code)).toContain("sbd");
   });
+});
+
+test("Phiếu 3 ô mã đề (Toán 12-4-6): mã 101 khớp đáp án 0101", () => {
+  const s = newSession("t", "t");
+  const k = newKey(); k.I[1] = "A";
+  s.keys = { "0101": k, "0102": newKey() };
+  expect(madeKey(s, "101")).toBe("0101");
+  expect(madeKey(s, "0101")).toBe("0101");
+  expect(madeKey(s, "103")).toBeUndefined();
+  expect(madeKey(s, "1?1")).toBeUndefined();
+  const sh = newSheet(s, "a.jpg");
+  Object.assign(sh, { ok: true, sbd: "123", made: "101", answers: { "I.1": "A" } });
+  expect(idProblems(s, sh).map((p) => p.code)).not.toContain("made_lech");
+  expect(gradeSheet(s, sh).p1).toBe(0.25);
+  expect(maxScore(s, "101")).toBe(0.25);
 });
 
 test("Tên ảnh chấm và lưu/mở lại phiên", () => {

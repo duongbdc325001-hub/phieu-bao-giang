@@ -1,6 +1,6 @@
 {
  "template": "PTN-40-8-6-GT",
- "name": "Phiếu 40-8-6 (mẫu phiếu thi có ô giám thị)",
+ "name": "Phiếu 40-8-6 (mẫu Cục QLCL, có ô giám thị)",
  "units": "pt; goc tren-trai trang; y huong xuong",
  "page": {
   "w": 595.0,
