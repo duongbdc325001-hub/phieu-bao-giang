@@ -2,7 +2,7 @@
 // Bộ điều khiển 1 phiên chấm: giữ Session trong bộ nhớ, đọc ảnh nối tiếp bằng lõi C++, tự lưu IndexedDB.
 // Tương đương SessionController (lib/app_state.dart) của app điện thoại.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { omr } from "./engine";
+import { idleReader, omrReader, readerCount } from "./engine";
 import type { Loaded } from "./sources";
 import { getSession, putImage, putSession } from "./store";
 import {
@@ -48,7 +48,8 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
   const [loaded, setLoaded] = useState<"loading" | "ok" | "missing">("loading");
   const [reading, setReading] = useState(0);
   const queue = useRef<Job[]>([]);
-  const running = useRef(false);
+  const busy = useRef<boolean[]>([]);   // luồng chấm i đang chạy
+  const inflight = useRef(0);            // số phiếu đang chấm dở
   const saveT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listeners = useRef(new Set<(sh: SheetRec) => void>());
   const cloudT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,34 +100,49 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
     setVer((v) => v + 1);
   }, [save]);
 
-  const pump = useCallback(async () => {
-    if (running.current) return;
-    running.current = true;
+  /** 1 luồng chấm: lấy phiếu trong hàng đợi cho tới khi hết. */
+  const runSlot = useCallback(async (slot: number) => {
     try {
       while (queue.current.length) {
         const job = queue.current.shift()!;
-        setReading(queue.current.length + 1);
+        inflight.current++;
+        setReading(queue.current.length + inflight.current);
         let r;
         try {
           let src: Loaded;
           try { src = await job.load(); }
           catch (e) { throw new Error(`Không mở được file ảnh (${(e as Error).message || "định dạng không hỗ trợ"})`); }
-          r = "file" in src ? await omr().readFile(src.file) : await omr().readRgba(src.img);
+          const eng = omrReader(slot);
+          r = "file" in src ? await eng.readFile(src.file) : await eng.readRgba(src.img);
         } catch (e) {
           const m = (e as Error).message;
           r = { json: { ok: false, error: m.startsWith("Không mở") ? m : `Lõi chấm lỗi: ${m}` }, warped: null };
+        } finally {
+          inflight.current--;
         }
         const s = ref.current;
         if (!s) break;
         if (r.warped) await putImage(s.id, job.sh.id, r.warped);
         mutate((s) => applyRead(s, job.sh, r.json, !!r.warped));
         for (const l of listeners.current) l(job.sh);
+        setReading(queue.current.length + inflight.current);
       }
     } finally {
-      running.current = false;
-      setReading(0);
+      busy.current[slot] = false;
+      idleReader(slot);
+      setReading(queue.current.length + inflight.current);
     }
   }, [mutate]);
+
+  /** Chia phiếu cho các luồng chấm: luồng 2 (máy mạnh) chỉ chạy khi còn phiếu chờ trong lúc luồng 1 đang bận. */
+  const pump = useCallback(() => {
+    const n = readerCount();
+    for (let i = 0; i < n && queue.current.length; i++) {
+      if (busy.current[i]) continue;
+      busy.current[i] = true;
+      void runSlot(i);
+    }
+  }, [runSlot]);
 
   /** Thêm 1 phiếu; load() được gọi khi tới lượt chấm. */
   const addSource = useCallback((name: string, load: () => Promise<Loaded>) => {

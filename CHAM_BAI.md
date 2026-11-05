@@ -33,6 +33,11 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
 | `test/` | 25 kiểm thử (port từ `core_test.dart` + nối đảo đề): `npm test` |
 | `supabase/migrations/` | (tuỳ chọn) bảng `cham_bai` để đồng bộ điểm |
 
+## Tốc độ
+- Lõi bản SIMD (Chrome 91+, Safari 16.4+) nhanh ~2 lần bản thường; trình duyệt tự chọn.
+- Máy mạnh (Chrome báo từ 8 GB RAM, từ 6 nhân) chấm **2 phiếu song song** khi có phiếu chờ; luồng phụ rảnh 60 giây thì tắt
+  để trả bộ nhớ. Máy 4 GB và iPhone giữ 1 luồng (mỗi luồng ~330 MB bộ nhớ).
+
 ## Lưu trữ
 Mặc định bài chấm lưu trong trình duyệt (IndexedDB) của máy đã chấm. Chấm được khi mất mạng, nhưng máy khác không thấy.
 Muốn đồng bộ lên tài khoản:
