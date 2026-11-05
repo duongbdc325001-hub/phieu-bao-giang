@@ -6,7 +6,7 @@ import { omr } from "./engine";
 import type { Loaded } from "./sources";
 import { getSession, putImage, putSession } from "./store";
 import {
-  type Session, type SheetRec, applyRead, confirmId, dropSheet, gradeAll, newSheet, nowStr, readyToGrade,
+  type Session, type SheetRec, applyRead, confirmId, dropSheet, gradeAll, madeKey, newSheet, nowStr, readyToGrade,
   restoreSheet, setAnswer, setId,
 } from "./session";
 
@@ -15,7 +15,7 @@ export type ReadSignal = "good" | "warn" | "bad";
 /** Phân loại phiếu vừa đọc để báo tiếng / màu (như AppFeedback.classify). */
 export function classify(s: Session, sh: SheetRec): ReadSignal {
   if (!sh.ok) return "bad";
-  const badId = (!s.skip_sbd && /[?*]/.test(sh.sbd)) || /[?*]/.test(sh.made) || (Object.keys(s.keys).length > 0 && !(sh.made in s.keys));
+  const badId = (!s.skip_sbd && /[?*]/.test(sh.sbd)) || /[?*]/.test(sh.made) || (Object.keys(s.keys).length > 0 && madeKey(s, sh.made) === undefined);
   if (badId) return "bad";
   return sh.flags.length ? "warn" : "good";
 }

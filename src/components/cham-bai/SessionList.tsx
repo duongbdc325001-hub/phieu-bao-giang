@@ -54,7 +54,6 @@ export function SessionList() {
           : list.length === 0 ? (
             <div className="space-y-2 py-4 text-center text-sm text-slate-600">
               <p>Chưa có bài chấm nào.</p>
-              <p className="text-xs text-slate-500">In phiếu: <a className="text-emerald-700 underline" href="/omr/print/phieu_40_8_6_den_trang.pdf" target="_blank">40-8-6</a> · <a className="text-emerald-700 underline" href="/omr/print/phieu_32_6_12_v2_den_trang.pdf" target="_blank">32-6-12</a></p>
             </div>
           ) : (
             <ul className="-my-2 divide-y divide-slate-100">
@@ -73,6 +72,17 @@ export function SessionList() {
             </ul>
           )}
       </Card>
+      <p className="text-center text-xs text-slate-500">
+        In phiếu:{" "}
+        {[
+          ["phieu_40_8_6_cuc_qlcl.pdf", "40 câu Cục QLCL"],
+          ["phieu_toan_12_4_6.pdf", "Toán 12-4-6"],
+          ["phieu_40_8_6_den_trang.pdf", "40-8-6"],
+          ["phieu_32_6_12_v2_den_trang.pdf", "32-6-12"],
+        ].map(([f, t], i) => (
+          <span key={f}>{i > 0 && " · "}<a className="text-emerald-700 underline" href={`/omr/print/${f}`} target="_blank" rel="noreferrer">{t}</a></span>
+        ))}
+      </p>
       <p className="text-center text-xs text-slate-500">Bài chấm lưu ngay trên máy này, chấm được cả khi mất mạng.</p>
     </div>
   );

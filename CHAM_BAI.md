@@ -7,13 +7,16 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
 ## Dùng
 1. Menu **Chấm bài** → **Bài chấm mới**. Hoặc ở **Đảo đề**, tạo mã đề xong bấm **✅ Chấm bài này** để vào thẳng với đáp án sẵn.
 2. 5 bước giống app:
-   - ① Đáp án: dán chữ / Excel / QR, danh sách lớp, thang điểm.
+   - ① Đáp án: **nhập tay** (chạm chọn A/B/C/D, Đ/S, gõ số phần III; sửa / chép sang mã khác), dán chữ / Excel / QR, danh sách lớp, thang điểm.
    - ② Chụp: camera tự chụp khi phiếu đứng yên, hoặc chọn ảnh có sẵn.
    - ③ Soát SBD / mã đề.
    - ④ Soát câu lỗi.
    - ⑤ Điểm: xuất Excel 6 trang và ảnh đã chấm.
 3. Mẫu phiếu tự nhận khi chấm (`public/omr/templates/`):
-   - **40-8-6 mẫu phiếu thi có ô Giám thị 1, 2** (`phieu_40_8_6_gt`): đo từ phiếu quét thật của trường; SBD/mã đề in sẵn chữ số trong ô.
+   - **Phiếu 40 câu Cục QLCL** (40-8-6, có ô Giám thị 1, 2; `phieu_40_8_6_gt`): đọc được cả bản in màu hồng gốc
+     (`print/phieu_40_8_6_cuc_qlcl.pdf`) lẫn bản photo đen trắng. Toạ độ đo từ phiếu quét thật, khớp PDF gốc (lệch < 1,6pt).
+   - **Phiếu Toán 12-4-6 thi THPT không phách** (`phieu_toan_12_4_6`, `print/phieu_toan_12_4_6.pdf`): SBD 3 số, mã đề 3 số.
+     Mã đề 3 số trên phiếu tự khớp với đáp án dù đáp án ghi 101 hay 0101.
    - 40-8-6 và 32-6-12 của app (PDF để in: `public/omr/print/`).
 
 ## Các phần đã thêm

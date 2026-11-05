@@ -1,12 +1,13 @@
 "use client";
 // ① Đáp án + danh sách lớp + thang điểm (như data_tab.dart).
-import { ClipboardPaste, FileSpreadsheet, ImageIcon, QrCode, Trash2, Users } from "lucide-react";
+import { ClipboardPaste, FileSpreadsheet, ImageIcon, PencilLine, QrCode, Trash2, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { type Ctl } from "@/lib/omr/controller";
 import { omr } from "@/lib/omr/engine";
 import { decodeKeysText, encodeKeysText, keyCount, loadKeys, loadStudents, mergeKeys } from "@/lib/omr/keys";
 import { configWarnings, maxScore, type Scale } from "@/lib/omr/session";
 import { QrScan } from "./CameraScan";
+import { ManualKeyModal } from "./ManualKey";
 import { Badge, Btn, Card, Modal, toast } from "./ui";
 
 const readBytes = async (f: File) => new Uint8Array(await f.arrayBuffer());
@@ -20,6 +21,7 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
   const [text, setText] = useState("");
   const [qr, setQr] = useState(false);
   const [view, setView] = useState(false);
+  const [manual, setManual] = useState(false);
 
   const addKeys = (keys: Record<string, import("@/lib/omr/keys").KeyMap>, source: string, extraErr: string[] = []) => {
     ctl.mutate((s) => {
@@ -99,14 +101,15 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
             ))}
           </div>
         ) : (
-          <p className="mb-3 text-sm text-slate-500">Chưa có đáp án. Lấy từ phần đảo đề, file Excel hoặc quét QR.</p>
+          <p className="mb-3 text-sm text-slate-500">Chưa có đáp án. Nhập tay, lấy từ phần đảo đề, file Excel hoặc quét QR.</p>
         )}
         {s.key_errors.length > 0 && (
           <ul className="mb-3 list-disc space-y-0.5 rounded-lg bg-red-50 py-2 pl-6 pr-3 text-xs text-red-700">
             {s.key_errors.slice(0, 8).map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         )}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <Btn tone="soft" className="col-span-2 sm:col-span-1" onClick={() => setManual(true)}><PencilLine size={16} />Nhập tay</Btn>
           <Btn tone="soft" onClick={() => setPaste(true)}><ClipboardPaste size={16} />Dán đáp án</Btn>
           <Btn tone="soft" onClick={() => fileIn.current?.click()}><FileSpreadsheet size={16} />File Excel/CSV</Btn>
           <Btn tone="soft" onClick={() => setQr(true)}><QrCode size={16} />Quét QR</Btn>
@@ -189,6 +192,16 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
         <pre className="whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed">{encodeKeysText(s.keys)}</pre>
         <p className="px-4 pb-4 text-xs text-slate-500">Tổng: {mades.reduce((a, m) => a + keyCount(s.keys[m]), 0)} câu. Nguồn: {[...new Set(Object.values(s.key_source))].join(", ")}</p>
       </Modal>
+
+      {manual && <ManualKeyModal
+        open onClose={() => setManual(false)} keys={s.keys}
+        onSave={(made, key) => ctl.mutate((s) => {
+          s.keys[made] = key;
+          s.key_source[made] = "Nhập tay";
+          s.key_errors = s.key_errors.filter((e) => !e.startsWith(`Mã đề ${made} `));
+          s.graded = false;
+        })}
+      />}
 
       {qr && <QrScan onClose={() => setQr(false)} onText={(t) => { setQr(false); fromText(t, "QR"); }} />}
     </div>

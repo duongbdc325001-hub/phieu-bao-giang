@@ -215,7 +215,7 @@ export function idProblems(s: Session, sh: SheetRec): Problem[] {
   if (bad(made)) out.push({ code: "made", msg: "Mã đề tô thiếu / tô 2 ô", blocking: true });
   else if (sh.flags.some((f) => f.startsWith("made_")) && !sh.id_done)
     out.push({ code: "made_mo", msg: "Mã đề tô nhạt, cần xác nhận", blocking: false });
-  if (Object.keys(s.keys).length && !(made in s.keys) && !bad(made))
+  if (Object.keys(s.keys).length && madeKey(s, made) === undefined && !bad(made))
     out.push({ code: "made_lech", msg: `Mã đề ${made} không có trong đáp án`, blocking: true });
   // bỏ qua SBD: chỉ cảnh báo (không chặn) khi SBD đọc rõ mà trùng – thường là chụp lại cùng một phiếu
   const dup = active(s).filter((o) => o !== sh && o.ok && o.sbd === sbd && o.made === made);
@@ -269,8 +269,18 @@ export function restoreSheet(s: Session, sh: SheetRec) {
 }
 
 // ====================================================================== soát câu
+/** Tên mã đề trong đáp án khớp với mã đề đọc từ phiếu. Đáp án lưu mã số đệm 4 chữ số ("0101"),
+ *  phiếu có 3 ô mã đề (mẫu Toán 12-4-6) đọc ra "101": so sau khi bỏ số 0 ở đầu. */
+export function madeKey(s: Session, made: string): string | undefined {
+  if (made in s.keys) return made;
+  if (!/^\d+$/.test(made)) return undefined;
+  const z = made.replace(/^0+/, "");
+  return Object.keys(s.keys).find((k) => /^\d+$/.test(k) && k.replace(/^0+/, "") === z);
+}
+
 export function keyFor(s: Session, made: string): KeyMap | undefined {
-  const k = s.keys[made];
+  const mk = madeKey(s, made);
+  const k = mk === undefined ? undefined : s.keys[mk];
   if (!k || !s.scale.n.some((x) => x != null)) return k;
   const out = newKey();
   PARTS.forEach((p, i) => {
