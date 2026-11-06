@@ -128,13 +128,18 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   const [skipped, setSkipped] = useState(0);
   const st = useRef({
     hist: [] as Pt[][], missing: 0, locked: false, capturing: false, auto: true, mine: new Set<number>(), sound: true,
-    lockQuad: null as Pt[] | null, lockAt: 0, last: null as SheetRec | null,
+    lockQuad: null as Pt[] | null, last: null as SheetRec | null,
+    lockId: -1, retried: false, missSince: 0,   // phiếu gây khoá, đã tự chụp lại 1 lần chưa, mất dấu phiếu từ lúc nào
   });
   useEffect(() => { st.current.auto = auto; st.current.sound = sound; }, [auto, sound]);
 
   useEffect(() => ctl.onRead((sh) => {
     const s = st.current;
     if (!s.mine.has(sh.id)) return;
+    // ảnh vừa chụp không đọc được mà phiếu vẫn nằm trong khung -> tự chụp lại 1 lần
+    if (!sh.ok && sh.id === s.lockId && s.locked && !s.retried) {
+      s.retried = true; s.locked = false; setLocked(false); s.hist = [];
+    }
     // chụp lại đúng phiếu vừa chụp (cùng SBD, mã đề, đáp án) -> bỏ, không tính trùng
     const prev = s.last;
     if (prev && prev.ok && sh.ok && prev.sbd === sh.sbd && prev.made === sh.made && sameSheet(prev.answers, sh.answers)) {
@@ -164,7 +169,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     setCount((c) => c + 1);
     st.current.locked = true;
     st.current.lockQuad = st.current.hist[st.current.hist.length - 1] ?? null;
-    st.current.lockAt = Date.now();
+    st.current.lockId = sh.id;
     setLocked(true);
     st.current.hist = [];
     setSteady(0);
@@ -186,12 +191,12 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
           const s = st.current;
           if (r.found && r.corners) {
             const cs = r.corners as Pt[];
-            s.missing = 0;
+            s.missing = 0; s.missSince = 0;
             setCorners(cs);
-            // mở khoá chụp phiếu tiếp: phiếu dịch chỗ rõ (đã đổi phiếu) hoặc đã 2 giây
-            // (ảnh chụp lại đúng phiếu cũ sẽ tự bị bỏ khi đọc xong)
-            if (s.locked && ((s.lockQuad && move(s.lockQuad, cs) > 0.06) || Date.now() - s.lockAt > 2000)) {
-              s.locked = false; setLocked(false); s.hist = [];
+            // mở khoá chụp phiếu tiếp chỉ khi phiếu bị dịch hẳn chỗ khác (rung tay không tính).
+            // Không tự mở theo thời gian: để yên 1 phiếu thì chỉ chụp 1 lần (muốn chụp lại: bấm nút chụp).
+            if (s.locked && s.lockQuad && move(s.lockQuad, cs) > 0.2) {
+              s.locked = false; s.retried = false; setLocked(false); s.hist = [];
             }
             // giữ yên: so khung hiện tại với 2 khung trước (nới cho cầm tay)
             const prev = s.hist[s.hist.length - 1];
@@ -204,10 +209,12 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
             if (s.auto && !s.locked && big && stable) capture();
           } else {
             s.missing++;
+            s.missSince ||= Date.now();
             setCorners(null);
             s.hist = [];
             setSteady(0);
-            if (s.missing >= 2) { s.locked = false; setLocked(false); } // phiếu đã rời khung
+            // phiếu đã rời khung (mất dấu liên tục 0,5 giây, không phải mờ thoáng qua) -> sẵn sàng phiếu tiếp
+            if (s.locked && Date.now() - s.missSince >= 500) { s.locked = false; s.retried = false; setLocked(false); }
           }
         } catch { /* bỏ khung lỗi */ }
         busy = false;
@@ -219,7 +226,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   }, [capture]);
 
   const hint = capturing ? "Đang chụp…"
-    : locked ? "Đã chụp ✓  Đổi sang phiếu tiếp theo"
+    : locked ? "Đã chụp ✓  Lấy phiếu ra, đặt phiếu tiếp theo"
     : !corners ? "Đưa cả phiếu vào khung, thấy đủ 4 ô vuông đen ở góc"
     : area(corners) <= 0.18 ? "Đưa camera lại gần hơn"
     : auto ? "Giữ yên máy…" : "Đã thấy phiếu – bấm nút chụp";
