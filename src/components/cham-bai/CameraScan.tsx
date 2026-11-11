@@ -3,7 +3,7 @@
 // Dịch từ lib/ui/camera_screen.dart. Chế độ "qr" dùng để quét QR đáp án.
 import { Camera, Flashlight, FlashlightOff, ListChecks, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { omrLive } from "@/lib/omr/engine";
+import { type DetectResult, omrLive } from "@/lib/omr/engine";
 import { type Ctl, beep, classify } from "@/lib/omr/controller";
 import { soatFlags, type SheetRec } from "@/lib/omr/session";
 
@@ -27,6 +27,26 @@ function grab(video: HTMLVideoElement, maxSide: number, cv: HTMLCanvasElement): 
   const ctx = cv.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(video, 0, 0, w, h);
   return ctx.getImageData(0, 0, w, h);
+}
+
+/** Thu nhỏ ảnh vừa chụp (canvas lớn) cho bước kiểm tra nhanh. */
+function shrink(src: HTMLCanvasElement, maxSide: number, cv: HTMLCanvasElement): ImageData {
+  const f = Math.min(1, maxSide / Math.max(src.width, src.height));
+  const w = Math.round(src.width * f), h = Math.round(src.height * f);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(src, 0, 0, w, h);
+  return ctx.getImageData(0, 0, w, h);
+}
+
+/** Kiểm tra nhanh ảnh vừa chụp (~1200px): đủ nét và khớp đủ ô mốc. Ngưỡng đo trên ảnh thật: ảnh còn đọc được
+ *  có độ nét >= 70 (ảnh nét 2000-5000), ảnh mờ hỏng <= 5. */
+const QC_SIDE = 1200, QC_SHARP = 40, QC_MARKERS = 0.75;
+function qcFail(r: DetectResult): string | null {
+  if (!r.found) return "Không thấy đủ ô mốc";
+  if ((r.sharp ?? 0) < QC_SHARP) return "Ảnh bị mờ";
+  if (r.markers != null && r.markers_total && r.markers < QC_MARKERS * r.markers_total) return "Thiếu ô mốc (phiếu bị che / lệch khung)";
+  return null;
 }
 
 /** Mở camera sau; component tự gắn stream vào <video> (xem attach). */
@@ -117,6 +137,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   const rect = useVideoRect(video);
   const small = useRef<HTMLCanvasElement | null>(null);
   const big = useRef<HTMLCanvasElement | null>(null);
+  const mid = useRef<HTMLCanvasElement | null>(null);
   const [auto, setAuto] = useState(true);
   const [sound, setSound] = useState(true);
   const [corners, setCorners] = useState<Pt[] | null>(null);
@@ -126,7 +147,9 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
   const [results, setResults] = useState<SheetRec[]>([]);
   const [steady, setSteady] = useState(0); // 0..1: giữ yên được bao lâu
   const [skipped, setSkipped] = useState(0);
-  // "Đọc xong mới chuyển phiếu" (như app 1.7.1): chụp xong đọc ngay, đọc được mới bíp; lỗi thì kêu 2 tiếng và chụp lại
+  // "Kiểm tra ảnh rồi mới chuyển phiếu" (thay cho "đọc xong mới chuyển" của app 1.7.1 – đọc hết phiếu trên điện thoại yếu
+  // mất vài giây): chụp xong kiểm tra nhanh độ nét + ô mốc (~0,2 s), đạt thì bíp, phần đọc đáp án chạy ngầm;
+  // không đạt thì kêu 2 tiếng trầm, bỏ ảnh, tự chụp lại (3 lần liền không đạt thì giữ ảnh, thôi tự chụp)
   const [waitRead, setWaitRead] = useState(() => { try { return localStorage.getItem("cham-bai:waitRead") !== "0"; } catch { return true; } });
   const [waiting, setWaiting] = useState(false);
   const [retry, setRetry] = useState<string | null>(null);   // lý do phải chụp lại tờ vừa rồi
@@ -134,36 +157,15 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     hist: [] as Pt[][], missing: 0, locked: false, capturing: false, auto: true, mine: new Set<number>(), sound: true,
     lockQuad: null as Pt[] | null, last: null as SheetRec | null,
     lockId: -1, retried: false, missSince: 0,   // phiếu gây khoá, đã tự chụp lại 1 lần chưa, mất dấu phiếu từ lúc nào
-    waitRead: true, waitId: -1, fails: 0,        // phiếu đang chờ đọc, số lần liền đọc lỗi cùng 1 tờ
-    waitT: undefined as ReturnType<typeof setTimeout> | undefined,
+    waitRead: true, waitId: -1, fails: 0,        // ảnh đang kiểm tra, số lần liền không đạt cùng 1 tờ
   });
   useEffect(() => { st.current.auto = auto; st.current.sound = sound; st.current.waitRead = waitRead; }, [auto, sound, waitRead]);
 
   useEffect(() => ctl.onRead((sh) => {
     const s = st.current;
     if (!s.mine.has(sh.id)) return;
-    if (sh.id === s.waitId) {
-      clearTimeout(s.waitT);
-      s.waitId = -1; setWaiting(false);
-      if (!sh.ok) {
-        // đọc lỗi: 2 tiếng trầm, bỏ ảnh hỏng, chờ chụp lại đúng tờ này; 3 lần liền lỗi thì giữ phiếu lỗi, thôi tự chụp
-        if (s.sound) beep("error"); else navigator.vibrate?.([150, 80, 150]);
-        s.fails++;
-        const why = (sh.error ?? "Không đọc được phiếu").split("(")[0].trim();
-        if (s.fails < 3) {
-          s.mine.delete(sh.id); ctl.remove(sh); setCount((c) => c - 1);
-          s.locked = false; setLocked(false); s.hist = [];
-          setRetry(why);
-        } else {
-          setResults((l) => [sh, ...l.filter((x) => x !== sh)].slice(0, 4));
-          setRetry(`${why} (đã thử 3 lần). Kiểm tra phiếu / mẫu phiếu, bỏ phiếu ra rồi đưa lại`);
-        }
-        return;
-      }
-      s.fails = 0; setRetry(null);
-      if (s.sound) beep("good"); else navigator.vibrate?.(60);
-    } else if (!sh.ok && sh.id === s.lockId && s.locked && !s.retried) {
-      // chế độ chụp nhanh: ảnh vừa chụp không đọc được mà phiếu vẫn trong khung -> tự chụp lại 1 lần
+    if (!sh.ok && sh.id === s.lockId && s.locked && !s.retried && s.fails < 3) {
+      // ảnh vừa chụp không đọc được mà phiếu vẫn trong khung -> tự chụp lại 1 lần
       s.retried = true; s.locked = false; setLocked(false); s.hist = [];
     }
     // chụp lại đúng phiếu vừa chụp (cùng SBD, mã đề, đáp án) -> bỏ, không tính trùng
@@ -176,8 +178,28 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     }
     if (sh.ok) s.last = sh;
     setResults((l) => [sh, ...l.filter((x) => x !== sh)].slice(0, 4));
-    if (!s.waitRead && s.sound && ctl.s && classify(ctl.s, sh) !== "good") beep(classify(ctl.s, sh));
   }), [ctl]);
+
+  /** Kết quả kiểm tra nhanh ảnh sh. */
+  const onCheck = useCallback((sh: SheetRec, why: string | null) => {
+    const s = st.current;
+    if (s.waitId !== sh.id) return;
+    s.waitId = -1; setWaiting(false);
+    if (!why) {
+      s.fails = 0; setRetry(null);
+      if (s.sound) beep("good"); else navigator.vibrate?.(60);
+      return;
+    }
+    if (s.sound) beep("error"); else navigator.vibrate?.([150, 80, 150]);
+    s.fails++;
+    if (s.fails < 3) {
+      s.mine.delete(sh.id); ctl.remove(sh); setCount((c) => c - 1);
+      s.locked = false; setLocked(false); s.hist = [];
+      setRetry(why);
+    } else {
+      setRetry(`${why} (đã thử 3 lần). Kiểm tra phiếu, bỏ phiếu ra rồi đưa lại`);   // giữ ảnh để máy vẫn thử đọc
+    }
+  }, [ctl]);
 
   const capture = useCallback(() => {
     const v = video.current;
@@ -187,17 +209,16 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     big.current ??= document.createElement("canvas");
     const img = grab(v, 2600, big.current);
     const wait = st.current.waitRead;
+    const qcImg = wait ? shrink(big.current, QC_SIDE, (mid.current ??= document.createElement("canvas"))) : null;
     if (!wait) { if (st.current.sound) beep("good"); else navigator.vibrate?.(60); }
     setRetry(null);
     const t = new Date();
     const two = (x: number) => `${x}`.padStart(2, "0");
     const name = `Anh_${two(t.getHours())}${two(t.getMinutes())}${two(t.getSeconds())}_${t.getMilliseconds()}.jpg`;
-    const sh = ctl.addFrame(name, img, wait);
-    if (wait) {
+    const sh = ctl.addFrame(name, img);
+    if (qcImg) {
       st.current.waitId = sh.id; setWaiting(true);
-      // an toàn: quá 25 giây chưa có kết quả thì thôi chờ
-      clearTimeout(st.current.waitT);
-      st.current.waitT = setTimeout(() => { if (st.current.waitId === sh.id) { st.current.waitId = -1; setWaiting(false); } }, 25000);
+      omrLive().detect(qcImg, QC_SIDE).then((r) => onCheck(sh, qcFail(r)), () => onCheck(sh, null));
     }
     st.current.mine.add(sh.id);
     setCount((c) => c + 1);
@@ -208,7 +229,7 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
     st.current.hist = [];
     setSteady(0);
     setTimeout(() => { st.current.capturing = false; setCapturing(false); }, 350);
-  }, [ctl]);
+  }, [ctl, onCheck]);
 
   // vòng dò phiếu
   useEffect(() => {
@@ -265,10 +286,10 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
 
   const failHard = retry !== null && locked;          // 3 lần lỗi: thôi tự chụp
   const hint = capturing ? "Đang chụp…"
-    : waiting ? "Đang đọc phiếu… giữ nguyên, chưa đổi phiếu"
+    : waiting ? "Đang kiểm tra ảnh… giữ nguyên"
     : failHard ? `✗ ${retry}`
     : retry !== null ? `✗ ${retry} – CHỤP LẠI phiếu này`
-    : locked ? (waitRead ? "Đọc được ✓  Lấy phiếu ra, đặt phiếu tiếp theo" : "Đã chụp ✓  Lấy phiếu ra, đặt phiếu tiếp theo")
+    : locked ? (waitRead ? "Ảnh đạt ✓  Lấy phiếu ra, đặt phiếu tiếp theo" : "Đã chụp ✓  Lấy phiếu ra, đặt phiếu tiếp theo")
     : !corners ? "Đưa cả phiếu vào khung, thấy đủ 4 ô vuông đen ở góc"
     : area(corners) <= 0.18 ? "Đưa camera lại gần hơn"
     : auto ? "Giữ yên máy…" : "Đã thấy phiếu – bấm nút chụp";
@@ -285,8 +306,8 @@ export function CameraScan({ ctl, onClose }: { ctl: Ctl; onClose: () => void }) 
         <button onClick={() => setSound(!sound)} className="rounded-full p-2 hover:bg-white/10" aria-label="Âm báo">{sound ? <Volume2 /> : <VolumeX />}</button>
         <button
           onClick={() => { const v = !waitRead; setWaitRead(v); try { localStorage.setItem("cham-bai:waitRead", v ? "1" : "0"); } catch { /* bỏ qua */ } }}
-          className="rounded-full p-2 hover:bg-white/10" aria-label={waitRead ? "Đang bật: đọc xong mới chuyển phiếu" : "Đang tắt: chụp nhanh, đọc sau"}
-          title={waitRead ? "Đang bật: đọc xong mới chuyển phiếu" : "Đang tắt: chụp nhanh, đọc sau"}>
+          className="rounded-full p-2 hover:bg-white/10" aria-label={waitRead ? "Đang bật: kiểm tra ảnh rồi mới chuyển phiếu" : "Đang tắt: chụp nhanh, đọc sau"}
+          title={waitRead ? "Đang bật: kiểm tra ảnh rồi mới chuyển phiếu" : "Đang tắt: chụp nhanh, đọc sau"}>
           {waitRead ? <ListChecks className="text-lime-300" /> : <Zap />}
         </button>
         <label className="flex items-center gap-2 px-2 text-sm text-white/80">

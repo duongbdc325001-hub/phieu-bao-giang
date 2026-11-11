@@ -41,9 +41,11 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
   tự được đọc lại với mọi mẫu (web không giữ ảnh gốc nên không có nút "Đọc lại" như app).
 - ① Đáp án → **Mức soát** Nhanh / Vừa / Kỹ (như app 1.6). Bài chấm mới dùng mức chọn gần nhất.
 - Xem đáp án: sửa / xoá từng mã đề.
-- Camera **đọc xong mới chuyển phiếu** (mặc định bật, biểu tượng ✓ xanh; bấm để chuyển sang ⚡ chụp nhanh):
-  đọc được thì bíp 1 tiếng; không đọc được thì kêu 2 tiếng trầm, bỏ ảnh hỏng, tự chụp lại; 3 lần liền lỗi thì giữ phiếu lỗi
-  và thôi tự chụp tới khi phiếu được lấy ra.
+- Camera **kiểm tra ảnh rồi mới chuyển phiếu** (mặc định bật, biểu tượng ✓ xanh; bấm để chuyển sang ⚡ chụp nhanh).
+  Khác app 1.7.1 (đọc hết phiếu mới bíp, máy yếu mất vài giây): chụp xong kiểm tra nhanh ảnh ~1200px trên luồng camera
+  (độ nét >= 40, khớp >= 75% ô mốc; ~0,2 s), đạt thì bíp 1 tiếng, phần đọc đáp án chạy ngầm. Không đạt thì kêu 2 tiếng trầm,
+  bỏ ảnh, tự chụp lại; 3 lần liền không đạt thì giữ ảnh và thôi tự chụp tới khi phiếu được lấy ra.
+  Ngưỡng đo trên ảnh thật: ảnh còn đọc được có độ nét >= 70 (ảnh nét 2000-5000), ảnh mờ hỏng <= 5.
 
 ## Tốc độ
 - Lõi bản SIMD (Chrome 91+, Safari 16.4+) nhanh ~2 lần bản thường; trình duyệt tự chọn.
