@@ -6,7 +6,7 @@ import {
 } from "@/lib/omr/keys";
 import {
   type SheetRec, type Session, confirmId, configWarnings, dispAnswer, dropSheet, gradeAll, gradeSheet,
-  idProblems, inKey, madeKey, maxScore, newSession, newSheet, normKeyP3, p3Equal, readyToGrade, sbdShown, validP3,
+  canSoat, idProblems, inKey, madeKey, maxScore, newSession, qItems, setTplMode, tplLock, newSheet, normKeyP3, p3Equal, readyToGrade, sbdShown, validP3,
 } from "@/lib/omr/session";
 import { gradedImageName } from "@/lib/omr/export";
 
@@ -156,6 +156,34 @@ test("Phiếu 3 ô mã đề (Toán 12-4-6): mã 101 khớp đáp án 0101", () 
   expect(idProblems(s, sh).map((p) => p.code)).not.toContain("made_lech");
   expect(gradeSheet(s, sh).p1).toBe(0.25);
   expect(maxScore(s, "101")).toBe(0.25);
+});
+
+test("Mức soát Nhanh / Vừa / Kỹ (như app 1.6)", () => {
+  expect(canSoat("nhieu_o", 0)).toBe(true);
+  expect(canSoat("nghi_ngo", 0)).toBe(false);
+  expect(canSoat("nghi_ngo", 1)).toBe(true);
+  expect(canSoat("can_chinh_kem", 1)).toBe(false);
+  expect(canSoat("can_chinh_kem", 2)).toBe(true);
+  const s = newSession("t", "t");
+  const k = newKey(); k.I[1] = "A"; k.I[2] = "B"; s.keys = { "0101": k };
+  const sh = newSheet(s, "a.jpg");
+  Object.assign(sh, { ok: true, sbd: "12", made: "0101", answers: { "I.1": "A", "I.2": "B" }, flags: ["I.1:nghi_ngo", "I.2:nhieu_o"] });
+  expect(qItems(s).length).toBe(2);
+  s.soat = 0;
+  expect(qItems(s).map((x) => x.key)).toEqual(["I.2"]);
+});
+
+test("Khoá mẫu phiếu: tự nhận ở phiếu đầu", () => {
+  const s = newSession("t", "t");
+  expect(tplLock(s)).toBeNull();
+  const sh = newSheet(s, "a.jpg");
+  Object.assign(sh, { ok: true, tpl: "THPT-TOAN-12-4-6" });
+  setTplMode(s, "");
+  expect(tplLock(s)).toBe("THPT-TOAN-12-4-6");
+  setTplMode(s, "*");
+  expect(tplLock(s)).toBeNull();
+  setTplMode(s, "TT-PHIEU-50-10-12");
+  expect(tplLock(s)).toBe("TT-PHIEU-50-10-12");
 });
 
 test("Tên ảnh chấm và lưu/mở lại phiên", () => {
