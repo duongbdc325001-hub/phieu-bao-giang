@@ -197,7 +197,12 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
     setSkipSbd: (v: boolean) => mutate((s) => { s.skip_sbd = v; s.graded = false; }),
     drop: (sh: SheetRec, reason?: string) => mutate((s) => dropSheet(s, sh, reason)),
     restore: (sh: SheetRec) => mutate((s) => restoreSheet(s, sh)),
-    remove: (sh: SheetRec) => mutate((s) => { s.sheets = s.sheets.filter((x) => x !== sh); s.graded = false; }),
+    /** Xoá phiếu (kể cả khi còn trong hàng đợi chưa đọc). */
+    remove: (sh: SheetRec) => {
+      queue.current = queue.current.filter((j) => j.sh !== sh);
+      setReading(queue.current.length + inflight.current);
+      mutate((s) => { s.sheets = s.sheets.filter((x) => x !== sh); s.graded = false; });
+    },
   };
 }
 

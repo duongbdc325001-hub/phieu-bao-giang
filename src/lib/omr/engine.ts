@@ -103,10 +103,10 @@ class OmrEngine {
     return this.call("read", { rgba: buf, w: img.width, h: img.height, maxSide, templateId: templateId || undefined }, [buf]);
   }
 
-  async detect(img: ImageData): Promise<DetectResult> {
+  async detect(img: ImageData, maxSide = 900): Promise<DetectResult> {
     await this.init();
     const buf = img.data.buffer as ArrayBuffer;
-    return this.call("detect", { rgba: buf, w: img.width, h: img.height, maxSide: 900 }, [buf]);
+    return this.call("detect", { rgba: buf, w: img.width, h: img.height, maxSide }, [buf]);
   }
 
   async annotate(jpg: Uint8Array, spec: string): Promise<Uint8Array | null> {
