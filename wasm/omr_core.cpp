@@ -217,6 +217,20 @@ static vector<cv::Mat> binarizations(const cv::Mat& gray) {
     return ths;
 }
 
+// Phương án dự phòng: ô mốc bị máy scan làm rỗ hạt / lốm đốm -> làm mờ mạnh rồi lấp lỗ để ô vuông liền khối lại
+static cv::Mat speckle_bin(const cv::Mat& gray) {
+    int h = gray.rows, w = gray.cols;
+    int k1 = std::max(15, (std::min(h, w) / 40) | 1);
+    double sg = std::max(1.5, std::min(h, w) / 600.0);
+    cv::Mat gb, th;
+    cv::GaussianBlur(gray, gb, cv::Size(0, 0), sg);
+    cv::adaptiveThreshold(gb, th, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, k1, 12);
+    int kc = std::max(3, ((int)(std::min(h, w) / 300.0)) | 1);
+    cv::morphologyEx(th, th, cv::MORPH_CLOSE, cv::Mat::ones(kc, kc, CV_8U));
+    cv::morphologyEx(th, th, cv::MORPH_OPEN, cv::Mat::ones(3, 3, CV_8U));
+    return th;
+}
+
 static vector<Sq> squares_from(const vector<cv::Mat>& ths, const cv::Mat& gray) {
     vector<Sq> cands;
     for (auto& th : ths) squares_in(th, gray, cands);
@@ -308,15 +322,18 @@ static std::pair<cv::Mat, int> register_sheet(const cv::Mat& img, const Template
             vector<cv::Point2f> pred = persp(T_all, H0);
             double sc = hyp(quad[1].x - quad[0].x, quad[1].y - quad[0].y) / W_t;
             double tol = tol_rel * sc * W_t;
-            int cnt = 0;
-            for (auto& p : pred) if (min_dist(p, nullptr) < tol) cnt++;
-            if (cnt >= 0.7 * N) { have = true; bkey = {cnt, 0}; bpred = pred; btol = tol; }
+            int cnt = 0; double sum = 0;
+            for (auto& p : pred) { double d = min_dist(p, nullptr); if (d < tol) { cnt++; sum += d; } }
+            if (cnt >= 0.7 * N) { have = true; bkey = {cnt, cnt ? -sum / cnt : 0.0}; bpred = pred; btol = tol; }
         }
     }
     // cách 2: ghép 3 ô to bất kỳ với 3 mốc to của mẫu
     vector<cv::Point2f> T_big = (T.local_size < 0.75 * T.corner_size) ? vector<cv::Point2f>(T_all.begin(), T_all.begin() + 4) : T_all;
     int nb = (int)big.size(), nt = (int)T_big.size();
-    if (!have) {
+    // ô mốc giữa trang cùng cỡ ô góc: khi mất 1 ô góc, cách 1 có thể lấy nhầm ô mốc giữa làm góc
+    // -> vẫn thử cách 2 và giữ cách ghép khớp nhiều ô mốc hơn (khớp sát hơn)
+    bool ambiguous = T.local_size >= 0.75 * T.corner_size && bkey.n < N;
+    if (!have || ambiguous) {
         for (int a = 0; a < nb; a++) for (int b = a + 1; b < nb; b++) for (int c = b + 1; c < nb; c++) {
             int tr[3] = {a, b, c};
             float smin = std::min({big[a].side, big[b].side, big[c].side}), smax = std::max({big[a].side, big[b].side, big[c].side});
@@ -1011,8 +1028,10 @@ static Result read_oriented(const cv::Mat& img, const Template& T, const Reg& re
     for (auto& g : T.group_names) {
         auto& ids = T.groups.at(g);
         if (!T.is_digit(ids[0])) continue;
-        double t = -1e9; for (int i : ids) t = std::max(t, (double)scores[i]);
-        if (t >= 0.2) dig_marks.push_back(t);
+        double t = -1e9, t2 = -1e9;
+        for (int i : ids) { double v = scores[i]; if (v > t) { t2 = t; t = v; } else if (v > t2) t2 = v; }
+        // ô đậm rõ, hoặc ô nhạt (phiếu scan / bút chì nhạt) nhưng tách hẳn các ô còn lại trong cột
+        if (t >= 0.2 || (t >= std::max(lo, 0.05) && t >= 3 * std::max(t2, 0.0))) dig_marks.push_back(t);
     }
     double ink_dig = dig_marks.size() >= 3 ? median(dig_marks) : ink;
     double blank_dig = std::max(0.08, 0.35 * ink_dig);
@@ -1154,6 +1173,8 @@ struct Prepared {                     // ảnh 4 hướng + ô vuông mốc: tí
     bool done[4] = {false, false, false, false};
     cv::Mat streaks[4]; bool streak_done[4] = {false, false, false, false};
     vector<cv::Mat> bins; cv::Mat gray0, gmin;
+    bool speckle = false;            // lần 2: thêm cách tách đen-trắng chống rỗ hạt
+    void enable_speckle() { speckle = true; for (int k = 0; k < 4; k++) { done[k] = false; sq[k].clear(); } }
     cv::Mat gray_min() {
         if (gmin.empty()) { vector<cv::Mat> ch; cv::split(img, ch); gmin = cv::min(cv::min(ch[0], ch[1]), ch[2]); }
         return gmin;
@@ -1164,7 +1185,9 @@ struct Prepared {                     // ảnh 4 hướng + ô vuông mốc: tí
             if (!done[0]) {
                 rot[0] = img;
                 cv::extractChannel(img, gray0, 2);
-                sq[0] = squares_from(binarizations(gray0), gray0);
+                vector<cv::Mat> ths = binarizations(gray0);
+                if (speckle) ths.push_back(speckle_bin(gray0));
+                sq[0] = squares_from(ths, gray0);
                 done[0] = true;
             }
             if (k != 0) {
@@ -1311,43 +1334,58 @@ static char* read_mat(cv::Mat img, const char* template_id, unsigned char** warp
         if (tpls.empty()) throw SheetError("Chưa nạp mẫu phiếu");
         if (img.channels() == 1) cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
         P.img = img;
-        // 1) căn chỉnh: thử hướng thẳng với mọi mẫu trước; mẫu nào khớp trọn vẹn thì nhận luôn
-        vector<Cand> cands; string err; bool err_set = false;
         vector<std::shared_ptr<Template>> use;
         for (auto& t : tpls) if (!(template_id && *template_id && t->id != template_id)) use.push_back(t);
-        bool perfect = false;
-        for (auto& t : use) {
-            try {
-                Reg reg = registration(P.get(0), *t, &P.sq[0]);
-                if (reg.q_n == 4 + (int)t->local.size() && reg.q_r > -1.5 * S) { cands = {{t.get(), reg, 0, 0}}; perfect = true; break; }
-            } catch (const SheetError&) {} catch (const cv::Exception&) {}
-        }
-        if (!perfect) {
-            // hướng thẳng đã khớp >= 80% mốc với một mẫu: phiếu không bị xoay, khỏi thử 3 hướng còn lại
-            bool upright = false;
+        string err; bool err_set = false;
+        bool have = false; Result best; const Template* bt = nullptr;
+        // lượt 1: như cũ. Lượt 2: thêm cách tìm ô mốc bị rỗ hạt / bị che (phiếu scan, mất 1 góc) – chạy khi lượt 1
+        // không căn chỉnh được, hoặc căn chỉnh được nhưng khớp < 85% ô mốc (dễ lệch); giữ lượt khớp nhiều ô mốc hơn.
+        vector<Cand> prev; // các ứng viên của lượt 1 (khi khớp kém)
+        for (int pass = 0; pass < 2 && !have; pass++) {
+            if (pass == 1) P.enable_speckle();
+            vector<Cand> cands;
+            // 1) căn chỉnh: thử hướng thẳng với mọi mẫu trước; mẫu nào khớp trọn vẹn thì nhận luôn
+            bool perfect = false;
             for (auto& t : use) {
                 try {
                     Reg reg = registration(P.get(0), *t, &P.sq[0]);
-                    if (reg.q_n >= 0.8 * (4 + (int)t->local.size())) { cands.push_back({t.get(), reg, 0, 0}); upright = true; }
-                } catch (const SheetError& e) { if (!err_set) { err = e.what(); err_set = true; } } catch (const cv::Exception&) {}
+                    if (reg.q_n == 4 + (int)t->local.size() && reg.q_r > -1.5 * S) { cands = {{t.get(), reg, 0, 0}}; perfect = true; break; }
+                } catch (const SheetError&) {} catch (const cv::Exception&) {}
             }
-            if (upright) goto read_phase;
-            for (auto& t : use) {
-                Cand c;
-                if (best_registration(P, *t, c, err, err_set)) {
-                    cands.push_back(c);
-                    if (c.reg.q_n == 4 + (int)t->local.size()) break;
+            if (!perfect) {
+                // hướng thẳng đã khớp >= 80% mốc với một mẫu: phiếu không bị xoay, khỏi thử 3 hướng còn lại
+                bool upright = false;
+                for (auto& t : use) {
+                    try {
+                        Reg reg = registration(P.get(0), *t, &P.sq[0]);
+                        if (reg.q_n >= 0.8 * (4 + (int)t->local.size())) { cands.push_back({t.get(), reg, 0, 0}); upright = true; }
+                    } catch (const SheetError& e) { if (!err_set) { err = e.what(); err_set = true; } } catch (const cv::Exception&) {}
+                }
+                if (upright) goto read_phase_lbl;
+                for (auto& t : use) {
+                    Cand c;
+                    if (best_registration(P, *t, c, err, err_set)) {
+                        cands.push_back(c);
+                        if (c.reg.q_n == 4 + (int)t->local.size()) break;
+                    }
                 }
             }
-        }
-        read_phase:
-        // 2) đọc mẫu căn chỉnh tốt nhất; lỗi thì sang mẫu kế tiếp
-        std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return reg_gt(a.reg, b.reg); });
-        bool have = false; Result best; const Template* bt = nullptr;
-        for (auto& c : cands) {
-            try { best = read_cand(P, c); bt = c.T; have = true; break; }
-            catch (const SheetError& e) { if (!err_set) { err = e.what(); err_set = true; } }
-            catch (const cv::Exception&) { if (!err_set) { err = "Không căn chỉnh được phiếu"; err_set = true; } }
+            read_phase_lbl:
+            // 2) đọc mẫu căn chỉnh tốt nhất; lỗi thì sang mẫu kế tiếp
+            std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return reg_gt(a.reg, b.reg); });
+            if (pass == 0 && !cands.empty()) {
+                const Cand& t0 = cands[0];
+                if (t0.reg.q_n < 0.85 * (4 + (int)t0.T->local.size())) { prev = cands; continue; }  // khớp kém -> thử lượt 2
+            }
+            if (pass == 1 && !prev.empty()) {
+                cands.insert(cands.end(), prev.begin(), prev.end());
+                std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return reg_gt(a.reg, b.reg); });
+            }
+            for (auto& c : cands) {
+                try { best = read_cand(P, c); bt = c.T; have = true; break; }
+                catch (const SheetError& e) { if (!err_set) { err = e.what(); err_set = true; } }
+                catch (const cv::Exception&) { if (!err_set) { err = "Không căn chỉnh được phiếu"; err_set = true; } }
+            }
         }
         if (!have) throw SheetError(err_set ? err : "Không nhận ra mẫu phiếu");
         out = to_json(best, *bt);

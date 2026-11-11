@@ -33,6 +33,18 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
 | `test/` | 25 kiểm thử (port từ `core_test.dart` + nối đảo đề): `npm test` |
 | `supabase/migrations/` | (tuỳ chọn) bảng `cham_bai` để đồng bộ điểm |
 
+## Theo app v1.7.2
+- Lõi C++ 1.7.2 (đã gắn phần tăng tốc, kết quả trùng khít lõi app trên 61 ảnh): tìm ô mốc bị máy scan làm rỗ hạt,
+  phiếu mất 1 góc, SBD / mã đề tô nhạt. Đọc thêm được 4 ảnh scan mà lõi cũ không đọc được.
+- Mẫu phiếu **50-10-12** (`phieu_50_10_12`): SBD 8 số, mã đề 4 số.
+- ① Đáp án → **Mẫu phiếu**: tự nhận ở phiếu đầu rồi khoá (mặc định) / chỉ 1 mẫu / thử tất cả. Phiếu khác mẫu đang khoá
+  tự được đọc lại với mọi mẫu (web không giữ ảnh gốc nên không có nút "Đọc lại" như app).
+- ① Đáp án → **Mức soát** Nhanh / Vừa / Kỹ (như app 1.6). Bài chấm mới dùng mức chọn gần nhất.
+- Xem đáp án: sửa / xoá từng mã đề.
+- Camera **đọc xong mới chuyển phiếu** (mặc định bật, biểu tượng ✓ xanh; bấm để chuyển sang ⚡ chụp nhanh):
+  đọc được thì bíp 1 tiếng; không đọc được thì kêu 2 tiếng trầm, bỏ ảnh hỏng, tự chụp lại; 3 lần liền lỗi thì giữ phiếu lỗi
+  và thôi tự chụp tới khi phiếu được lấy ra.
+
 ## Tốc độ
 - Lõi bản SIMD (Chrome 91+, Safari 16.4+) nhanh ~2 lần bản thường; trình duyệt tự chọn.
 - Máy mạnh (Chrome báo từ 8 GB RAM, từ 6 nhân) chấm **2 phiếu song song** khi có phiếu chờ; luồng phụ rảnh 60 giây thì tắt

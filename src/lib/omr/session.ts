@@ -18,6 +18,41 @@ export const reasonVi: Record<string, string> = {
   hai_o_sat_nhau: "Hai ô tô gần bằng nhau",
 };
 
+/** Mức soát (độ nhạy, như app 1.6): 2 = Kỹ (mọi nghi ngờ) · 1 = Vừa · 0 = Nhanh. */
+export const SOAT_TEN = ["Nhanh", "Vừa", "Kỹ"] as const;
+export const SOAT_MO_TA = [
+  "Nhanh: chỉ soát câu tô nhiều ô, hai ô đậm gần bằng nhau, số Phần III sai dạng, cột trống. Ô tô nhạt / lem máy tự chọn ô đậm nhất.",
+  "Vừa: như Nhanh, thêm ô tô nhạt, rất nhạt, nghi ngờ. Bỏ qua cảnh báo nhẹ (căn chỉnh kém, nét lạ, tô không kín, vệt bụi).",
+  "Kỹ: soát mọi chỗ máy nghi ngờ. Chậm nhất nhưng chắc nhất.",
+];
+/** Lý do luôn phải soát ở mọi mức (ảnh hưởng trực tiếp đến đáp án). */
+const SOAT_LUON_CO = new Set(["nhieu_o", "hai_o_sat_nhau", "sai_dinh_dang", "o_trong_giua", "trong"]);
+/** Mức Vừa bỏ qua thêm các cảnh báo nhẹ này. */
+const SOAT_CHI_KY = new Set(["can_chinh_kem", "vet_scan", "net_la", "to_khong_kin"]);
+/** Cảnh báo `why` có cần GV soát ở mức `level` không. */
+export function canSoat(why: string, level: number): boolean {
+  if (level >= 2 || SOAT_LUON_CO.has(why)) return true;
+  if (level === 1) return !SOAT_CHI_KY.has(why);
+  return false;
+}
+export const soatOf = (s: Session) => s.soat ?? 2;
+/** Các cờ của phiếu cần soát ở mức hiện tại. */
+export const soatFlags = (s: Session, sh: { flags: string[] }) => sh.flags.filter((f) => flagOn(s, f));
+/** Cờ "key:why" có cần soát ở mức của bài chấm không. */
+export const flagOn = (s: Session, f: string) => canSoat(f.slice(f.indexOf(":") + 1), soatOf(s));
+
+/** Mẫu dùng để đọc phiếu tiếp theo (null = thử mọi mẫu).
+ *  tpl_mode: "" = tự nhận ở phiếu đầu rồi khoá (mặc định) · "*" = luôn thử mọi mẫu · id = chỉ mẫu đó. */
+export function tplLock(s: Session): string | null {
+  const m = s.tpl_mode ?? "";
+  return m === "*" ? null : m === "" ? (s.tpl_auto ?? null) : m;
+}
+export function setTplMode(s: Session, mode: string) {
+  s.tpl_mode = mode;
+  s.tpl_auto = null;
+  if (mode === "") s.tpl_auto = s.sheets.find((sh) => sh.ok && !sh.dropped && sh.tpl)?.tpl ?? null;
+}
+
 export function nowStr(): string {
   const t = new Date();
   const two = (x: number) => `${x}`.padStart(2, "0");
@@ -97,6 +132,11 @@ export interface Session {
   next_id: number;
   /** bỏ qua soát SBD (chấm bằng điện thoại cá nhân, học sinh không cần tô SBD): chỉ soát mã đề */
   skip_sbd?: boolean;
+  /** mức soát 0..2 (mặc định 2 = Kỹ), xem canSoat() */
+  soat?: number;
+  /** khoá mẫu phiếu, xem tplLock() */
+  tpl_mode?: string;
+  tpl_auto?: string | null;
 }
 
 export interface Problem { code: string; msg: string; blocking: boolean }
@@ -157,6 +197,7 @@ export function applyRead(s: Session, sh: SheetRec, js: any, hasWarped: boolean)
     return;
   }
   const tid: string = js.template_id;
+  if (!s.tpl_mode) s.tpl_auto ??= tid;
   if (!s.tpls[tid]) {
     const bs = js.bubbles as any[];
     const ws = js.warped_size ?? [0, 0];
@@ -209,11 +250,11 @@ export function idProblems(s: Session, sh: SheetRec): Problem[] {
   const skip = !!s.skip_sbd;
   if (!skip) {
     if (bad(sbd)) out.push({ code: "sbd", msg: "SBD tô thiếu / tô 2 ô", blocking: true });
-    else if (sh.flags.some((f) => f.startsWith("sbd_")) && !sh.id_done)
+    else if (sh.flags.some((f) => f.startsWith("sbd_") && flagOn(s, f)) && !sh.id_done)
       out.push({ code: "sbd_mo", msg: "SBD tô nhạt, cần xác nhận", blocking: false });
   }
   if (bad(made)) out.push({ code: "made", msg: "Mã đề tô thiếu / tô 2 ô", blocking: true });
-  else if (sh.flags.some((f) => f.startsWith("made_")) && !sh.id_done)
+  else if (sh.flags.some((f) => f.startsWith("made_") && flagOn(s, f)) && !sh.id_done)
     out.push({ code: "made_mo", msg: "Mã đề tô nhạt, cần xác nhận", blocking: false });
   if (Object.keys(s.keys).length && madeKey(s, made) === undefined && !bad(made))
     out.push({ code: "made_lech", msg: `Mã đề ${made} không có trong đáp án`, blocking: true });
@@ -346,7 +387,7 @@ export function qItems(s: Session): QItem[] {
     for (const f of sh.flags) {
       const i = f.indexOf(":");
       const key = f.slice(0, i), why = f.slice(i + 1);
-      if (isQ(key) && inKey(s, sh, key)) out.push({ sh, key, why: reasonVi[why] ?? why });
+      if (isQ(key) && inKey(s, sh, key) && canSoat(why, soatOf(s))) out.push({ sh, key, why: reasonVi[why] ?? why });
     }
   }
   return out;

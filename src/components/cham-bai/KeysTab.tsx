@@ -3,14 +3,15 @@
 import { ClipboardPaste, FileSpreadsheet, ImageIcon, PencilLine, QrCode, Trash2, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { type Ctl } from "@/lib/omr/controller";
-import { omr } from "@/lib/omr/engine";
+import { omr, TEMPLATE_INFO } from "@/lib/omr/engine";
 import { decodeKeysText, encodeKeysText, keyCount, loadKeys, loadStudents, mergeKeys } from "@/lib/omr/keys";
-import { configWarnings, maxScore, type Scale } from "@/lib/omr/session";
+import { configWarnings, maxScore, qQueue, idQueue, SOAT_MO_TA, SOAT_TEN, setTplMode, type Scale } from "@/lib/omr/session";
 import { QrScan } from "./CameraScan";
 import { ManualKeyModal } from "./ManualKey";
 import { Badge, Btn, Card, Modal, toast } from "./ui";
 
 const readBytes = async (f: File) => new Uint8Array(await f.arrayBuffer());
+const tplName = (id: string) => TEMPLATE_INFO.find((t) => t.id === id)?.name ?? id;
 
 export function KeysTab({ ctl }: { ctl: Ctl }) {
   const s = ctl.s!;
@@ -21,7 +22,7 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
   const [text, setText] = useState("");
   const [qr, setQr] = useState(false);
   const [view, setView] = useState(false);
-  const [manual, setManual] = useState(false);
+  const [manual, setManual] = useState<false | true | string>(false);   // true = nhập mới, string = sửa mã đề
 
   const addKeys = (keys: Record<string, import("@/lib/omr/keys").KeyMap>, source: string, extraErr: string[] = []) => {
     ctl.mutate((s) => {
@@ -122,6 +123,33 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
         <input ref={qrIn} type="file" accept="image/*" hidden onChange={(e) => { onQrImage(e.target.files?.[0]); e.target.value = ""; }} />
       </Card>
 
+      <Card title="Mẫu phiếu và mức soát">
+        <div className="space-y-4 text-sm">
+          <label className="block">
+            <span className="text-slate-600">Mẫu phiếu của bài chấm này</span>
+            <select value={TEMPLATE_INFO.some((t) => t.id === s.tpl_mode) || s.tpl_mode === "*" ? s.tpl_mode : ""}
+              onChange={(e) => ctl.mutate((s) => setTplMode(s, e.target.value))}
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-2">
+              <option value="">{!s.tpl_mode && s.tpl_auto ? `Tự nhận ở phiếu đầu (đã khoá: ${tplName(s.tpl_auto)})` : "Tự nhận ở phiếu đầu rồi khoá (nên dùng)"}</option>
+              {TEMPLATE_INFO.map((t) => <option key={t.id} value={t.id}>Chỉ {t.name}</option>)}
+              <option value="*">Thử tất cả mẫu (bài trộn nhiều mẫu)</option>
+            </select>
+            <span className="mt-1 block text-xs text-slate-500">Khoá mẫu giúp đọc nhanh hơn và không nhận nhầm mẫu. Phiếu khác mẫu đang khoá sẽ tự được thử lại với mọi mẫu.</span>
+          </label>
+          <div>
+            <span className="text-slate-600">Mức soát (độ nhạy)</span>
+            <div className="mt-1 inline-flex overflow-hidden rounded-full border border-slate-300">
+              {SOAT_TEN.map((t, i) => (
+                <button key={t} onClick={() => { ctl.mutate((s) => { s.soat = i; }); try { localStorage.setItem("cham-bai:soat", String(i)); } catch { /* bỏ qua */ } }}
+                  className={`px-4 py-1.5 ${(s.soat ?? 2) === i ? "bg-emerald-600 text-white" : "bg-white text-slate-600"}`}>{t}</button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">{SOAT_MO_TA[s.soat ?? 2]}</p>
+            {s.sheets.length > 0 && <p className="mt-1 text-xs text-emerald-700">Hiện cần soát: {idQueue(s).length} phiếu ở bước SBD · {qQueue(s).length} câu ở bước soát câu</p>}
+          </div>
+        </div>
+      </Card>
+
       <Card title="Danh sách lớp (không bắt buộc)">
         <div className="flex flex-wrap items-center gap-2">
           <Btn onClick={() => classIn.current?.click()}><Users size={16} />Chọn file</Btn>
@@ -189,12 +217,28 @@ export function KeysTab({ ctl }: { ctl: Ctl }) {
       </Modal>
 
       <Modal open={view} onClose={() => setView(false)} title={`Đáp án · ${mades.length} mã đề`}>
-        <pre className="whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed">{encodeKeysText(s.keys)}</pre>
+        <ul className="divide-y divide-slate-100 px-4 pt-2">
+          {mades.map((m) => (
+            <li key={m} className="flex items-center gap-2 py-2 text-sm">
+              <span className="font-semibold">Mã {m}</span>
+              <span className="text-xs text-slate-500">{keyCount(s.keys[m])} câu · {s.key_source[m] ?? ""}</span>
+              <span className="ml-auto" />
+              <Btn tone="ghost" onClick={() => { setView(false); setManual(m); }} aria-label={`Sửa mã ${m}`}><PencilLine size={16} /></Btn>
+              <Btn tone="ghost" aria-label={`Xoá mã ${m}`} onClick={() => {
+                if (!confirm(`Xoá đáp án mã đề ${m}?`)) return;
+                ctl.mutate((s) => { delete s.keys[m]; delete s.key_source[m]; s.graded = false; });
+              }}><Trash2 size={16} /></Btn>
+            </li>
+          ))}
+        </ul>
+        <details className="px-4 pb-2"><summary className="cursor-pointer text-xs text-slate-500">Xem dạng chữ</summary>
+          <pre className="whitespace-pre-wrap py-2 font-mono text-xs leading-relaxed">{encodeKeysText(s.keys)}</pre>
+        </details>
         <p className="px-4 pb-4 text-xs text-slate-500">Tổng: {mades.reduce((a, m) => a + keyCount(s.keys[m]), 0)} câu. Nguồn: {[...new Set(Object.values(s.key_source))].join(", ")}</p>
       </Modal>
 
-      {manual && <ManualKeyModal
-        open onClose={() => setManual(false)} keys={s.keys}
+      {manual !== false && <ManualKeyModal
+        open onClose={() => setManual(false)} keys={s.keys} editMade={typeof manual === "string" ? manual : undefined}
         onSave={(made, key) => ctl.mutate((s) => {
           s.keys[made] = key;
           s.key_source[made] = "Nhập tay";

@@ -6,7 +6,7 @@ import { idleReader, omrReader, readerCount } from "./engine";
 import type { Loaded } from "./sources";
 import { getSession, putImage, putSession } from "./store";
 import {
-  type Session, type SheetRec, applyRead, confirmId, dropSheet, gradeAll, madeKey, newSheet, nowStr, readyToGrade,
+  type Session, type SheetRec, applyRead, confirmId, dropSheet, gradeAll, madeKey, newSheet, nowStr, readyToGrade, soatFlags, tplLock,
   restoreSheet, setAnswer, setId,
 } from "./session";
 
@@ -17,12 +17,27 @@ export function classify(s: Session, sh: SheetRec): ReadSignal {
   if (!sh.ok) return "bad";
   const badId = (!s.skip_sbd && /[?*]/.test(sh.sbd)) || /[?*]/.test(sh.made) || (Object.keys(s.keys).length > 0 && madeKey(s, sh.made) === undefined);
   if (badId) return "bad";
-  return sh.flags.length ? "warn" : "good";
+  return soatFlags(s, sh).length ? "warn" : "good";
 }
 
 let audio: AudioContext | null = null;
-export function beep(kind: ReadSignal) {
+/** kind "error": 2 tiếng trầm (đọc lỗi, phải chụp lại – như app 1.7.1). */
+export function beep(kind: ReadSignal | "error") {
   try {
+    if (kind === "error") {
+      navigator.vibrate?.([150, 80, 150]);
+      audio ??= new AudioContext();
+      for (const t0 of [0, 0.28]) {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = 260;
+        g.gain.setValueAtTime(0.2, audio.currentTime + t0);
+        g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + t0 + 0.22);
+        o.connect(g).connect(audio.destination);
+        o.start(audio.currentTime + t0);
+        o.stop(audio.currentTime + t0 + 0.25);
+      }
+      return;
+    }
     navigator.vibrate?.(kind === "good" ? 60 : [80, 60, 80]);
     audio ??= new AudioContext();
     const o = audio.createOscillator(), g = audio.createGain();
@@ -113,7 +128,13 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
           try { src = await job.load(); }
           catch (e) { throw new Error(`Không mở được file ảnh (${(e as Error).message || "định dạng không hỗ trợ"})`); }
           const eng = omrReader(slot);
-          r = "file" in src ? await eng.readFile(src.file) : await eng.readRgba(src.img);
+          const read = (x: Loaded, tid: string | null) => "file" in x ? eng.readFile(x.file, 2600, tid) : eng.readRgba(x.img, 2600, tid);
+          // khoá mẫu (như app 1.6.1): đọc theo mẫu đã nhận ở phiếu đầu -> nhanh hơn, không nhận nhầm mẫu.
+          // Đọc lỗi khi đang khoá thì thử lại mọi mẫu (web không giữ ảnh gốc để "Đọc lại" sau).
+          const lock = ref.current ? tplLock(ref.current) : null;
+          const copy = lock ? ("file" in src ? { file: src.file.slice(0) } : { img: new ImageData(new Uint8ClampedArray(src.img.data), src.img.width, src.img.height) }) : null;
+          r = await read(src, lock);
+          if (copy && r.json.ok !== true) r = await read(copy, null);
         } catch (e) {
           const m = (e as Error).message;
           r = { json: { ok: false, error: m.startsWith("Không mở") ? m : `Lõi chấm lỗi: ${m}` }, warped: null };
@@ -144,16 +165,16 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
     }
   }, [runSlot]);
 
-  /** Thêm 1 phiếu; load() được gọi khi tới lượt chấm. */
-  const addSource = useCallback((name: string, load: () => Promise<Loaded>) => {
+  /** Thêm 1 phiếu; load() được gọi khi tới lượt chấm. front: đọc trước các phiếu đang chờ (camera chờ đọc xong). */
+  const addSource = useCallback((name: string, load: () => Promise<Loaded>, front = false) => {
     let sh!: SheetRec;
     mutate((s) => { sh = newSheet(s, name); });
-    queue.current.push({ sh, load });
+    if (front) queue.current.unshift({ sh, load }); else queue.current.push({ sh, load });
     pump();
     return sh;
   }, [mutate, pump]);
 
-  const addFrame = useCallback((name: string, img: ImageData) => addSource(name, async () => ({ img })), [addSource]);
+  const addFrame = useCallback((name: string, img: ImageData, front = false) => addSource(name, async () => ({ img }), front), [addSource]);
 
   const onRead = useCallback((fn: (sh: SheetRec) => void) => {
     listeners.current.add(fn);

@@ -3,7 +3,7 @@
 import { Camera, ImagePlus, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { type Ctl, classify } from "@/lib/omr/controller";
-import { sbdShown, studentName, type SheetRec } from "@/lib/omr/session";
+import { sbdShown, soatFlags, studentName, type SheetRec } from "@/lib/omr/session";
 import { CameraScan } from "./CameraScan";
 import { WholeSheet } from "./BubbleView";
 import { ACCEPT, sourcesFromFile } from "@/lib/omr/sources";
@@ -67,7 +67,7 @@ export function ScanTab({ ctl }: { ctl: Ctl }) {
                       {name && <span className="font-normal text-slate-500"> · {name}</span>}
                     </div>
                     <div className="truncate text-xs text-slate-500">
-                      {sh.ok ? `${sh.tpl_name}${sh.flags.length ? ` · ${sh.flags.length} chỗ cần soát` : ""}` : sh.error ?? sh.name}
+                      {sh.ok ? `${sh.tpl_name}${soatFlags(s, sh).length ? ` · ${soatFlags(s, sh).length} chỗ cần soát` : ""}` : sh.error ?? sh.name}
                     </div>
                   </button>
                   {sh.dropped ? (

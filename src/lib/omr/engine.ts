@@ -11,7 +11,15 @@ export interface DetectResult {
 
 const BASE = "/omr/";
 // Mẫu phiếu tự nhận khi chấm. Thêm mẫu: đặt file *_toado.json vào public/omr/templates/ rồi thêm tên vào đây (và sw.js).
-const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_toan_12_4_6"];
+export const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_toan_12_4_6", "phieu_50_10_12"];
+/** Mã mẫu (trường "template" trong *_toado.json, lõi trả về ở template_id) và tên hiển thị – dùng cho ô "Mẫu phiếu". */
+export const TEMPLATE_INFO: { id: string; name: string }[] = [
+  { id: "PTN-40-8-6-GT", name: "Phiếu 40 câu Cục QLCL (40-8-6, có ô giám thị)" },
+  { id: "THPT-TOAN-12-4-6", name: "Phiếu Toán 12-4-6 (không phách)" },
+  { id: "TT-PHIEU-50-10-12", name: "Phiếu 50-10-12" },
+  { id: "TNTL-40-8-6", name: "Phiếu TNTL 40-8-6" },
+  { id: "TNTL-32-6-12-v2", name: "Phiếu TNTL 32-6-12 v2" },
+];
 
 /** Trình duyệt có WebAssembly SIMD (Chrome 91+, Safari 16.4+) -> dùng lõi omr-simd.wasm (nhanh ~2 lần), không thì omr.wasm. */
 export const hasWasmSimd = (() => {
@@ -82,17 +90,17 @@ class OmrEngine {
     this.pending.clear();
   }
 
-  /** Chấm file ảnh (JPG/PNG, tự xoay theo EXIF). */
-  async readFile(bytes: ArrayBuffer, maxSide = 2600): Promise<ReadResult> {
+  /** Chấm file ảnh (JPG/PNG, tự xoay theo EXIF). templateId: chỉ đọc theo mẫu này (khoá mẫu). */
+  async readFile(bytes: ArrayBuffer, maxSide = 2600, templateId?: string | null): Promise<ReadResult> {
     await this.init();
-    return this.call("read", { file: bytes, maxSide }, [bytes]);
+    return this.call("read", { file: bytes, maxSide, templateId: templateId || undefined }, [bytes]);
   }
 
   /** Chấm khung hình RGBA lấy từ canvas. */
-  async readRgba(img: ImageData, maxSide = 2600): Promise<ReadResult> {
+  async readRgba(img: ImageData, maxSide = 2600, templateId?: string | null): Promise<ReadResult> {
     await this.init();
     const buf = img.data.buffer as ArrayBuffer;
-    return this.call("read", { rgba: buf, w: img.width, h: img.height, maxSide }, [buf]);
+    return this.call("read", { rgba: buf, w: img.width, h: img.height, maxSide, templateId: templateId || undefined }, [buf]);
   }
 
   async detect(img: ImageData): Promise<DetectResult> {

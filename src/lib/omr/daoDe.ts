@@ -58,6 +58,8 @@ export async function createSession(
 ): Promise<string> {
   const s = newSession(uid(), name);
   if (skipSbd) s.skip_sbd = true;
+  // bài chấm mới dùng mức soát chọn gần nhất (như app)
+  try { const v = Number(localStorage.getItem("cham-bai:soat")); if (v === 0 || v === 1) s.soat = v; } catch { /* bỏ qua */ }
   if (dapAn) {
     s.keys = typeof dapAn === "string" ? decodeKeysText(dapAn) : dapAn;
     for (const m of Object.keys(s.keys)) s.key_source[m] = source;

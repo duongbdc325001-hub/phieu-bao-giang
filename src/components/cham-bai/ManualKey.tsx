@@ -56,14 +56,16 @@ function toKey(d: Draft): { key: KeyMap; errors: string[] } {
   return { key, errors };
 }
 
-export function ManualKeyModal({ open, onClose, keys, onSave }: {
+export function ManualKeyModal({ open, onClose, keys, onSave, editMade }: {
   open: boolean; onClose: () => void;
   keys: Record<string, KeyMap>;
+  /** mở sẵn mã đề này để sửa */
+  editMade?: string;
   onSave: (made: string, key: KeyMap, replace: boolean) => void;
 }) {
   const mades = useMemo(() => Object.keys(keys).sort(), [keys]);
-  const [d, setD] = useState<Draft>(() => blank([12, 4, 6]));
-  const [editing, setEditing] = useState<string | null>(null);
+  const [d, setD] = useState<Draft>(() => (editMade && keys[editMade] ? fromKey(editMade, keys[editMade]) : blank([12, 4, 6])));
+  const [editing, setEditing] = useState<string | null>(editMade && keys[editMade] ? editMade : null);
 
   const up = (fn: (x: Draft) => void) => setD((o) => { const x: Draft = { ...o, n: [...o.n], I: [...o.I], II: o.II.map((r) => [...r]), III: [...o.III] }; fn(x); return x; });
   const setN = (i: number, v: number) => up((x) => { x.n[i] = Math.max(0, Math.min(LIM[i], Math.round(v) || 0)); });
