@@ -51,7 +51,11 @@ export function beep(kind: ReadSignal | "error") {
 }
 
 // load: giải mã ảnh khi tới lượt (file scan PDF/TIFF nhiều trang không chiếm bộ nhớ cùng lúc)
-type Job = { sh: SheetRec; load: () => Promise<Loaded> };
+type Job = { sh: SheetRec; load: () => Promise<Loaded>; pre?: Promise<Loaded> };
+/** Số phiếu tải / giải mã trước trong lúc đang chấm (ảnh chọn từ Google Drive phải tải qua mạng). */
+const PREFETCH = 2;
+/** Lấy ảnh của phiếu: dùng bản đã tải trước nếu có. */
+const loadJob = (j: Job) => (j.pre ??= j.load());
 
 /** onSaved: gọi (chậm 3 giây, khi có mạng) sau mỗi lần lưu – dùng để đồng bộ lên Supabase nếu muốn. */
 export function useSessionController(id: string, onSaved?: (s: Session) => Promise<void> | void) {
@@ -125,7 +129,9 @@ export function useSessionController(id: string, onSaved?: (s: Session) => Promi
         let r;
         try {
           let src: Loaded;
-          try { src = await job.load(); }
+          // tải trước các phiếu kế tiếp trong lúc chấm phiếu này (chỉ ảnh/PDF chọn từ máy; ảnh camera đã có sẵn)
+          for (const nx of queue.current.slice(0, PREFETCH)) loadJob(nx).catch(() => {});
+          try { src = await loadJob(job); }
           catch (e) { throw new Error(`Không mở được file ảnh (${(e as Error).message || "định dạng không hỗ trợ"})`); }
           const eng = omrReader(slot);
           const read = (x: Loaded, tid: string | null) => "file" in x ? eng.readFile(x.file, 2600, tid) : eng.readRgba(x.img, 2600, tid);
