@@ -19,7 +19,8 @@ import {
   Shuffle,
   ChevronDown,
   ClipboardList,
-  ScanLine
+  ScanLine,
+  MonitorPlay
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -43,6 +44,8 @@ const bigState = (active: boolean) =>
 const DAO_DE: NavItem = { href: '/dashboard/dao-de', label: 'Đảo đề', icon: Shuffle }
 // "Chấm bài": chấm phiếu trắc nghiệm bằng camera (lõi C++ của app điện thoại chạy trên trình duyệt)
 const CHAM_BAI: NavItem = { href: '/dashboard/cham-bai', label: 'Chấm bài', icon: ScanLine }
+// "Thi online": đề thi HTML trong public/thi/, học sinh mở link là làm (chỉ hiện cho admin)
+const THI_ONLINE: NavItem = { href: '/dashboard/thi-online', label: 'Thi online', icon: MonitorPlay }
 const LIEN_HE: NavItem = { href: '/dashboard/contact', label: 'Liên hệ', icon: MessageSquare }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -237,6 +240,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* CHẤM BÀI: chấm phiếu trắc nghiệm bằng camera điện thoại */}
           {renderLink(CHAM_BAI, false, true)}
+
+          {/* THI ONLINE: link và mã QR các đề thi online (chỉ admin) */}
+          {userRole === 'admin' && renderLink(THI_ONLINE, false, true)}
 
           <p className="px-3.5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Hỗ trợ
