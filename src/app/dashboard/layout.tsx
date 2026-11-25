@@ -246,26 +246,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Ứng dụng
           </p>
 
-          {/* NHÓM SỔ BÁO GIẢNG (4 chức năng con) */}
-          <button
-            onClick={() => setSoOpen((v) => !v)}
-            className={`${BIG_BTN} ${bigState(soActive)}`}
-          >
-            <ClipboardList className="w-5 h-5" />
-            <span className="flex-1 text-left">Sổ báo giảng</span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${soOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {soOpen && (
-            <div className="ml-5 pl-3 border-l border-slate-700 space-y-1">
-              {SO_BAO_GIANG.map((item) => renderLink(item, true))}
+          {/* 3 ô lớn cách nhau rõ ràng (trước đây sát nhau, dễ bấm nhầm) */}
+          <div className="space-y-3">
+            {/* NHÓM SỔ BÁO GIẢNG (4 chức năng con) */}
+            <div>
+              <button
+                onClick={() => setSoOpen((v) => !v)}
+                className={`${BIG_BTN} ${bigState(soActive)}`}
+              >
+                <ClipboardList className="w-5 h-5" />
+                <span className="flex-1 text-left">Sổ báo giảng</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${soOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {soOpen && (
+                <div className="mt-2 ml-5 pl-3 border-l border-slate-700 space-y-1">
+                  {SO_BAO_GIANG.map((item) => renderLink(item, true))}
+                </div>
+              )}
             </div>
-          )}
 
-          {/* ĐẢO ĐỀ: chức năng riêng, ngang hàng với Sổ báo giảng */}
-          {renderLink(DAO_DE, false, true)}
+            {/* ĐẢO ĐỀ: chức năng riêng, ngang hàng với Sổ báo giảng */}
+            {renderLink(DAO_DE, false, true)}
 
-          {/* CHẤM BÀI: chấm phiếu trắc nghiệm bằng camera điện thoại */}
-          {renderLink(CHAM_BAI, false, true)}
+            {/* CHẤM BÀI: chấm phiếu trắc nghiệm bằng camera điện thoại */}
+            {renderLink(CHAM_BAI, false, true)}
+          </div>
 
           <p className="px-3.5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             Hỗ trợ
