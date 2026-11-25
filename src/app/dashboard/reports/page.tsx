@@ -632,7 +632,7 @@ export default function ReportsPage() {
             </colgroup>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
-                <th className="px-3 py-2.5 text-center">Thứ, ngày</th>
+                <th className="px-3 py-2.5 text-center border-r border-slate-200">Thứ, ngày</th>
                 <th className="px-3 py-2.5 border-l border-slate-200">Lớp - môn</th>
                 <th className="px-3 py-2.5 text-center border-l border-slate-200">Tiết TKB</th>
                 <th className="px-4 py-2.5 border-l border-slate-200">Tên bài dạy theo PPCT</th>
@@ -659,7 +659,7 @@ export default function ReportsPage() {
 
                 if (isDayOff) {
                   return (
-                    <tr key={`off_${group.day.id}`} className="border-t-2 border-slate-200">
+                    <tr key={`off_${group.day.id}`} className="border-t-2 border-slate-300">
                       {dayCell(1)}
                       <td colSpan={5} className="px-4 py-2.5 text-sm text-slate-400">Không có tiết dạy</td>
                     </tr>
@@ -678,11 +678,11 @@ export default function ReportsPage() {
                   return (
                     <tr
                       key={`${group.day.id}_p${slot.period}_${idx}`}
-                      className={`group hover:bg-slate-50/70 ${isFirst ? 'border-t-2 border-slate-200' : 'border-t border-slate-100'}`}
+                      className={`group hover:bg-slate-50/70 ${isFirst ? 'border-t-2 border-slate-300' : 'border-t border-slate-100'}`}
                     >
                       {isFirst && dayCell(group.slots.length)}
 
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 border-l border-slate-200">
                         <span className="inline-flex items-center gap-2">
                           <span className="text-sm font-bold text-slate-900">{code}</span>
                           {subject && (
@@ -693,13 +693,13 @@ export default function ReportsPage() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-3 py-2.5 text-center border-l border-slate-200">
                         <span className={`text-sm tabular-nums ${isAfternoon ? 'font-semibold text-amber-700' : 'text-slate-600'}`}>
                           {slot.period}
                         </span>
                       </td>
 
-                      <td className="px-4 py-2.5 align-middle">
+                      <td className="px-4 py-2.5 align-middle border-l border-slate-200">
                         {!slot.hasTemplate ? (
                           <Link
                             href="/dashboard/curriculum"
@@ -715,7 +715,7 @@ export default function ReportsPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-3 py-2.5 text-center border-l border-slate-200">
                         {slot.hasTemplate && (
                           <button
                             type="button"
@@ -731,7 +731,7 @@ export default function ReportsPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-3 py-2.5 text-center border-l border-slate-200">
                         {!slot.hasTemplate ? (
                           <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">Thiếu PPCT</span>
                         ) : slot.noteLabel ? (
