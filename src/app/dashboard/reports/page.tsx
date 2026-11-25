@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useSchoolYear } from '@/components/school-year'
+import { weekOf, dateOf } from '@/lib/namHoc'
 import {
-  START_DATE_WEEK_1,
-  MAX_WEEK,
   DAYS,
   formatPeriodLabel,
   type TimelineSlot,
@@ -30,21 +30,6 @@ import {
   HeightRule,
 } from 'docx'
 import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
-
-const getCurrentWeekNumber = () => {
-  const startDate = new Date(START_DATE_WEEK_1)
-  const today = new Date()
-
-  startDate.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-
-  const diffTime = today.getTime() - startDate.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays < 0) return 1
-  const currentWeek = Math.floor(diffDays / 7) + 1
-  return Math.min(Math.max(currentWeek, 1), 35)
-}
 
 // Màu nhãn môn học: mỗi môn luôn ra cùng một màu để quét mắt theo môn cho nhanh
 const SUBJECT_STYLES = [
@@ -124,7 +109,15 @@ const computeReorder = (timeline: TimelineSlot[], from: number, to: number) => {
 
 export default function ReportsPage() {
   const supabase = createClient()
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber())
+  const { year } = useSchoolYear()
+  const yearId = year.id
+  const [selectedWeek, setSelectedWeek] = useState(() => weekOf(year))
+  // Đổi năm học -> về tuần hiện tại (hoặc tuần 1) của năm đó
+  const [shownYearId, setShownYearId] = useState(yearId)
+  if (shownYearId !== yearId) {
+    setShownYearId(yearId)
+    setSelectedWeek(weekOf(year))
+  }
   const [schedule, setSchedule] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
@@ -146,8 +139,7 @@ export default function ReportsPage() {
   const [reorderNumber, setReorderNumber] = useState<string>('') // số tiết CT người dùng nhập ở tab Đảo tiết
 
   const getFormattedDate = (offset: number) => {
-    const d = new Date(START_DATE_WEEK_1)
-    d.setDate(d.getDate() + (selectedWeek - 1) * 7 + offset)
+    const d = dateOf(year, selectedWeek, offset)
     const day = String(d.getDate()).padStart(2, '0')
     const month = String(d.getMonth() + 1).padStart(2, '0')
     return `${day}/${month}`
@@ -155,18 +147,22 @@ export default function ReportsPage() {
 
   // Supabase mặc định chỉ trả tối đa 1000 dòng mỗi lần. Đọc theo từng trang để không bị cắt mất dữ liệu
   // (ví dụ nhiều khung PPCT x ~105 tiết, hoặc TKB nhiều tuần).
-  const fetchAll = (table: string) => fetchAllRows(supabase, table)
+  const fetchAll = (table: string, eq: Record<string, string> = {}) => fetchAllRows(supabase, table, eq)
 
+  const loadSeq = useRef(0)
   const loadData = async () => {
+    const mySeq = ++loadSeq.current
     setLoading(true)
     try {
       const [cData, sData, ccData, itemsData, ovrData] = await Promise.all([
         fetchAll('classes'),
-        fetchAll('schedule_entries'),
-        fetchAll('class_curriculums'),
+        // TKB, gán PPCT và cắt/đảo tiết lưu riêng theo năm học
+        fetchAll('schedule_entries', { school_year: yearId }),
+        fetchAll('class_curriculums', { school_year: yearId }),
         fetchAll('curriculum_items'),
-        fetchAll('lesson_overrides'),
+        fetchAll('lesson_overrides', { school_year: yearId }),
       ])
+      if (mySeq !== loadSeq.current) return // đã đổi sang năm học khác trong lúc tải
       setClasses(cData)
       setSchedule(sData)
       setClassCurriculums(ccData)
@@ -182,11 +178,11 @@ export default function ReportsPage() {
   useEffect(() => {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [yearId])
 
   // Logic tính tiết nằm ở src/lib/baoGiang.ts (dùng chung với trang Tiến độ)
   const calculateReportRows = () => {
-    const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides)
+    const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides, year.weeks)
     return { weekRows: buildWeekRows(selectedWeek, plan, classes), timelines: plan.timelines }
   }
 
@@ -227,6 +223,7 @@ export default function ReportsPage() {
     try {
       const payload = {
         class_id: editingSlot.classId,
+        school_year: yearId,
         week_number: Number(selectedWeek),
         slot_order_in_week: Number(editingSlot.slotIdx),
         is_skipped: false,
@@ -236,7 +233,7 @@ export default function ReportsPage() {
 
       const { error } = await supabase.from('lesson_overrides').upsert(
         payload,
-        { onConflict: 'class_id,week_number,slot_order_in_week' }
+        { onConflict: 'class_id,school_year,week_number,slot_order_in_week' }
       )
 
       if (error) throw error
@@ -271,6 +268,7 @@ export default function ReportsPage() {
       const toDelete: TimelineSlot[] = []
       const makeRow = (t: TimelineSlot, value: number, type: string) => ({
         class_id: editingSlot.classId,
+        school_year: yearId,
         week_number: t.week,
         slot_order_in_week: t.idx,
         is_skipped: false,
@@ -302,6 +300,7 @@ export default function ReportsPage() {
           .from('lesson_overrides')
           .delete()
           .eq('class_id', editingSlot.classId)
+          .eq('school_year', yearId)
           .eq('week_number', t.week)
           .eq('slot_order_in_week', t.idx)
         if (error) throw error
@@ -310,7 +309,7 @@ export default function ReportsPage() {
       if (toUpsert.length > 0) {
         const { error } = await supabase
           .from('lesson_overrides')
-          .upsert(toUpsert, { onConflict: 'class_id,week_number,slot_order_in_week' })
+          .upsert(toUpsert, { onConflict: 'class_id,school_year,week_number,slot_order_in_week' })
         if (error) throw error
       }
 
@@ -459,7 +458,7 @@ export default function ReportsPage() {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 240 },
-                children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học)`, italics: true, size: 20 })],
+                children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học ${yearId})`, italics: true, size: 20 })],
               }),
               new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: COL_W, rows: tableRows }),
               // CHỮ KÝ TỔ TRƯỞNG CHUYÊN MÔN CĂN PHẢI (KHÔNG DÙNG BẢNG PHỤ)
@@ -532,7 +531,7 @@ export default function ReportsPage() {
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
+              {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
                   Tuần {w < 10 ? '0' + w : w}
                 </option>

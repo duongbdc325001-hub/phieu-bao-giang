@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { START_DATE_WEEK_1, MAX_WEEK, buildLessonPlan, buildWeekRows, fetchAllRows } from '@/lib/baoGiang'
+import { buildLessonPlan, buildWeekRows, fetchAllRows } from '@/lib/baoGiang'
+import { useSchoolYear } from '@/components/school-year'
+import { dateOf, formatDay } from '@/lib/namHoc'
 import { 
   RefreshCw, 
   CheckCircle2, 
@@ -22,18 +24,24 @@ export default function ProgressPage() {
   const [classCurriculums, setClassCurriculums] = useState<any[]>([])
   const [overrides, setOverrides] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const { year } = useSchoolYear()
+  const yearId = year.id
+  const loadSeq = useRef(0)
 
   const loadData = async () => {
+    const mySeq = ++loadSeq.current
     setLoading(true)
     try {
       // Lấy đủ mọi dòng (Supabase chỉ trả tối đa 1000 dòng/lần, nhiều khung PPCT sẽ vượt mức này)
       const [cData, sData, ccData, itemsData, ovrData] = await Promise.all([
         fetchAllRows(supabase, 'classes'),
-        fetchAllRows(supabase, 'schedule_entries'),
-        fetchAllRows(supabase, 'class_curriculums'),
+        // TKB, gán PPCT và cắt/đảo tiết lưu riêng theo năm học
+        fetchAllRows(supabase, 'schedule_entries', { school_year: yearId }),
+        fetchAllRows(supabase, 'class_curriculums', { school_year: yearId }),
         fetchAllRows(supabase, 'curriculum_items'),
-        fetchAllRows(supabase, 'lesson_overrides'),
+        fetchAllRows(supabase, 'lesson_overrides', { school_year: yearId }),
       ])
+      if (mySeq !== loadSeq.current) return
       setClasses(cData)
       setSchedule(sData)
       setClassCurriculums(ccData)
@@ -48,7 +56,8 @@ export default function ProgressPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearId])
 
   // Lọc danh sách lớp: Chỉ lấy những lớp thực sự có tiết trong TKB (giống hệt Lịch Báo Giảng)
   const getAvailableClasses = () => {
@@ -71,7 +80,8 @@ export default function ProgressPage() {
 
   // Tự động chọn lớp đầu tiên trong danh sách thực tế nếu chưa chọn
   useEffect(() => {
-    if (activeClassesList.length > 0 && !selectedClassId) {
+    // chưa chọn lớp, hoặc lớp đang chọn không có trong năm học vừa đổi sang -> chọn lớp đầu tiên
+    if (activeClassesList.length > 0 && !activeClassesList.some((c) => c.id === selectedClassId)) {
       setSelectedClassId(activeClassesList[0].id)
     }
   }, [activeClassesList, selectedClassId])
@@ -80,20 +90,19 @@ export default function ProgressPage() {
   const getProgressTimelineForSelectedClass = () => {
     if (!selectedClassId || schedule.length === 0) return []
 
-    const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides)
+    const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides, year.weeks)
     const timelineByWeeks: any[] = []
     const now = new Date()
 
-    for (let w = 1; w <= MAX_WEEK; w++) {
+    for (let w = 1; w <= year.weeks; w++) {
       const weekRows = buildWeekRows(w, plan, classes)
       const weekSlotsForThisClass: any[] = []
 
       weekRows.forEach((group) => {
         group.slots.forEach((slot: any) => {
           if (!slot.isEmpty && slot.realClassId === selectedClassId) {
-            const d = new Date(START_DATE_WEEK_1)
-            d.setDate(d.getDate() + (w - 1) * 7 + group.day.offset)
-            const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+            const d = dateOf(year, w, group.day.offset)
+            const dateStr = formatDay(d)
 
             let status: 'dada' | 'sapday' | 'chuaday' = 'chuaday'
             const diffDays = (d.getTime() - now.getTime()) / (1000 * 3600 * 24)

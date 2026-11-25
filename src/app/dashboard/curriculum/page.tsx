@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useSchoolYear } from '@/components/school-year'
 import * as XLSX from 'xlsx'
 import { BookOpen, RefreshCw, Upload, Trash2, Layers, Save, Eye, X } from 'lucide-react'
 
@@ -78,6 +79,9 @@ const parseLessonRange = (raw: string): number[] => {
 
 export default function CurriculumPage() {
   const supabase = createClient()
+  // Khung PPCT dùng chung cho mọi năm học; việc GÁN khung cho lớp thì lưu riêng theo từng năm học
+  const { year } = useSchoolYear()
+  const yearId = year.id
   const [templates, setTemplates] = useState<CurriculumTemplate[]>([])
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [classMappings, setClassMappings] = useState<{ template_id: string; class_id: string }[]>([])
@@ -128,7 +132,10 @@ export default function CurriculumPage() {
     const classList = Array.from(classMap.values()).sort((a, b) => a.code.localeCompare(b.code))
     setClasses(classList)
 
-    const { data: mapData } = await supabase.from('class_curriculums').select('template_id, class_id')
+    const { data: mapData } = await supabase
+      .from('class_curriculums')
+      .select('template_id, class_id')
+      .eq('school_year', yearId)
     if (mapData) {
       setClassMappings(mapData)
     }
@@ -139,7 +146,7 @@ export default function CurriculumPage() {
   useEffect(() => {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [yearId])
 
   useEffect(() => {
     if (selectedTemplateId) {
@@ -368,19 +375,25 @@ export default function CurriculumPage() {
 
     setLoading(true)
     try {
-      await supabase.from('class_curriculums').delete().eq('template_id', selectedTemplateId)
+      const { error: delErr } = await supabase
+        .from('class_curriculums')
+        .delete()
+        .eq('template_id', selectedTemplateId)
+        .eq('school_year', yearId)
+      if (delErr) throw delErr
 
       if (selectedClassIds.length > 0) {
         const newInserts = selectedClassIds.map((classId) => ({
           class_id: classId,
           template_id: selectedTemplateId,
+          school_year: yearId,
         }))
 
         const { error } = await supabase.from('class_curriculums').insert(newInserts)
         if (error) throw error
       }
 
-      alert('Đã áp dụng khung PPCT cho các lớp thành công!')
+      alert(`Đã áp dụng khung PPCT cho các lớp trong năm học ${yearId}!`)
       loadData()
     } catch (err: any) {
       alert('Lỗi khi áp dụng PPCT: ' + err.message)

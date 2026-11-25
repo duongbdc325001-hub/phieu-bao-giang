@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { START_DATE_WEEK_1 } from '@/lib/baoGiang'
+import { useSchoolYear } from '@/components/school-year'
+import { weekOf } from '@/lib/namHoc'
 import * as XLSX from 'xlsx'
 import { Upload, RefreshCw, Calendar, Plus, Trash2, X, ArrowRightLeft } from 'lucide-react'
 
@@ -74,29 +75,21 @@ const guessGrade = (classCode: string): number => {
   return n >= 1 && n <= 12 ? n : 10
 }
 
-// Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
-const getCurrentWeekNumber = () => {
-  const startDate = new Date(START_DATE_WEEK_1)
-  const today = new Date()
-
-  startDate.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-
-  const diffTime = today.getTime() - startDate.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays < 0) return 1
-  const currentWeek = Math.floor(diffDays / 7) + 1
-  return Math.min(Math.max(currentWeek, 1), 35)
-}
-
 // Thêm giá trị mới vào danh sách gợi ý nếu chưa có
 const addUnique = (list: string[], value: string) =>
   list.some((x) => x.toLowerCase() === value.toLowerCase()) ? list : [...list, value]
 
 export default function SchedulePage() {
   const supabase = createClient()
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber())
+  const { year } = useSchoolYear()
+  const yearId = year.id
+  const [selectedWeek, setSelectedWeek] = useState(() => weekOf(year))
+  // Đổi năm học -> về tuần hiện tại (hoặc tuần 1) của năm đó
+  const [shownYearId, setShownYearId] = useState(yearId)
+  if (shownYearId !== yearId) {
+    setShownYearId(yearId)
+    setSelectedWeek(weekOf(year))
+  }
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -178,6 +171,7 @@ export default function SchedulePage() {
         .select(selectCols)
         .eq('week_number', week)
         .eq('user_id', user.id)
+        .eq('school_year', yearId)
 
       if (mySeq !== loadSeq.current) return // người dùng đã chuyển sang tuần khác
 
@@ -205,6 +199,7 @@ export default function SchedulePage() {
           .from('schedule_entries')
           .select('week_number')
           .eq('user_id', user.id)
+          .eq('school_year', yearId)
           .gte('week_number', 1)
           .lt('week_number', week)
           .order('week_number', { ascending: false })
@@ -225,6 +220,7 @@ export default function SchedulePage() {
         .select(selectCols)
         .eq('week_number', srcWeek)
         .eq('user_id', user.id)
+        .eq('school_year', yearId)
 
       if (mySeq !== loadSeq.current) return
       const rows = srcData || []
@@ -247,10 +243,11 @@ export default function SchedulePage() {
         .select('id')
         .eq('week_number', selectedWeek)
         .eq('user_id', userId)
+        .eq('school_year', yearId)
         .limit(1)
       if (!existing || existing.length === 0) {
         const { error } = await supabase.from('schedule_entries').insert(
-          inheritedRows.map((r) => ({ ...r, week_number: selectedWeek, user_id: userId }))
+          inheritedRows.map((r) => ({ ...r, week_number: selectedWeek, school_year: yearId, user_id: userId }))
         )
         if (error) throw error
       }
@@ -264,11 +261,12 @@ export default function SchedulePage() {
   useEffect(() => {
     loadScheduleAndSuggestions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWeek])
+  }, [selectedWeek, yearId])
 
   // Hàm xử lý làm sạch dữ liệu cá nhân
   const handleResetMyData = async () => {
-    if (!confirm('CẢNH BÁO NGUY HIỂM:\n\nThao tác này sẽ XÓA SẠCH toàn bộ Thời khóa biểu, Phân phối chương trình và Lịch báo giảng của riêng bạn để làm lại từ đầu. Hành động này không thể hoàn tác!\n\nBạn có chắc chắn muốn xóa không?')) return
+    // Chỉ xóa dữ liệu của NĂM HỌC ĐANG CHỌN; các năm học khác và các khung PPCT đã tải lên được giữ nguyên
+    if (!confirm(`CẢNH BÁO NGUY HIỂM:\n\nThao tác này sẽ XÓA SẠCH Thời khóa biểu, việc gán PPCT cho lớp và các lần cắt/đảo tiết của riêng bạn trong NĂM HỌC ${yearId} để làm lại từ đầu.\nCác năm học khác và các khung PPCT đã tải lên vẫn được giữ.\n\nHành động này không thể hoàn tác! Bạn có chắc chắn muốn xóa không?`)) return
 
     setLoading(true)
     try {
@@ -279,13 +277,12 @@ export default function SchedulePage() {
         return
       }
 
-      await supabase.from('lesson_overrides').delete().eq('user_id', user.id)
-      await supabase.from('class_curriculums').delete().eq('user_id', user.id)
-      await supabase.from('curriculum_templates').delete().eq('user_id', user.id)
-      await supabase.from('schedule_entries').delete().eq('user_id', user.id)
-      await supabase.from('classes').delete().eq('user_id', user.id)
+      for (const table of ['lesson_overrides', 'class_curriculums', 'schedule_entries']) {
+        const { error } = await supabase.from(table).delete().eq('user_id', user.id).eq('school_year', yearId)
+        if (error) throw error
+      }
 
-      alert('Đã dọn sạch toàn bộ dữ liệu cá nhân thành công! Hệ thống sẽ tải lại trang để bạn bắt đầu nhập liệu mới.')
+      alert(`Đã dọn sạch dữ liệu năm học ${yearId}! Hệ thống sẽ tải lại trang để bạn bắt đầu nhập liệu mới.`)
       window.location.reload()
     } catch (err: any) {
       alert('Lỗi khi làm sạch dữ liệu: ' + err.message)
@@ -361,6 +358,7 @@ export default function SchedulePage() {
         .eq('day_of_week', targetDayId)
         .eq('period_number', targetPeriod)
         .eq('user_id', user.id)
+        .eq('school_year', yearId)
       if (findErr) throw findErr
 
       if (currentEntries && currentEntries.length > 0) {
@@ -376,6 +374,7 @@ export default function SchedulePage() {
       } else {
         const { error: insertErr } = await supabase.from('schedule_entries').insert({
           week_number: selectedWeek,
+          school_year: yearId,
           day_of_week: targetDayId,
           period_number: targetPeriod,
           class_id: classId,
@@ -416,6 +415,7 @@ export default function SchedulePage() {
         .eq('day_of_week', editingCell.dayId)
         .eq('period_number', editingCell.period)
         .eq('user_id', user.id)
+        .eq('school_year', yearId)
       if (delErr) throw delErr
 
       setEditingCell(null)
@@ -573,6 +573,7 @@ export default function SchedulePage() {
         if (classId) {
           finalEntriesToInsert.push({
             week_number: selectedWeek,
+            school_year: yearId,
             day_of_week: entry.day_of_week,
             period_number: entry.period_number,
             class_id: classId,
@@ -591,6 +592,7 @@ export default function SchedulePage() {
         .delete()
         .eq('week_number', selectedWeek)
         .eq('user_id', user.id)
+        .eq('school_year', yearId)
 
       const { error: insertErr } = await supabase.from('schedule_entries').insert(finalEntriesToInsert)
       if (insertErr) throw insertErr
@@ -663,7 +665,7 @@ export default function SchedulePage() {
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
             >
-              {Array.from({ length: 35 }, (_, i) => i + 1).map((w) => (
+              {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => (
                 <option key={w} value={w}>
                   Tuần {w < 10 ? '0' + w : w}
                 </option>

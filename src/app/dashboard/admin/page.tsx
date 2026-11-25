@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import AdminNamHoc from '@/components/admin-nam-hoc'
 import { Shield, CheckCircle, Clock, AlertTriangle, UserCheck } from 'lucide-react'
 
 interface UserProfile {
@@ -102,6 +103,9 @@ export default function AdminPage() {
           {loading ? 'Đang tải...' : 'Làm mới danh sách'}
         </button>
       </div>
+
+      {/* NĂM HỌC: thêm năm mới, nhập ngày bắt đầu tuần 1 */}
+      <AdminNamHoc />
 
       {/* BẢNG DANH SÁCH NGƯỜI DÙNG */}
       <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">

@@ -4,7 +4,7 @@
 // Giờ cả hai cùng gọi các hàm dưới đây nên luôn ra cùng một kết quả.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
+// Số tuần mặc định của một năm học (ngày bắt đầu và số tuần thật lấy từ bảng school_years, xem namHoc.ts)
 export const MAX_WEEK = 35
 
 export const DAYS = [
@@ -59,7 +59,7 @@ export interface LessonPlan {
 }
 
 /** TKB từng tuần 1..35. Tuần chưa có dữ liệu lấy theo tuần liền trước (giống trang Thời khóa biểu). */
-export function buildWeekSlots(schedule: any[]): Map<number, any[]> {
+export function buildWeekSlots(schedule: any[], maxWeek = MAX_WEEK): Map<number, any[]> {
   const byWeek = new Map<number, any[]>()
   for (const s of schedule) {
     if (s.is_substitute) continue
@@ -69,7 +69,7 @@ export function buildWeekSlots(schedule: any[]): Map<number, any[]> {
   }
   const weekSlotsMap = new Map<number, any[]>()
   let prevSlots: any[] = []
-  for (let w = 1; w <= MAX_WEEK; w++) {
+  for (let w = 1; w <= maxWeek; w++) {
     let wSlots = byWeek.get(w) || []
     if (wSlots.length === 0 && prevSlots.length > 0) {
       wSlots = prevSlots.map((slot) => ({ ...slot, week_number: w }))
@@ -93,6 +93,7 @@ export function buildLessonPlan(
   classCurriculums: any[],
   curriculumItems: any[],
   overrides: any[],
+  maxWeek = MAX_WEEK,
 ): LessonPlan {
   const timelines = new Map<string, TimelineSlot[]>()
   const lessonMapping = new Map<string, LessonInfo>()
@@ -100,7 +101,7 @@ export function buildLessonPlan(
     return { weekSlotsMap: new Map(), timelines, lessonMapping }
   }
 
-  const weekSlotsMap = buildWeekSlots(schedule)
+  const weekSlotsMap = buildWeekSlots(schedule, maxWeek)
 
   // Tiết của từng lớp, giữ đúng thứ tự tuần -> thứ -> tiết
   const classSlotsMap = new Map<string, any[]>()
@@ -157,7 +158,7 @@ export function buildLessonPlan(
     const timeline: TimelineSlot[] = []
     let globalPointer = 1
 
-    for (let w = 1; w <= MAX_WEEK; w++) {
+    for (let w = 1; w <= maxWeek; w++) {
       const wSlots = slotsByWeek.get(w) || []
       wSlots.forEach((slot, weekSlotIdx) => {
         const day = Number(slot.day_of_week || 2)
@@ -272,17 +273,20 @@ export function buildWeekRows(week: number, plan: LessonPlan, classes: any[]): {
   return weekRows
 }
 
-/** Lấy hết các dòng của một bảng (Supabase trả tối đa 1000 dòng mỗi lần). */
-export async function fetchAllRows(supabase: { from: (t: string) => any }, table: string): Promise<any[]> {
+/** Lấy hết các dòng của một bảng (Supabase trả tối đa 1000 dòng mỗi lần).
+ *  `eq` lọc thêm theo cột, ví dụ { school_year: '2026-2027' }. */
+export async function fetchAllRows(
+  supabase: { from: (t: string) => any },
+  table: string,
+  eq: Record<string, string | number> = {},
+): Promise<any[]> {
   const pageSize = 1000
   let from = 0
   const all: any[] = []
   while (true) {
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
+    let q = supabase.from(table).select('*')
+    for (const [col, val] of Object.entries(eq)) q = q.eq(col, val)
+    const { data, error } = await q.order('id', { ascending: true }).range(from, from + pageSize - 1)
     if (error) throw error
     if (!data || data.length === 0) break
     all.push(...data)

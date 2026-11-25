@@ -22,6 +22,7 @@ import {
   ScanLine
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { SchoolYearProvider, SchoolYearPicker } from '@/components/school-year'
 
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> }
 
@@ -240,6 +241,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
+        {/* CHỌN NĂM HỌC (dữ liệu TKB, báo giảng, tiến độ lưu riêng theo từng năm) */}
+        <SchoolYearPicker />
+
         {/* DANH SÁCH MENU */}
         <nav className="p-3 space-y-1">
           <p className="px-3.5 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -330,6 +334,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 
   return (
+    <SchoolYearProvider>
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* SIDEBAR CỐ ĐỊNH TRÊN LAPTOP */}
       <aside className="hidden md:flex w-64 shrink-0 h-screen sticky top-0 border-r border-slate-800 z-30">
@@ -373,5 +378,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
     </div>
+    </SchoolYearProvider>
   )
 }
