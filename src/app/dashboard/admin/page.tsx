@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminNamHoc from '@/components/admin-nam-hoc'
-import { PageHeader, BTN_SECONDARY, BTN_PRIMARY } from '@/components/ui/page'
-import { CheckCircle, Clock, AlertTriangle, UserCheck, RefreshCw, Search } from 'lucide-react'
+import { PageHeader, BTN_SECONDARY, BTN_PRIMARY, BTN_DANGER } from '@/components/ui/page'
+import { CheckCircle, Clock, AlertTriangle, UserCheck, RefreshCw, Search, Lock, Unlock, Trash2 } from 'lucide-react'
 import { useSchoolYear } from '@/components/school-year'
 
 interface UserProfile {
@@ -53,6 +53,48 @@ export default function AdminPage() {
   const [usageError, setUsageError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('hoat_dong')
+  const [myId, setMyId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMyId(data.session?.user.id || null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // KHOÁ / MỞ KHOÁ: chặn đăng nhập vào web nhưng giữ nguyên dữ liệu
+  const handleLock = async (u: UserProfile, lock: boolean) => {
+    const who = u.full_name || u.email || 'giáo viên này'
+    if (!confirm(lock ? `Khóa tài khoản ${who}? Người này sẽ không vào được web, dữ liệu vẫn giữ nguyên.` : `Mở khóa tài khoản ${who}?`)) return
+    setBusyId(u.id)
+    const { error } = await supabase.from('profiles').update({ status: lock ? 'locked' : 'active' }).eq('id', u.id)
+    setBusyId(null)
+    if (error) return alert('Lỗi: ' + error.message)
+    loadUsers()
+  }
+
+  // XOÁ VĨNH VIỄN: tài khoản + toàn bộ dữ liệu (hàm admin_delete_user trên Supabase)
+  const handleDelete = async (u: UserProfile) => {
+    const email = (u.email || '').trim()
+    const typed = prompt(
+      `XÓA VĨNH VIỄN tài khoản ${u.full_name || email} cùng toàn bộ TKB, PPCT, cắt/đảo/nghỉ tiết của người này.\n` +
+      `Không thể khôi phục. Nếu chỉ muốn tạm chặn, hãy dùng nút Khóa.\n\nGõ đúng email để xác nhận: ${email}`
+    )
+    if (typed === null) return
+    if (typed.trim().toLowerCase() !== email.toLowerCase()) return alert('Email không khớp, chưa xóa.')
+    setBusyId(u.id)
+    const { error } = await supabase.rpc('admin_delete_user', { p_user: u.id })
+    setBusyId(null)
+    if (error) {
+      return alert(
+        error.code === 'PGRST202' || error.message.includes('admin_delete_user')
+          ? 'Chưa bật chức năng xóa: chạy file SQL 20261125_admin_xoa_thanh_vien.sql trên Supabase.'
+          : 'Lỗi xóa: ' + error.message
+      )
+    }
+    alert(`Đã xóa ${u.full_name || email}.`)
+    loadUsers()
+    loadUsage()
+  }
 
   const loadUsage = async () => {
     const { data, error } = await supabase.rpc('admin_usage', { p_year: year.id })
@@ -158,7 +200,8 @@ export default function AdminPage() {
     const { error } = await supabase
       .from('profiles')
       .update({ 
-        status: 'active', 
+        // tài khoản đang bị khoá thì gia hạn vẫn giữ khoá
+        status: users.find((x) => x.id === userId)?.status === 'locked' ? 'locked' : 'active', 
         expiry_date: baseDate.toISOString() 
       })
       .eq('id', userId)
@@ -173,6 +216,8 @@ export default function AdminPage() {
 
   const statusBadge = (u: UserProfile) => {
     const isExpired = !!u.expiry_date && new Date(u.expiry_date) < new Date()
+    if (u.status === 'locked')
+      return <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-300 rounded-full font-semibold text-[11px]"><Lock className="w-3 h-3" /> Đã khóa</span>
     if (u.status === 'pending')
       return <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200 rounded-full font-semibold text-[11px]"><Clock className="w-3 h-3" /> Chờ duyệt</span>
     if (u.status === 'expired' || isExpired)
@@ -182,18 +227,39 @@ export default function AdminPage() {
     return null
   }
   const expiryText = (u: UserProfile) => (u.expiry_date ? new Date(u.expiry_date).toLocaleDateString('vi-VN') : 'Chưa cấp hạn')
-  const actions = (u: UserProfile) => (
-    <>
-      {u.status === 'pending' && (
-        <button onClick={() => handleApprove(u.id)} className={BTN_PRIMARY}>
-          <UserCheck className="w-4 h-4" /> Phê duyệt
+  const actions = (u: UserProfile) => {
+    const isMe = u.id === myId
+    const busy = busyId === u.id
+    return (
+      <>
+        {u.status === 'pending' && (
+          <button onClick={() => handleApprove(u.id)} disabled={busy} className={BTN_PRIMARY}>
+            <UserCheck className="w-4 h-4" /> Phê duyệt
+          </button>
+        )}
+        <button onClick={() => handleExtendYear(u.id, u.expiry_date || '')} disabled={busy} className={BTN_SECONDARY} title="Gia hạn thêm 1 năm">
+          Gia hạn
         </button>
-      )}
-      <button onClick={() => handleExtendYear(u.id, u.expiry_date || '')} className={BTN_SECONDARY}>
-        Gia hạn 1 năm
-      </button>
-    </>
-  )
+        {!isMe && (
+          u.status === 'locked' ? (
+            <button onClick={() => handleLock(u, false)} disabled={busy} className={BTN_SECONDARY} title="Mở khóa tài khoản">
+              <Unlock className="w-4 h-4" /> <span className="hidden lg:inline">Mở khóa</span>
+            </button>
+          ) : (
+            <button onClick={() => handleLock(u, true)} disabled={busy} className={BTN_SECONDARY} title="Khóa tài khoản (giữ dữ liệu)">
+              <Lock className="w-4 h-4" /> <span className="hidden lg:inline">Khóa</span>
+            </button>
+          )
+        )}
+        {!isMe && (
+          <button onClick={() => handleDelete(u)} disabled={busy} className={`${BTN_DANGER} w-9 px-0`} title="Xóa vĩnh viễn tài khoản và dữ liệu">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </>
+    )
+  }
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-12">

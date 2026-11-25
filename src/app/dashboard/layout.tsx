@@ -58,6 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Trạng thái kiểm soát bảo mật (chỉ giữ lại kiểm tra đăng nhập và hết hạn bản quyền)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isExpired, setIsExpired] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
   const [userRole, setUserRole] = useState<string>('teacher')
   const [userEmail, setUserEmail] = useState<string>('')
 
@@ -95,7 +96,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Lấy thông tin từ bảng profiles
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, department, role, expiry_date')
+        .select('full_name, department, role, expiry_date, status')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -106,6 +107,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const expired = profile.expiry_date && new Date(profile.expiry_date) < new Date()
         if (expired && profile.role !== 'admin') {
           setIsExpired(true)
+        }
+        // Tài khoản bị admin khoá
+        if (profile.status === 'locked' && profile.role !== 'admin') {
+          setIsLocked(true)
         }
 
         const name = profile.full_name || user.email?.split('@')[0] || 'Giáo viên'
@@ -150,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   // CHẶN NẾU TÀI KHOẢN ĐÃ HẾT HẠN (EXPIRED) VÀ KHÔNG PHẢI ADMIN
-  if (isExpired && userRole !== 'admin') {
+  if ((isExpired || isLocked) && userRole !== 'admin') {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6">
@@ -158,9 +163,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <AlertTriangle className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl font-black text-slate-900">Bản quyền phần mềm đã hết hạn</h1>
+            <h1 className="text-xl font-black text-slate-900">{isLocked ? 'Tài khoản đã bị khóa' : 'Bản quyền phần mềm đã hết hạn'}</h1>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Thời hạn sử dụng phần mềm của tài khoản <span className="font-bold text-slate-900">{userEmail}</span> đã kết thúc.
+              {isLocked
+                ? <>Tài khoản <span className="font-bold text-slate-900">{userEmail}</span> đã bị quản trị viên khóa. Vui lòng liên hệ quản trị viên.</>
+                : <>Thời hạn sử dụng phần mềm của tài khoản <span className="font-bold text-slate-900">{userEmail}</span> đã kết thúc.</>}
             </p>
           </div>
           <button
