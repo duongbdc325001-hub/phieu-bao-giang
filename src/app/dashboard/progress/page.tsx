@@ -121,6 +121,8 @@ export default function ProgressPage() {
               dateStr,
               status,
               hasTemplate: slot.hasTemplate,
+              isSkipped: !!slot.isSkipped,
+              skipNote: slot.skipNote || '',
             })
           }
         })
@@ -149,7 +151,7 @@ export default function ProgressPage() {
   const doneItems = allItems.filter((i: any) => i.status === 'dada' && i.hasTemplate)
   const doneOrder = doneItems.reduce((m: number, i: any) => Math.max(m, Number(i.lessonOrder) || 0), 0)
   const pct = totalLessons ? Math.min(100, Math.round((doneOrder / totalLessons) * 100)) : 0
-  const nextItem = allItems.find((i: any) => i.status !== 'dada')
+  const nextItem = allItems.find((i: any) => i.status !== 'dada' && !i.isSkipped)
   const currentWeekNum = timelineWeeks.find((w: any) => w.items.some((i: any) => i.status !== 'dada'))?.weekNum
   const selectedClass = activeClassesList.find((c) => c.id === selectedClassId)
 
@@ -252,11 +254,13 @@ export default function ProgressPage() {
                       </div>
                       <div className="w-10 shrink-0 text-center">
                         <span className={`text-sm font-bold tabular-nums ${item.status === 'dada' ? 'text-slate-400' : 'text-slate-900'}`}>
-                          {!item.hasTemplate || item.lessonOrder === 0 ? '–' : item.lessonOrder}
+                          {item.isSkipped || !item.hasTemplate || item.lessonOrder === 0 ? '–' : item.lessonOrder}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        {!item.hasTemplate ? (
+                        {item.isSkipped ? (
+                          <p className="text-[13px] italic text-slate-400">Nghỉ tiết{item.skipNote ? ` – ${item.skipNote}` : ''}</p>
+                        ) : !item.hasTemplate ? (
                           <Link href="/dashboard/curriculum" className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
                             <AlertCircle className="w-3.5 h-3.5" /> Chưa có PPCT, bấm để gán
                           </Link>
@@ -264,9 +268,9 @@ export default function ProgressPage() {
                           <p className={`text-[13px] leading-snug ${item.status === 'dada' ? 'text-slate-500' : 'text-slate-900'}`}>{item.lessonName}</p>
                         )}
                       </div>
-                      <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] text-slate-500" title={statusText(item.status)}>
-                        <span className={`w-2 h-2 rounded-full ${statusDot(item.status)}`} />
-                        <span className="hidden sm:inline">{statusText(item.status)}</span>
+                      <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] text-slate-500" title={item.isSkipped ? 'Nghỉ' : statusText(item.status)}>
+                        <span className={`w-2 h-2 rounded-full ${item.isSkipped ? 'bg-slate-200 ring-1 ring-slate-400' : statusDot(item.status)}`} />
+                        <span className="hidden sm:inline">{item.isSkipped ? 'Nghỉ' : statusText(item.status)}</span>
                       </span>
                     </li>
                   ))}

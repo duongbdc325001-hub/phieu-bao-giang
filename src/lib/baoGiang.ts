@@ -42,6 +42,9 @@ export interface TimelineSlot {
 }
 
 export interface LessonInfo {
+  /** Tiết NGHỈ: vẫn hiện trên TKB / báo giảng nhưng không tính vào PPCT */
+  isSkipped?: boolean
+  skipNote?: string
   order: number
   name: string
   isOverridden: boolean
@@ -164,7 +167,26 @@ export function buildLessonPlan(
         const day = Number(slot.day_of_week || 2)
         const period = slot.period_number
 
-        const ovr = hasTemplate ? ovrByKey.get(`${classId}_${w}_${weekSlotIdx}`) : undefined
+        const rawOvr = ovrByKey.get(`${classId}_${w}_${weekSlotIdx}`)
+
+        // NGHỈ TIẾT (override_type 'skip' + is_skipped): không chiếm số tiết PPCT, tiết sau đánh số tiếp.
+        // Chỉ nhận đúng loại 'skip' để không đổi kết quả của dữ liệu cũ (nếu có is_skipped từ bản trước).
+        if (rawOvr && rawOvr.is_skipped === true && rawOvr.override_type === 'skip') {
+          lessonMapping.set(`${w}_${day}_${period}_${classId}`, {
+            isSkipped: true,
+            skipNote: rawOvr.notes || '',
+            order: 0,
+            name: '',
+            isOverridden: false,
+            ovrType: 'skip',
+            slotIdx: weekSlotIdx,
+            hasTemplate,
+            timelineIndex: -1, // không nằm trên dòng thời gian PPCT (không cắt/đảo được)
+          })
+          return
+        }
+
+        const ovr = hasTemplate ? rawOvr : undefined
 
         let assignedOrder = globalPointer
         let ovrValue: number | null = null
@@ -243,7 +265,11 @@ export function buildWeekRows(week: number, plan: LessonPlan, classes: any[]): {
             lessonName: lessonInfo.name,
             isSubstitute: matchedSlot.is_substitute || false,
             isOverridden: lessonInfo.isOverridden,
-            noteLabel: lessonInfo.ovrType === 'swap' ? 'Đảo tiết' : (lessonInfo.isOverridden ? 'Cắt tiết' : ''),
+            noteLabel: lessonInfo.isSkipped
+              ? (lessonInfo.skipNote ? `Nghỉ: ${lessonInfo.skipNote}` : 'Nghỉ')
+              : lessonInfo.ovrType === 'swap' ? 'Đảo tiết' : (lessonInfo.isOverridden ? 'Cắt tiết' : ''),
+            isSkipped: !!lessonInfo.isSkipped,
+            skipNote: lessonInfo.skipNote || '',
             slotOrderInWeek: lessonInfo.slotIdx,
             timelineIndex: lessonInfo.timelineIndex,
             hasTemplate: lessonInfo.hasTemplate,

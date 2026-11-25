@@ -25,3 +25,21 @@ test('tiết chiều hiện nhãn C-n', () => {
   const plan = buildLessonPlan([slot(1, 1, 2, 7)], classes, cc, items, [])
   expect(buildWeekRows(1, plan, classes)[0].slots[0].period).toBe('C-2')
 })
+
+test('nghỉ tiết: vẫn hiện nhưng không tính số tiết, tiết sau đánh số tiếp', () => {
+  const sched = [slot(1, 1, 2, 1), slot(2, 1, 4, 2)]
+  const ovr = [{ class_id: 'c1', week_number: 2, slot_order_in_week: 0, is_skipped: true, override_type: 'skip', override_lesson_order: null, notes: 'Nghỉ lễ' }]
+  const plan = buildLessonPlan(sched, classes, cc, items, ovr)
+  // tuần 1: 1,2 ; tuần 2: tiết đầu nghỉ, tiết sau là 3 ; tuần 3: 4,5
+  expect(plan.timelines.get('c1')!.slice(0, 5).map((t) => t.assigned)).toEqual([1, 2, 3, 4, 5])
+  const w2 = buildWeekRows(2, plan, classes)
+  expect(w2[0].slots[0]).toMatchObject({ isSkipped: true, lessonOrder: 0, noteLabel: 'Nghỉ: Nghỉ lễ' })
+  expect(w2.find((g) => g.day.id === 4)!.slots[0]).toMatchObject({ lessonOrder: 3, isSkipped: false })
+})
+
+test('is_skipped cũ (không phải loại skip) bị bỏ qua để giữ nguyên số tiết', () => {
+  const sched = [slot(1, 1, 2, 1)]
+  const ovr = [{ class_id: 'c1', week_number: 1, slot_order_in_week: 0, is_skipped: true, override_type: 'cut', override_lesson_order: null }]
+  const plan = buildLessonPlan(sched, classes, cc, items, ovr)
+  expect(plan.timelines.get('c1')![0].assigned).toBe(1)
+})

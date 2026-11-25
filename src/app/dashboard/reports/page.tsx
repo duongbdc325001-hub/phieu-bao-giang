@@ -99,9 +99,12 @@ export default function ReportsPage() {
     currentOrder: number
     isOverridden: boolean
     tIdx: number
+    isSkipped: boolean
+    skipNote: string
   } | null>(null)
+  const [skipNoteInput, setSkipNoteInput] = useState('')
   const [targetLessonOrder, setTargetLessonOrder] = useState<number>(1)
-  const [editMode, setEditMode] = useState<'cut' | 'reorder'>('cut')
+  const [editMode, setEditMode] = useState<'cut' | 'reorder' | 'skip'>('cut')
   const [reorderNumber, setReorderNumber] = useState<string>('') // số tiết CT người dùng nhập ở tab Đảo tiết
 
   const getFormattedDate = (offset: number) => {
@@ -154,7 +157,10 @@ export default function ReportsPage() {
       currentOrder: Number(slot.lessonOrder) || 1,
       isOverridden: slot.isOverridden,
       tIdx: slot.timelineIndex,
+      isSkipped: !!slot.isSkipped,
+      skipNote: slot.skipNote || '',
     })
+    setSkipNoteInput('')
     setEditMode('cut')
     setReorderNumber('')
     setTargetLessonOrder(Number(slot.lessonOrder) || 1)
@@ -199,6 +205,46 @@ export default function ReportsPage() {
     editingSlot && reorderTarget !== null && editTimeline[reorderFrom] && editTimeline[reorderTo]
       ? computeReorder(editTimeline, reorderFrom, reorderTo)
       : null
+
+  // NGHỈ TIẾT: tiết vẫn hiện nhưng không tính vào PPCT (lưu trong lesson_overrides, loại 'skip')
+  const handleSetSkip = async (on: boolean) => {
+    if (!editingSlot) return
+    setLoading(true)
+    try {
+      if (on) {
+        const { error } = await supabase.from('lesson_overrides').upsert(
+          {
+            class_id: editingSlot.classId,
+            school_year: yearId,
+            week_number: Number(selectedWeek),
+            slot_order_in_week: Number(editingSlot.slotIdx),
+            is_skipped: true,
+            override_lesson_order: null,
+            override_type: 'skip',
+            notes: skipNoteInput.trim() || null,
+          },
+          { onConflict: 'class_id,school_year,week_number,slot_order_in_week' }
+        )
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('lesson_overrides')
+          .delete()
+          .eq('class_id', editingSlot.classId)
+          .eq('school_year', yearId)
+          .eq('week_number', Number(selectedWeek))
+          .eq('slot_order_in_week', Number(editingSlot.slotIdx))
+          .eq('override_type', 'skip')
+        if (error) throw error
+      }
+      setEditingSlot(null)
+      await loadData()
+    } catch (err: any) {
+      alert('Lỗi lưu nghỉ tiết: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSaveOverride = async () => {
     if (!editingSlot) return
@@ -415,9 +461,9 @@ export default function ReportsPage() {
 
         const subjectClassText = slot.isEmpty ? '' : slot.subjectClass
         const periodText = String(slot.period)
-        const lessonDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
-        const orderDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : String(slot.lessonOrder))
-        const noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : slot.noteLabel)
+        const lessonDisplay = slot.isEmpty ? '' : slot.isSkipped ? 'Nghỉ' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
+        const orderDisplay = slot.isEmpty ? '' : (slot.isSkipped || !slot.hasTemplate ? '—' : String(slot.lessonOrder))
+        const noteText = slot.isEmpty ? '' : slot.isSkipped ? slot.noteLabel : (!slot.hasTemplate ? 'Chưa có PPCT' : slot.noteLabel)
 
         rowCells.push(
           makeCell(subjectClassText, 1),
@@ -568,8 +614,8 @@ export default function ReportsPage() {
           'Thứ, ngày': `${group.day.name} (${getFormattedDate(group.day.offset)})`,
           'Môn - Lớp': slot.isEmpty ? '' : slot.subjectClass,
           'Tiết TKB': slot.period,
-          'Tên bài dạy': slot.isEmpty ? '' : (!slot.hasTemplate ? 'CHƯA CÓ PPCT' : (slot.lessonName || '')),
-          'Tiết CT': slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : slot.lessonOrder),
+          'Tên bài dạy': slot.isEmpty ? '' : slot.isSkipped ? slot.noteLabel : (!slot.hasTemplate ? 'CHƯA CÓ PPCT' : (slot.lessonName || '')),
+          'Tiết CT': slot.isEmpty ? '' : (slot.isSkipped || !slot.hasTemplate ? '—' : slot.lessonOrder),
         })
       })
     })
@@ -670,15 +716,16 @@ export default function ReportsPage() {
                   const isFirst = idx === 0
                   const { subject, code } = splitSubjectClass(slot.subjectClass || '')
                   const isAfternoon = String(slot.period).toUpperCase().startsWith('C-')
-                  const noteStyle =
-                    slot.noteLabel === 'Đảo tiết'
+                  const noteStyle = slot.isSkipped
+                    ? 'bg-slate-100 text-slate-600 ring-slate-300'
+                    : slot.noteLabel === 'Đảo tiết'
                       ? 'bg-violet-50 text-violet-800 ring-violet-200'
                       : 'bg-amber-50 text-amber-800 ring-amber-200'
 
                   return (
                     <tr
                       key={`${group.day.id}_p${slot.period}_${idx}`}
-                      className={`group hover:bg-slate-50/70 ${isFirst ? 'border-t-2 border-slate-300' : 'border-t border-slate-100'}`}
+                      className={`group hover:bg-slate-50/70 ${isFirst ? 'border-t-2 border-slate-300' : 'border-t border-slate-100'} ${slot.isSkipped ? 'bg-slate-50/60' : ''}`}
                     >
                       {isFirst && dayCell(group.slots.length)}
 
@@ -700,7 +747,9 @@ export default function ReportsPage() {
                       </td>
 
                       <td className="px-4 py-2.5 align-middle border-l border-slate-200">
-                        {!slot.hasTemplate ? (
+                        {slot.isSkipped ? (
+                          <span className="text-[13px] italic text-slate-400">Nghỉ tiết{slot.skipNote ? ` – ${slot.skipNote}` : ''} (không tính PPCT)</span>
+                        ) : !slot.hasTemplate ? (
                           <Link
                             href="/dashboard/curriculum"
                             className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200 transition hover:bg-rose-100"
@@ -716,23 +765,25 @@ export default function ReportsPage() {
                       </td>
 
                       <td className="px-3 py-2.5 text-center border-l border-slate-200">
-                        {slot.hasTemplate && (
+                        {(slot.hasTemplate || slot.isSkipped) && (
                           <button
                             type="button"
                             onClick={() => openEditSlot(slot)}
-                            title="Bấm để cắt tiết hoặc đảo tiết"
+                            title="Bấm để cắt tiết, đảo tiết hoặc nghỉ tiết"
                             className={`inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ring-1 ring-inset transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
-                              slot.isOverridden ? noteStyle : 'bg-white text-slate-900 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500'
+                              slot.isOverridden || slot.isSkipped ? noteStyle : 'bg-white text-slate-900 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500'
                             }`}
                           >
-                            <span>{slot.lessonOrder}</span>
+                            <span>{slot.isSkipped ? 'Nghỉ' : slot.lessonOrder}</span>
                             <ArrowLeftRight className="h-3 w-3 opacity-40 transition group-hover:opacity-100" />
                           </button>
                         )}
                       </td>
 
                       <td className="px-3 py-2.5 text-center border-l border-slate-200">
-                        {!slot.hasTemplate ? (
+                        {slot.isSkipped ? (
+                          <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${noteStyle}`}>Nghỉ</span>
+                        ) : !slot.hasTemplate ? (
                           <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">Thiếu PPCT</span>
                         ) : slot.noteLabel ? (
                           <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${noteStyle}`}>{slot.noteLabel}</span>
@@ -770,7 +821,9 @@ export default function ReportsPage() {
                 {real.map((slot: any, idx: number) => {
                   const { subject, code } = splitSubjectClass(slot.subjectClass || '')
                   const tone = subjectTone(subject)
-                  const noteStyle = slot.noteLabel === 'Đảo tiết' ? 'bg-violet-50 text-violet-800 ring-violet-200' : 'bg-amber-50 text-amber-800 ring-amber-200'
+                  const noteStyle = slot.isSkipped
+                    ? 'bg-slate-100 text-slate-600 ring-slate-300'
+                    : slot.noteLabel === 'Đảo tiết' ? 'bg-violet-50 text-violet-800 ring-violet-200' : 'bg-amber-50 text-amber-800 ring-amber-200'
                   return (
                     <li key={`m_${group.day.id}_${idx}`} className="relative flex items-start gap-3 pl-4 pr-3 py-2.5">
                       <span className={`absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r ${tone.bar}`} />
@@ -779,11 +832,13 @@ export default function ReportsPage() {
                           <span className="text-sm font-bold text-slate-900">{code}</span>
                           {subject && <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tone.chip}`}>{subject}</span>}
                           <span className="text-xs text-slate-500">{periodText(slot.period)}</span>
-                          {slot.hasTemplate && slot.noteLabel && (
+                          {(slot.hasTemplate || slot.isSkipped) && slot.noteLabel && (
                             <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${noteStyle}`}>{slot.noteLabel}</span>
                           )}
                         </div>
-                        {slot.hasTemplate ? (
+                        {slot.isSkipped ? (
+                          <p className="mt-1 text-[13px] italic text-slate-400">Nghỉ tiết, không tính PPCT</p>
+                        ) : slot.hasTemplate ? (
                           <p className="mt-1 text-[13px] leading-snug text-slate-700">{slot.lessonName}</p>
                         ) : (
                           <Link href="/dashboard/curriculum" className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
@@ -791,17 +846,17 @@ export default function ReportsPage() {
                           </Link>
                         )}
                       </div>
-                      {slot.hasTemplate && (
+                      {(slot.hasTemplate || slot.isSkipped) && (
                         <button
                           type="button"
                           onClick={() => openEditSlot(slot)}
-                          title="Cắt tiết hoặc đảo tiết"
+                          title="Cắt tiết, đảo tiết hoặc nghỉ tiết"
                           className={`shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg ring-1 ring-inset ${
-                            slot.isOverridden ? noteStyle : 'bg-white text-slate-900 ring-slate-300 active:bg-emerald-50'
+                            slot.isOverridden || slot.isSkipped ? noteStyle : 'bg-white text-slate-900 ring-slate-300 active:bg-emerald-50'
                           }`}
                         >
                           <span className="text-[10px] font-medium opacity-60 leading-none">Tiết CT</span>
-                          <span className="text-base font-bold tabular-nums leading-tight">{slot.lessonOrder}</span>
+                          <span className={`font-bold tabular-nums leading-tight ${slot.isSkipped ? 'text-xs' : 'text-base'}`}>{slot.isSkipped ? 'Nghỉ' : slot.lessonOrder}</span>
                         </button>
                       )}
                     </li>
@@ -817,32 +872,63 @@ export default function ReportsPage() {
       {editingSlot && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b pb-2">
-              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Cấu hình tiến độ tiết dạy</span>
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <span className="font-bold text-slate-900 text-base">{editingSlot.isSkipped ? 'Tiết nghỉ' : `Tiết CT số ${editingSlot.currentOrder}`}</span>
               <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-              <button
-                onClick={() => setEditMode('cut')}
-                className={`flex-1 py-1.5 rounded-lg cursor-pointer transition ${
-                  editMode === 'cut' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Cắt tiết
-              </button>
-              <button
-                onClick={() => setEditMode('reorder')}
-                className={`flex-1 py-1.5 rounded-lg cursor-pointer transition ${
-                  editMode === 'reorder' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Đảo tiết
-              </button>
+            {editingSlot.isSkipped ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-slate-600">
+                  Tiết này đang được đánh dấu <span className="font-semibold text-slate-900">nghỉ</span>
+                  {editingSlot.skipNote ? <> ({editingSlot.skipNote})</> : null}: vẫn hiện trên thời khóa biểu nhưng không tính vào PPCT.
+                </p>
+                <button onClick={() => handleSetSkip(false)} disabled={loading} className={`${BTN_PRIMARY} w-full h-11 text-sm`}>
+                  Bỏ nghỉ, tính lại tiết này
+                </button>
+              </div>
+            ) : (
+            <>
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold" role="tablist">
+              {([['cut', 'Cắt tiết'], ['reorder', 'Đảo tiết'], ['skip', 'Nghỉ tiết']] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  role="tab"
+                  aria-selected={editMode === k}
+                  onClick={() => setEditMode(k)}
+                  className={`flex-1 py-2 rounded-md cursor-pointer transition ${
+                    editMode === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
+            {editMode === 'skip' ? (
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-600 text-sm">
+                  Tiết vẫn hiện trên thời khóa biểu và phiếu báo giảng (ghi "Nghỉ"), nhưng <span className="font-semibold">không tính vào PPCT</span>:
+                  tiết dạy tiếp theo sẽ mang số {editingSlot.currentOrder}.
+                </p>
+                <div>
+                  <label className="block font-medium text-slate-600 mb-1">Lý do (không bắt buộc)</label>
+                  <input
+                    type="text"
+                    maxLength={60}
+                    value={skipNoteInput}
+                    onChange={(e) => setSkipNoteInput(e.target.value)}
+                    placeholder="VD: Nghỉ lễ, Thi giữa kỳ, Hoạt động trường"
+                    className="w-full h-11 px-3 border border-slate-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <button onClick={() => handleSetSkip(true)} disabled={loading} className={`${BTN_PRIMARY} w-full h-11 text-sm`}>
+                  Đánh dấu nghỉ tiết
+                </button>
+              </div>
+            ) : (
             <div className="space-y-3 text-xs">
               <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border">
                 <span className="text-slate-500 font-medium">Tiết CT hiện tại:</span>
@@ -859,7 +945,7 @@ export default function ReportsPage() {
                       max={200}
                       value={targetLessonOrder}
                       onChange={(e) => setTargetLessonOrder(Number(e.target.value))}
-                      className="w-full p-2.5 border rounded-xl font-black text-center text-blue-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-11 border border-slate-300 rounded-lg font-bold text-center text-slate-900 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <p className="text-[11px] text-slate-400">Các tiết CT ở giữa bị bỏ qua, các tiết sau đếm tiếp từ số này.</p>
                   </div>
@@ -868,7 +954,7 @@ export default function ReportsPage() {
                     <button
                       onClick={handleSaveOverride}
                       disabled={loading}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                      className={`${BTN_PRIMARY} flex-1 h-11 text-sm`}
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Lưu thay đổi</span>
@@ -889,7 +975,7 @@ export default function ReportsPage() {
                       value={reorderNumber}
                       onChange={(e) => setReorderNumber(e.target.value)}
                       placeholder="Nhập số tiết CT, ví dụ 6"
-                      className="w-full p-2.5 border rounded-xl font-black text-center text-blue-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-11 border border-slate-300 rounded-lg font-bold text-center text-slate-900 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     {reorderMatchSlot && (
                       <p className="text-[11px] text-emerald-700 font-medium">
@@ -903,14 +989,14 @@ export default function ReportsPage() {
                   </div>
 
                   {reorderPreview && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-2.5 space-y-1">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 space-y-1">
                       <div className="flex justify-between gap-2">
                         <span className="text-slate-500">Trước:</span>
                         <span className="font-black text-slate-700">{reorderPreview.before.join(', ')}</span>
                       </div>
                       <div className="flex justify-between gap-2">
                         <span className="text-slate-500">Sau khi đảo:</span>
-                        <span className="font-black text-blue-800">{reorderPreview.after.join(', ')}</span>
+                        <span className="font-bold text-emerald-800">{reorderPreview.after.join(', ')}</span>
                       </div>
                     </div>
                   )}
@@ -923,7 +1009,7 @@ export default function ReportsPage() {
                     <button
                       onClick={handleSaveReorder}
                       disabled={loading || reorderTarget === null}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                      className={`${BTN_PRIMARY} flex-1 h-11 text-sm`}
                     >
                       <ArrowLeftRight className="w-4 h-4" />
                       <span>Áp dụng đảo tiết</span>
@@ -932,6 +1018,9 @@ export default function ReportsPage() {
                 </>
               )}
             </div>
+            )}
+            </>
+            )}
           </div>
         </div>
       )}

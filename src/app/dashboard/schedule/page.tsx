@@ -108,6 +108,10 @@ export default function SchedulePage() {
     isExisting: boolean
   } | null>(null)
 
+  // NGHỈ TIẾT của tuần đang xem: tiết vẫn hiện trên TKB nhưng không tính vào PPCT
+  const [skips, setSkips] = useState<{ class_id: string; slot_order_in_week: number; notes: string | null }[]>([])
+  const [skipNote, setSkipNote] = useState('')
+
   // Nạp các lớp/môn đã có của người dùng để làm gợi ý
   const loadKnownOptions = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -176,6 +180,16 @@ export default function SchedulePage() {
         .eq('school_year', yearId)
 
       if (mySeq !== loadSeq.current) return // người dùng đã chuyển sang tuần khác
+
+      const { data: skipRows } = await supabase
+        .from('lesson_overrides')
+        .select('class_id, slot_order_in_week, notes')
+        .eq('school_year', yearId)
+        .eq('week_number', week)
+        .eq('override_type', 'skip')
+        .eq('is_skipped', true)
+      if (mySeq !== loadSeq.current) return
+      setSkips(skipRows || [])
 
       const format = (item: any, idPrefix = ''): ScheduleItem => ({
         id: `${idPrefix}${item.id}`,
@@ -632,12 +646,64 @@ export default function SchedulePage() {
   const itemAt = (dayId: number, period: number) =>
     schedule.find((s) => s.day_of_week === dayId && s.period_number === period)
 
+  // Thứ tự của tiết trong tuần đối với lớp đó (giống cách Lịch báo giảng đánh số: theo thứ rồi theo tiết)
+  const slotIndexOf = (item: ScheduleItem) =>
+    schedule
+      .filter((x) => x.class_id && x.class_id === item.class_id)
+      .sort((a, b) => a.day_of_week - b.day_of_week || a.period_number - b.period_number)
+      .findIndex((x) => x.day_of_week === item.day_of_week && x.period_number === item.period_number)
+  const skipOf = (item?: ScheduleItem) =>
+    item?.class_id ? skips.find((k) => k.class_id === item.class_id && k.slot_order_in_week === slotIndexOf(item)) : undefined
+
+  const handleToggleSkip = async (on: boolean) => {
+    if (!editingCell) return
+    const item = itemAt(editingCell.dayId, editingCell.period)
+    if (!item?.class_id) return
+    const idx = slotIndexOf(item)
+    setLoading(true)
+    try {
+      if (on) {
+        const { error } = await supabase.from('lesson_overrides').upsert(
+          {
+            class_id: item.class_id,
+            school_year: yearId,
+            week_number: selectedWeek,
+            slot_order_in_week: idx,
+            is_skipped: true,
+            override_lesson_order: null,
+            override_type: 'skip',
+            notes: skipNote.trim() || null,
+          },
+          { onConflict: 'class_id,school_year,week_number,slot_order_in_week' }
+        )
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('lesson_overrides')
+          .delete()
+          .eq('class_id', item.class_id)
+          .eq('school_year', yearId)
+          .eq('week_number', selectedWeek)
+          .eq('slot_order_in_week', idx)
+          .eq('override_type', 'skip')
+        if (error) throw error
+      }
+      setEditingCell(null)
+      await loadScheduleAndSuggestions()
+    } catch (err: any) {
+      alert('Lỗi lưu nghỉ tiết: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Bấm vào một ô: đang "di chuyển" thì thả vào ô trống, còn lại mở popup sửa
   const onCellClick = (dayId: number, period: number) => {
     const item = itemAt(dayId, period)
     if (movingSlot && !item) {
       handleSaveCell(dayId, period, movingSlot.subject, movingSlot.classCode)
     } else {
+      setSkipNote('')
       setEditingCell({
         dayId,
         period,
@@ -742,6 +808,7 @@ export default function SchedulePage() {
                     const item = itemAt(day.id, pConfig.periodNum)
                     const isMovingHere = movingSlot && !item
                     const tone = item ? subjectTone(item.sub_subject || '') : null
+                    const skip = skipOf(item)
 
                     return (
                       <td
@@ -760,11 +827,14 @@ export default function SchedulePage() {
                               e.stopPropagation()
                               setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
                             }}
-                            className={`relative h-full rounded-lg border ${tone.cell} pl-3 pr-2 py-1.5 flex flex-col justify-center cursor-grab active:cursor-grabbing overflow-hidden`}
+                            className={`relative h-full rounded-lg border ${skip ? 'bg-slate-50 border-dashed border-slate-300 text-slate-500' : tone.cell} pl-3 pr-2 py-1.5 flex flex-col justify-center cursor-grab active:cursor-grabbing overflow-hidden`}
+                            title={skip ? `Nghỉ tiết${skip.notes ? `: ${skip.notes}` : ''} (không tính PPCT)` : undefined}
                           >
-                            <span className={`absolute left-0 top-0 bottom-0 w-1 ${tone.bar}`} />
-                            <span className="text-sm font-bold leading-tight truncate">{item.sub_class_code}</span>
-                            <span className="text-[11px] font-medium opacity-75 truncate">{item.sub_subject}</span>
+                            <span className={`absolute left-0 top-0 bottom-0 w-1 ${skip ? 'bg-slate-300' : tone.bar}`} />
+                            <span className={`text-sm font-bold leading-tight truncate ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
+                            <span className="text-[11px] font-medium opacity-75 truncate">
+                              {skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : item.sub_subject}
+                            </span>
                             <button
                               title="Di chuyển tiết học này sang ô khác"
                               onClick={(e) => {
@@ -823,6 +893,7 @@ export default function SchedulePage() {
           {periodsConfig.map((pConfig) => {
             const item = itemAt(mobileDay, pConfig.periodNum)
             const tone = item ? subjectTone(item.sub_subject || '') : null
+            const skip = skipOf(item)
             return (
               <React.Fragment key={`m-${pConfig.periodNum}`}>
                 {pConfig.periodNum === 1 && (
@@ -837,10 +908,10 @@ export default function SchedulePage() {
                 >
                   <span className="w-9 shrink-0 text-center text-xs font-semibold text-slate-500">{pConfig.short}</span>
                   {item && tone ? (
-                    <span className={`relative flex-1 min-h-11 rounded-lg border ${tone.cell} pl-3.5 pr-3 py-2 flex items-center justify-between overflow-hidden`}>
-                      <span className={`absolute left-0 top-0 bottom-0 w-1 ${tone.bar}`} />
-                      <span className="text-sm font-bold">{item.sub_class_code}</span>
-                      <span className="text-xs font-medium opacity-75">{item.sub_subject}</span>
+                    <span className={`relative flex-1 min-h-11 rounded-lg border ${skip ? 'bg-slate-50 border-dashed border-slate-300 text-slate-500' : tone.cell} pl-3.5 pr-3 py-2 flex items-center justify-between overflow-hidden`}>
+                      <span className={`absolute left-0 top-0 bottom-0 w-1 ${skip ? 'bg-slate-300' : tone.bar}`} />
+                      <span className={`text-sm font-bold ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
+                      <span className="text-xs font-medium opacity-75">{skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : item.sub_subject}</span>
                     </span>
                   ) : (
                     <span className={`flex-1 min-h-11 rounded-lg border border-dashed flex items-center px-3 text-xs ${
@@ -922,6 +993,43 @@ export default function SchedulePage() {
                   </p>
                 )}
               </div>
+
+              {editingCell.isExisting && (() => {
+                const it = itemAt(editingCell.dayId, editingCell.period)
+                const sk = skipOf(it)
+                return (
+                  <div className={`rounded-lg border p-3 space-y-2 ${sk ? 'bg-slate-50 border-slate-300' : 'border-slate-200'}`}>
+                    <p className="font-semibold text-slate-800 text-sm">Nghỉ tiết</p>
+                    {sk ? (
+                      <>
+                        <p className="text-slate-600">
+                          Tiết này đang nghỉ{sk.notes ? ` (${sk.notes})` : ''}: vẫn hiện trên TKB nhưng không tính vào PPCT.
+                        </p>
+                        <button onClick={() => handleToggleSkip(false)} disabled={loading} className={`${BTN_SECONDARY} w-full`}>
+                          Bỏ nghỉ, tính lại tiết này
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-slate-500">Chỉ áp dụng cho tuần {selectedWeek}. Tiết vẫn hiện nhưng không tính vào PPCT, tiết sau giữ đúng số bài.</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={60}
+                            value={skipNote}
+                            onChange={(e) => setSkipNote(e.target.value)}
+                            placeholder="Lý do: nghỉ lễ, thi..."
+                            className="flex-1 min-w-0 h-9 px-2.5 border border-slate-300 rounded-lg text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <button onClick={() => handleToggleSkip(true)} disabled={loading} className={BTN_SECONDARY}>
+                            Nghỉ tiết này
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
 
               <div className="flex items-center gap-2 pt-2">
                 {editingCell.isExisting && (
