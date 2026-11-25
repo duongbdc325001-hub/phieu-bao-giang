@@ -239,7 +239,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div>
               <h1 className="font-black text-sm tracking-wide text-white">Sổ Báo Giảng</h1>
-              <p className="text-[10px] text-slate-400">Trường THPT Chuyên HVT</p>
             </div>
           </div>
           {/* Nút đóng trên mobile */}
