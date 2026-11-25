@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useSchoolYear } from '@/components/school-year'
 import { weekOf } from '@/lib/namHoc'
 import * as XLSX from 'xlsx'
-import { Upload, RefreshCw, Calendar, Plus, Trash2, X, ArrowRightLeft } from 'lucide-react'
+import { Upload, RefreshCw, Plus, Trash2, X, ArrowRightLeft, Sun, Moon } from 'lucide-react'
+import { PageHeader, WeekSelect, BTN_PRIMARY, BTN_DANGER, BTN_ICON, BTN_SECONDARY } from '@/components/ui/page'
+import { subjectTone } from '@/lib/mauMon'
 
 interface ScheduleItem {
   id: string
@@ -81,7 +83,7 @@ const addUnique = (list: string[], value: string) =>
 
 export default function SchedulePage() {
   const supabase = createClient()
-  const { year } = useSchoolYear()
+  const { year, current } = useSchoolYear()
   const yearId = year.id
   const [selectedWeek, setSelectedWeek] = useState(() => weekOf(year))
   // Đổi năm học -> về tuần hiện tại (hoặc tuần 1) của năm đó
@@ -617,15 +619,40 @@ export default function SchedulePage() {
   }
 
   const periodsConfig = [
-    { periodNum: 1, label: 'Tiết 1', isAfternoonHeader: false },
-    { periodNum: 2, label: 'Tiết 2', isAfternoonHeader: false },
-    { periodNum: 3, label: 'Tiết 3', isAfternoonHeader: false },
-    { periodNum: 4, label: 'Tiết 4', isAfternoonHeader: false },
-    { periodNum: 5, label: 'Tiết 5', isAfternoonHeader: false },
-    { periodNum: 6, label: 'Tiết 1 (Chiều)', isAfternoonHeader: true },
-    { periodNum: 7, label: 'Tiết 2 (Chiều)', isAfternoonHeader: false },
-    { periodNum: 8, label: 'Tiết 3 (Chiều)', isAfternoonHeader: false },
+    { periodNum: 1, label: 'Tiết 1', short: '1', isAfternoonHeader: false },
+    { periodNum: 2, label: 'Tiết 2', short: '2', isAfternoonHeader: false },
+    { periodNum: 3, label: 'Tiết 3', short: '3', isAfternoonHeader: false },
+    { periodNum: 4, label: 'Tiết 4', short: '4', isAfternoonHeader: false },
+    { periodNum: 5, label: 'Tiết 5', short: '5', isAfternoonHeader: false },
+    { periodNum: 6, label: 'Chiều 1', short: 'C1', isAfternoonHeader: true },
+    { periodNum: 7, label: 'Chiều 2', short: 'C2', isAfternoonHeader: false },
+    { periodNum: 8, label: 'Chiều 3', short: 'C3', isAfternoonHeader: false },
   ]
+
+  const itemAt = (dayId: number, period: number) =>
+    schedule.find((s) => s.day_of_week === dayId && s.period_number === period)
+
+  // Bấm vào một ô: đang "di chuyển" thì thả vào ô trống, còn lại mở popup sửa
+  const onCellClick = (dayId: number, period: number) => {
+    const item = itemAt(dayId, period)
+    if (movingSlot && !item) {
+      handleSaveCell(dayId, period, movingSlot.subject, movingSlot.classCode)
+    } else {
+      setEditingCell({
+        dayId,
+        period,
+        subject: item?.sub_subject || '',
+        classCode: item?.sub_class_code || '',
+        isExisting: !!item,
+      })
+    }
+  }
+
+  // Điện thoại: xem từng ngày. Mặc định là hôm nay nếu đang xem tuần hiện tại.
+  const todayId = (() => { const d = new Date().getDay(); return d === 0 ? 2 : d + 1 })()
+  const isCurrentWeek = yearId === current.id && selectedWeek === weekOf(year)
+  const [mobileDay, setMobileDay] = useState<number>(() => (todayId <= 7 ? todayId : 2))
+  const countByDay = (dayId: number) => schedule.filter((s) => s.day_of_week === dayId).length
 
   // Trong popup: báo cho người dùng biết khi họ nhập mã mới ngoài danh sách
   const isNewSubject =
@@ -636,167 +663,122 @@ export default function SchedulePage() {
     !availableClasses.includes(normalizeClassCode(editingCell.classCode))
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 leading-tight">Thời Khóa Biểu</h1>
-          <p className="text-xs text-slate-500">
-            {movingSlot
-              ? `🎯 Đang chọn [${movingSlot.subject} - ${movingSlot.classCode}]. Click vào ô bất kỳ để di chuyển đến!`
-              : '💡 Mẹo: Bạn có thể kéo thả tiết học giữa các ô, bấm nút "Di chuyển" hoặc click vào ô để sửa/xóa.'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {movingSlot && (
+    <div className="max-w-7xl mx-auto space-y-4 pb-8">
+      <PageHeader
+        title="Thời khóa biểu"
+        subtitle={
+          movingSlot
+            ? `Đang di chuyển ${movingSlot.subject} - ${movingSlot.classCode}: bấm vào một ô trống để đặt tiết vào đó.`
+            : 'Bấm vào ô để thêm, sửa hoặc xóa tiết. Trên máy tính có thể kéo thả tiết sang ô khác.'
+        }
+        actions={
+          <>
+            {movingSlot && (
+              <button onClick={() => setMovingSlot(null)} className={BTN_DANGER}>
+                <X className="w-4 h-4" /> Hủy di chuyển
+              </button>
+            )}
+            <WeekSelect value={selectedWeek} weeks={year.weeks} onChange={setSelectedWeek} current={yearId === current.id ? weekOf(year) : undefined} />
+            <label className={BTN_PRIMARY}>
+              <Upload className="w-4 h-4" />
+              <span>Nhập Excel</span>
+              <input id="excel-upload" type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" />
+            </label>
             <button
-              onClick={() => setMovingSlot(null)}
-              className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-200 transition cursor-pointer"
+              onClick={handleResetMyData}
+              disabled={loading}
+              title={`Xóa TKB, gán PPCT và cắt/đảo tiết của năm học ${yearId}`}
+              className={BTN_DANGER}
             >
-              Hủy di chuyển
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Làm sạch dữ liệu</span>
+              <span className="sm:hidden">Làm sạch</span>
             </button>
-          )}
-
-          <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0"/>
-            <select
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
-            >
-              {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => (
-                <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <label className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer">
-            <Upload className="w-3.5 h-3.5"/>
-            <span>Nhập TKB Tuần {selectedWeek} (Excel)</span>
-            <input
-              id="excel-upload"
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </label>
-
-          <button
-            onClick={handleResetMyData}
-            disabled={loading}
-            title="Xóa sạch dữ liệu cá nhân để làm lại từ đầu"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-            <span>Làm sạch dữ liệu</span>
-          </button>
-
-          <button
-            onClick={loadScheduleAndSuggestions}
-            disabled={loading}
-            className="p-2 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}/>
-          </button>
-        </div>
-      </div>
+            <button onClick={loadScheduleAndSuggestions} disabled={loading} title="Tải lại" className={BTN_ICON}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </>
+        }
+      />
 
       {inheritedFrom != null && (
-        <div className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
-          Tuần {selectedWeek} chưa có TKB riêng nên đang dùng TKB của Tuần {inheritedFrom}. Sửa bất kỳ ô nào thì tuần này sẽ được lưu thành TKB riêng.
+        <div className="px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm">
+          Tuần {selectedWeek} chưa có TKB riêng nên đang dùng TKB của tuần {inheritedFrom}. Sửa một ô bất kỳ thì tuần này được lưu thành TKB riêng.
         </div>
       )}
 
-      {/* LƯỚI THỜI KHÓA BIỂU */}
-      <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">
+      {/* MÁY TÍNH: LƯỚI CẢ TUẦN */}
+      <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full table-fixed border-collapse text-left text-xs">
           <thead>
-            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase tracking-tight text-[11px]">
-              <th className="w-[10%] p-3 border-r border-slate-300 text-center">TIẾT</th>
+            <tr className="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+              <th className="w-20 px-3 py-2.5 text-center">Tiết</th>
               {DAYS.map((d) => (
-                <th key={d.id} className="w-[15%] p-3 border-r border-slate-300 text-center">
+                <th
+                  key={d.id}
+                  className={`px-2 py-2.5 text-center border-l border-slate-200 ${isCurrentWeek && d.id === todayId ? 'text-emerald-800 bg-emerald-50' : ''}`}
+                >
                   {d.name}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 text-slate-800">
+          <tbody className="text-slate-800">
             {periodsConfig.map((pConfig) => (
               <React.Fragment key={`period-row-${pConfig.periodNum}`}>
                 {pConfig.isAfternoonHeader && (
-                  <tr key="header-afternoon" className="bg-emerald-900/10">
-                    <td colSpan={7} className="p-2 text-center font-black text-emerald-900 text-xs uppercase tracking-wider border-y border-emerald-200 bg-emerald-50">
-                      ☀️ TKB Chiều (Tiết 1, 2, 3)
+                  <tr>
+                    <td colSpan={7} className="px-3 py-1.5 text-xs font-semibold text-slate-500 bg-slate-50 border-y border-slate-200">
+                      <span className="inline-flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> Buổi chiều</span>
                     </td>
                   </tr>
                 )}
 
-                <tr key={pConfig.periodNum} className="hover:bg-slate-50/50">
-                  <td className="p-3 border-r border-slate-300 text-center font-black text-slate-900 bg-slate-50">
+                <tr className="border-t border-slate-100">
+                  <td className="px-3 py-2 text-center text-xs font-semibold text-slate-500 bg-slate-50/60">
                     {pConfig.label}
                   </td>
                   {DAYS.map((day) => {
-                    const item = schedule.find(
-                      (s) => s.day_of_week === day.id && s.period_number === pConfig.periodNum
-                    )
+                    const item = itemAt(day.id, pConfig.periodNum)
                     const isMovingHere = movingSlot && !item
+                    const tone = item ? subjectTone(item.sub_subject || '') : null
 
                     return (
                       <td
                         key={day.id}
-                        onClick={() => {
-                          if (movingSlot && !item) {
-                            handleSaveCell(day.id, pConfig.periodNum, movingSlot.subject, movingSlot.classCode)
-                          } else {
-                            setEditingCell({
-                              dayId: day.id,
-                              period: pConfig.periodNum,
-                              subject: item?.sub_subject || '',
-                              classCode: item?.sub_class_code || '',
-                              isExisting: !!item,
-                            })
-                          }
-                        }}
+                        onClick={() => onCellClick(day.id, pConfig.periodNum)}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => handleDropSlot(e, day.id, pConfig.periodNum)}
-                        className={`p-2.5 border-r border-slate-300 text-center align-middle cursor-pointer transition group relative ${
-                          isMovingHere ? 'bg-amber-50 border-2 border-dashed border-amber-400' : 'hover:bg-emerald-50/60'
-                        }`}
+                        className={`h-16 p-1.5 border-l border-slate-100 align-middle cursor-pointer transition group ${
+                          isMovingHere ? 'bg-amber-50 outline-2 outline-dashed outline-amber-300 -outline-offset-4' : 'hover:bg-slate-50'
+                        } ${isCurrentWeek && day.id === todayId ? 'bg-emerald-50/30' : ''}`}
                       >
-                        {item ? (
+                        {item && tone ? (
                           <div
                             draggable
                             onDragStart={(e) => {
                               e.stopPropagation()
                               setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
                             }}
-                            className="bg-emerald-50 border border-emerald-300 rounded-lg p-1.5 shadow-2xs group-hover:border-emerald-500 cursor-grab active:cursor-grabbing relative flex flex-col items-center"
+                            className={`relative h-full rounded-lg border ${tone.cell} pl-3 pr-2 py-1.5 flex flex-col justify-center cursor-grab active:cursor-grabbing overflow-hidden`}
                           >
-                            <span className="font-black text-emerald-950 text-xs block">
-                              {item.sub_subject}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-600 mb-1">
-                              {item.sub_class_code}
-                            </span>
-
+                            <span className={`absolute left-0 top-0 bottom-0 w-1 ${tone.bar}`} />
+                            <span className="text-sm font-bold leading-tight truncate">{item.sub_class_code}</span>
+                            <span className="text-[11px] font-medium opacity-75 truncate">{item.sub_subject}</span>
                             <button
                               title="Di chuyển tiết học này sang ô khác"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
                               }}
-                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-emerald-700 hover:bg-emerald-800 text-white p-1 rounded transition shadow-xs"
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 bg-white/90 text-slate-700 border border-slate-200 p-1 rounded-md transition"
                             >
-                              <ArrowRightLeft className="w-3 h-3"/>
+                              <ArrowRightLeft className="w-3 h-3" />
                             </button>
                           </div>
                         ) : (
-                          <div className="text-slate-300 group-hover:text-emerald-600 font-bold text-base">
-                            {movingSlot ? '🎯 Thả vào đây' : '+'}
+                          <div className="h-full flex items-center justify-center text-slate-300 group-hover:text-emerald-600 text-xs font-semibold">
+                            {movingSlot ? 'Đặt vào đây' : <Plus className="w-4 h-4" />}
                           </div>
                         )}
                       </td>
@@ -809,14 +791,83 @@ export default function SchedulePage() {
         </table>
       </div>
 
+      {/* ĐIỆN THOẠI: TỪNG NGÀY */}
+      <div className="md:hidden space-y-3">
+        <div className="grid grid-cols-6 gap-1.5" role="tablist" aria-label="Chọn ngày">
+          {DAYS.map((d) => {
+            const active = d.id === mobileDay
+            const n = countByDay(d.id)
+            return (
+              <button
+                key={d.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setMobileDay(d.id)}
+                className={`relative flex flex-col items-center rounded-lg border py-2 transition ${
+                  active ? 'bg-emerald-700 border-emerald-700 text-white' : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <span className="text-sm font-bold">{d.id === 8 ? 'CN' : `T${d.id}`}</span>
+                <span className={`text-[10px] ${active ? 'text-emerald-100' : 'text-slate-400'}`}>{n ? `${n} tiết` : 'nghỉ'}</span>
+                {isCurrentWeek && d.id === todayId && !active && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-900">{DAYS.find((d) => d.id === mobileDay)?.name}</span>
+            {isCurrentWeek && mobileDay === todayId && <span className="text-xs font-semibold text-emerald-700">Hôm nay</span>}
+          </div>
+          {periodsConfig.map((pConfig) => {
+            const item = itemAt(mobileDay, pConfig.periodNum)
+            const tone = item ? subjectTone(item.sub_subject || '') : null
+            return (
+              <React.Fragment key={`m-${pConfig.periodNum}`}>
+                {pConfig.periodNum === 1 && (
+                  <div className="px-4 pt-2 text-[11px] font-semibold text-slate-400 flex items-center gap-1"><Sun className="w-3 h-3" /> Buổi sáng</div>
+                )}
+                {pConfig.isAfternoonHeader && (
+                  <div className="px-4 pt-3 text-[11px] font-semibold text-slate-400 flex items-center gap-1 border-t border-slate-100"><Moon className="w-3 h-3" /> Buổi chiều</div>
+                )}
+                <button
+                  onClick={() => onCellClick(mobileDay, pConfig.periodNum)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left active:bg-slate-50"
+                >
+                  <span className="w-9 shrink-0 text-center text-xs font-semibold text-slate-500">{pConfig.short}</span>
+                  {item && tone ? (
+                    <span className={`relative flex-1 min-h-11 rounded-lg border ${tone.cell} pl-3.5 pr-3 py-2 flex items-center justify-between overflow-hidden`}>
+                      <span className={`absolute left-0 top-0 bottom-0 w-1 ${tone.bar}`} />
+                      <span className="text-sm font-bold">{item.sub_class_code}</span>
+                      <span className="text-xs font-medium opacity-75">{item.sub_subject}</span>
+                    </span>
+                  ) : (
+                    <span className={`flex-1 min-h-11 rounded-lg border border-dashed flex items-center px-3 text-xs ${
+                      movingSlot ? 'border-amber-300 bg-amber-50 text-amber-800 font-semibold' : 'border-slate-200 text-slate-400'
+                    }`}>
+                      {movingSlot ? 'Đặt tiết vào đây' : '+ Thêm tiết'}
+                    </span>
+                  )}
+                </button>
+              </React.Fragment>
+            )
+          })}
+          <div className="h-2" />
+        </div>
+      </div>
+
       {/* POPUP THÊM / SỬA / XÓA TIẾT HỌC */}
       {editingCell && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
-            <div className="flex justify-between items-center border-b pb-3">
-              <span className="font-black text-slate-800 text-sm uppercase">
-                {DAYS.find((d) => d.id === editingCell.dayId)?.name} — {editingCell.period <= 5 ? `Tiết ${editingCell.period} (Sáng)` : `Tiết ${editingCell.period - 5} (Chiều)`} (Tuần {selectedWeek})
-              </span>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEditingCell(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <p className="font-bold text-slate-900 text-base">
+                  {DAYS.find((d) => d.id === editingCell.dayId)?.name}, {editingCell.period <= 5 ? `tiết ${editingCell.period}` : `chiều tiết ${editingCell.period - 5}`}
+                </p>
+                <p className="text-xs text-slate-500">Tuần {selectedWeek} · năm học {yearId}</p>
+              </div>
               <button
                 onClick={() => setEditingCell(null)}
                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
@@ -827,7 +878,7 @@ export default function SchedulePage() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Môn học (chọn gợi ý hoặc tự nhập):</label>
+                <label className="block font-semibold text-slate-700 mb-1">Môn học</label>
                 <input
                   type="text"
                   list="subject-options"
@@ -835,7 +886,7 @@ export default function SchedulePage() {
                   maxLength={MAX_SUBJECT_LEN}
                   placeholder="VD: T, Tin, hoặc môn mới..."
                   onChange={(e) => setEditingCell({ ...editingCell, subject: e.target.value })}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full h-11 px-3 border border-slate-300 rounded-lg font-semibold text-slate-900 text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <datalist id="subject-options">
                   {availableSubjects.map((sub) => (
@@ -850,7 +901,7 @@ export default function SchedulePage() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Mã lớp (chọn gợi ý hoặc tự nhập):</label>
+                <label className="block font-semibold text-slate-700 mb-1">Lớp</label>
                 <input
                   type="text"
                   list="class-options"
@@ -858,7 +909,7 @@ export default function SchedulePage() {
                   maxLength={MAX_CLASS_LEN}
                   placeholder="VD: 10T1, 12A3, hoặc lớp mới..."
                   onChange={(e) => setEditingCell({ ...editingCell, classCode: e.target.value })}
-                  className="w-full p-2.5 border rounded-xl font-bold text-slate-900 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
+                  className="w-full h-11 px-3 border border-slate-300 rounded-lg font-semibold text-slate-900 text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
                 />
                 <datalist id="class-options">
                   {availableClasses.map((cls) => (
@@ -874,14 +925,23 @@ export default function SchedulePage() {
 
               <div className="flex items-center gap-2 pt-2">
                 {editingCell.isExisting && (
-                  <button
-                    onClick={handleDeleteCell}
-                    disabled={loading}
-                    className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
-                  >
-                    <Trash2 className="w-4 h-4"/>
-                    <span>Xóa</span>
-                  </button>
+                  <>
+                    <button onClick={handleDeleteCell} disabled={loading} className={BTN_DANGER} title="Xóa tiết này">
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xóa</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMovingSlot({ subject: editingCell.subject, classCode: editingCell.classCode })
+                        setEditingCell(null)
+                      }}
+                      className={BTN_SECONDARY}
+                      title="Chọn ô khác để đặt tiết này vào"
+                    >
+                      <ArrowRightLeft className="w-4 h-4" />
+                      <span>Di chuyển</span>
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -889,9 +949,8 @@ export default function SchedulePage() {
                     await handleSaveCell(editingCell.dayId, editingCell.period, editingCell.subject, editingCell.classCode)
                   }}
                   disabled={loading}
-                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1"
+                  className={`${BTN_PRIMARY} flex-1 h-10 text-sm`}
                 >
-                  <Plus className="w-4 h-4"/>
                   <span>Lưu tiết học</span>
                 </button>
               </div>

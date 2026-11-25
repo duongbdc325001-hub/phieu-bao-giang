@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSchoolYear } from '@/components/school-year'
+import { PageHeader, BTN_PRIMARY, BTN_SECONDARY, BTN_ICON } from '@/components/ui/page'
 import * as XLSX from 'xlsx'
 import { BookOpen, RefreshCw, Upload, Trash2, Layers, Save, Eye, X } from 'lucide-react'
 
@@ -408,33 +409,27 @@ export default function CurriculumPage() {
   const gradeLevels = Array.from(new Set(classes.map((c) => c.grade))).sort((a, b) => a - b)
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 leading-tight">Phân Phối Chương Trình (PPCT)</h1>
-          <p className="text-xs text-slate-500">Mỗi lớp có thể áp dụng nhiều khung PPCT đồng thời để làm căn cứ lập Lịch báo giảng.</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer">
-            <Upload className="w-3.5 h-3.5" />
-            <span>Tải nhiều PPCT (Excel)</span>
-            <input id="ppct-upload" type="file" accept=".xlsx, .xls" multiple onChange={handleUploadCurriculumExcel} className="hidden" />
-          </label>
-
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="p-2 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-4 pb-8">
+      <PageHeader
+        title="Phân phối chương trình"
+        subtitle={`Tải khung PPCT từ Excel (dùng chung cho mọi năm), rồi gán khung cho từng lớp của năm học ${yearId}.`}
+        actions={
+          <>
+            <label className={BTN_PRIMARY}>
+              <Upload className="w-4 h-4" />
+              <span>Tải PPCT (Excel)</span>
+              <input id="ppct-upload" type="file" accept=".xlsx, .xls" multiple onChange={handleUploadCurriculumExcel} className="hidden" />
+            </label>
+            <button onClick={loadData} disabled={loading} title="Tải lại" className={BTN_ICON}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-xs space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
             <BookOpen className="w-4 h-4 text-emerald-600" />
             <span>Các khung PPCT đã có ({templates.length})</span>
           </h2>
@@ -451,21 +446,21 @@ export default function CurriculumPage() {
                   <div
                     key={tpl.id}
                     onClick={() => setSelectedTemplateId(tpl.id)}
-                    className={`p-3 rounded-xl border-2 transition cursor-pointer relative group ${
-                      isSelected ? 'bg-emerald-50/60 border-emerald-500 shadow-2xs' : 'bg-white border-slate-200 hover:border-slate-300'
+                    className={`p-3 rounded-lg border transition cursor-pointer relative group ${
+                      isSelected ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500' : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex justify-between items-start gap-2">
-                      <span className="font-black text-slate-900 text-sm">{tpl.title}</span>
+                      <span className="font-bold text-slate-900 text-sm">{tpl.title}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                           {tpl.total_lessons} tiết
                         </span>
 
                         <button
                           onClick={(e) => handleOpenViewModal(tpl, e)}
                           title="Xem chi tiết bảng phân phối chương trình"
-                          className="flex items-center gap-0.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                          className={`${BTN_SECONDARY} h-7 px-2`}
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>Xem</span>
@@ -481,8 +476,8 @@ export default function CurriculumPage() {
                       </div>
                     </div>
                     <div className="flex justify-between items-center mt-2 text-xs text-slate-500">
-                      <span>Khối {tpl.grade} — {tpl.subject}</span>
-                      <span className="font-bold text-blue-700">{assignedCount} lớp đang áp dụng</span>
+                      <span>Khối {tpl.grade} · {tpl.subject}</span>
+                      <span className={assignedCount ? 'font-semibold text-emerald-700' : 'text-slate-400'}>{assignedCount ? `${assignedCount} lớp đang dùng` : 'Chưa gán lớp nào'}</span>
                     </div>
                   </div>
                 )
@@ -491,22 +486,22 @@ export default function CurriculumPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white p-4 rounded-2xl border border-slate-300 shadow-xs space-y-3">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-2">
+        <div className="lg:col-span-2 bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase">
-                Gán khung: <span className="text-emerald-700">{activeTemplate?.title || 'Chọn khung'}</span>
+              <h2 className="text-sm font-bold text-slate-900">
+                Gán khung {activeTemplate?.title || '(chọn một khung bên trái)'}
               </h2>
-              <p className="text-[11px] text-slate-500">Tích chọn các lớp bên dưới, sau đó bấm nút <strong className="text-emerald-800">"Áp dụng"</strong> để lưu lại.</p>
+              <p className="text-xs text-slate-500">Chọn các lớp dùng khung này rồi bấm Lưu.</p>
             </div>
 
             <button
               onClick={handleApplyMappings}
               disabled={loading || !selectedTemplateId}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+              className={`${BTN_PRIMARY} w-full sm:w-auto`}
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Áp dụng cho các lớp đã chọn</span>
+              <Save className="w-4 h-4" />
+              <span>Lưu gán lớp ({selectedClassIds.length})</span>
             </button>
           </div>
 
@@ -524,8 +519,8 @@ export default function CurriculumPage() {
                 return (
                   <div key={gradeLevel} className="space-y-2">
                     {/* TIÊU ĐỀ KHỐI ĐƯỢC TÔ MÀU NỔI BẬT */}
-                    <div className="sticky top-0 bg-emerald-700 text-white px-3 py-2 rounded-xl border border-emerald-800 text-xs font-black uppercase tracking-wider shadow-xs">
-                      Khối {gradeLevel} ({classesInGrade.length} lớp)
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-1 py-1.5 text-xs font-semibold text-slate-500 border-b border-slate-100">
+                      Khối {gradeLevel} · {classesInGrade.length} lớp
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
@@ -545,19 +540,16 @@ export default function CurriculumPage() {
                           <div
                             key={cls.id}
                             onClick={() => handleToggleClassSelection(cls.id)}
-                            className={`p-2.5 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between gap-1.5 ${
-                              isAssignedToActiveTpl
-                                ? 'bg-emerald-100/90 border-emerald-600 shadow-xs ring-1 ring-emerald-500 font-semibold'
-                                : isSelectedCheckbox
-                                ? 'bg-emerald-50/80 border-emerald-500 text-slate-900 shadow-2xs'
+                            className={`p-3 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                              isSelectedCheckbox
+                                ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500'
                                 : 'bg-white border-slate-200 hover:bg-slate-50'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <span className={`text-xs block font-black ${isAssignedToActiveTpl ? 'text-emerald-950' : 'text-slate-900'}`}>
-                                  {cls.code} - Môn {cls.subject} {isAssignedToActiveTpl && '✓'}
-                                </span>
+                                <span className="text-sm block font-bold text-slate-900">{cls.code}</span>
+                                <span className="text-[11px] text-slate-500">Môn {cls.subject}{isAssignedToActiveTpl ? ' · đang dùng khung này' : ''}</span>
                               </div>
 
                               <div className="flex items-center gap-1">
@@ -565,24 +557,24 @@ export default function CurriculumPage() {
                                   type="checkbox"
                                   checked={isSelectedCheckbox}
                                   onChange={() => {}}
-                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                  aria-label={`Chọn lớp ${cls.code}`}
+                                  className="w-4 h-4 accent-emerald-700 cursor-pointer"
                                 />
-                                <span className="text-[11px] font-bold text-slate-700">Chọn</span>
                               </div>
                             </div>
 
                             {assignedTemplatesForClass.length > 0 && (
                               <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-200/60">
-                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5 mr-1">
-                                  <Layers className="w-3 h-3 text-blue-600" /> Đã lưu:
+                                <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-0.5 mr-1">
+                                  <Layers className="w-3 h-3" /> Đang gán:
                                 </span>
                                 {assignedTemplatesForClass.map((tpl) => (
                                   <span
                                     key={tpl.id}
-                                    className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                                       tpl.id === selectedTemplateId
-                                        ? 'bg-emerald-200 text-emerald-900'
-                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-slate-100 text-slate-600'
                                     }`}
                                   >
                                     {tpl.title}
@@ -604,8 +596,8 @@ export default function CurriculumPage() {
 
       {/* POPUP XEM CHI TIẾT BẢNG PHÂN PHỐI CHƯƠNG TRÌNH */}
       {viewingTemplate && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center border-b pb-3 shrink-0">
               <div>
                 <h3 className="font-black text-slate-900 text-base">{viewingTemplate.title}</h3>

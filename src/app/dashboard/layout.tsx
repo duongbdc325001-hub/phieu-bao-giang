@@ -35,10 +35,11 @@ const SO_BAO_GIANG: NavItem[] = [
 ]
 
 // Kiểu chung cho hai ô lớn "Sổ báo giảng" và "Đảo đề" (nền xanh cố định như nút Tải File Mẫu)
+// 3 ô lớn: nền xám đậm, chỉ ô đang mở mới tô xanh (trước đây cả 3 ô đều xanh đặc, nặng mắt)
 const BIG_BTN =
-  'w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-black text-sm text-white shadow-md transition duration-150 cursor-pointer'
+  'w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-bold text-sm transition duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
 const bigState = (active: boolean) =>
-  active ? 'bg-emerald-600 ring-2 ring-emerald-300/60' : 'bg-emerald-700 hover:bg-emerald-800'
+  active ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'
 
 // "Đảo đề" là chức năng ngang hàng với cả nhóm Sổ báo giảng
 const DAO_DE: NavItem = { href: '/dashboard/dao-de', label: 'Đảo đề', icon: Shuffle }
@@ -51,7 +52,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [soOpen, setSoOpen] = useState(false) // mặc định đóng, bấm "Sổ báo giảng" mới hiện các mục con
+  // null = chưa bấm: tự mở khi đang ở một trang con của Sổ báo giảng; bấm thì theo lựa chọn của người dùng
+  const [soOpen, setSoOpen] = useState<boolean | null>(null)
 
   // Trạng thái kiểm soát bảo mật (chỉ giữ lại kiểm tra đăng nhập và hết hạn bản quyền)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -210,13 +212,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               }`
         }
       >
-        <Icon className={`${big ? 'w-5 h-5 text-white' : 'w-4 h-4'} ${!big && (isActive ? 'text-white' : 'text-slate-400')}`} />
+        <Icon className={`${big ? `w-5 h-5 ${isActive ? 'text-white' : 'text-emerald-400'}` : 'w-4 h-4'} ${!big && (isActive ? 'text-white' : 'text-slate-400')}`} />
         <span>{item.label}</span>
       </Link>
     )
   }
 
   const soActive = SO_BAO_GIANG.some((i) => pathname === i.href)
+  const soShown = soOpen ?? soActive
 
   const NavContent = () => (
     <div className="flex flex-col justify-between h-full bg-slate-900 text-slate-100">
@@ -255,14 +258,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* NHÓM SỔ BÁO GIẢNG (4 chức năng con) */}
             <div>
               <button
-                onClick={() => setSoOpen((v) => !v)}
+                onClick={() => setSoOpen(!soShown)}
                 className={`${BIG_BTN} ${bigState(soActive)}`}
               >
-                <ClipboardList className="w-5 h-5" />
+                <ClipboardList className={`w-5 h-5 ${soActive ? 'text-white' : 'text-emerald-400'}`} />
                 <span className="flex-1 text-left">Sổ báo giảng</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${soOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 transition-transform ${soShown ? 'rotate-180' : ''}`} />
               </button>
-              {soOpen && (
+              {soShown && (
                 <div className="mt-2 ml-5 pl-3 border-l border-slate-700 space-y-1">
                   {SO_BAO_GIANG.map((item) => renderLink(item, true))}
                 </div>
@@ -302,7 +305,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-3 pt-2">
           <button
             onClick={handleDownloadRar}
-            className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-black text-xs transition shadow-md cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl font-semibold text-xs transition cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Tải File Mẫu</span>

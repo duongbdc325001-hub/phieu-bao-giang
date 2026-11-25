@@ -29,45 +29,11 @@ import {
   BorderStyle,
   HeightRule,
 } from 'docx'
-import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react'
+import { RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react'
+import { PageHeader, WeekSelect, BTN_PRIMARY, BTN_SECONDARY, BTN_ICON } from '@/components/ui/page'
+import { subjectTone, splitSubjectClass, periodText } from '@/lib/mauMon'
 
-// Màu nhãn môn học: mỗi môn luôn ra cùng một màu để quét mắt theo môn cho nhanh
-const SUBJECT_STYLES = [
-  'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  'bg-sky-50 text-sky-800 ring-sky-200',
-  'bg-violet-50 text-violet-800 ring-violet-200',
-  'bg-amber-50 text-amber-800 ring-amber-200',
-  'bg-rose-50 text-rose-800 ring-rose-200',
-  'bg-teal-50 text-teal-800 ring-teal-200',
-  'bg-indigo-50 text-indigo-800 ring-indigo-200',
-  'bg-orange-50 text-orange-800 ring-orange-200',
-]
-const subjectStyle = (subject: string) => {
-  let h = 0
-  for (let i = 0; i < subject.length; i++) h = (h * 31 + subject.charCodeAt(i)) >>> 0
-  return SUBJECT_STYLES[h % SUBJECT_STYLES.length]
-}
-
-// Đường kẻ: ngăn cách NGÀY và CỘT đậm; ngăn cách giữa các TIẾT trong một ngày mảnh (xem ruleInner trong DAY_THEMES)
-const DAY_RULE = 'border-t-2 border-slate-400'
-const COL_RULE = 'border-l-2 border-slate-300'
-
-// Mỗi thứ một tông màu nhạt riêng: thanh bên trái, ô ngày, nền các dòng trong ngày và đường kẻ.
-// (Viết đủ tên class để Tailwind nhận ra, không ghép chuỗi động.)
-const DAY_THEMES: Record<number, { bar: string; cell: string; row: string; pill: string; ruleTop: string; ruleInner: string }> = {
-  2: { bar: 'border-emerald-500', cell: 'bg-emerald-100/60', row: 'bg-emerald-50/50', pill: 'text-emerald-700 ring-emerald-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-emerald-200' },
-  3: { bar: 'border-sky-500', cell: 'bg-sky-100/60', row: 'bg-sky-50/50', pill: 'text-sky-700 ring-sky-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-sky-200' },
-  4: { bar: 'border-violet-500', cell: 'bg-violet-100/60', row: 'bg-violet-50/50', pill: 'text-violet-700 ring-violet-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-violet-200' },
-  5: { bar: 'border-amber-500', cell: 'bg-amber-100/60', row: 'bg-amber-50/50', pill: 'text-amber-700 ring-amber-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-amber-200' },
-  6: { bar: 'border-rose-500', cell: 'bg-rose-100/60', row: 'bg-rose-50/50', pill: 'text-rose-700 ring-rose-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-rose-200' },
-  7: { bar: 'border-teal-500', cell: 'bg-teal-100/60', row: 'bg-teal-50/50', pill: 'text-teal-700 ring-teal-200', ruleTop: DAY_RULE, ruleInner: 'border-t border-teal-200' },
-}
-
-// "TrN - 12SỬ" -> { subject: 'TrN', code: '12SỬ' }
-const splitSubjectClass = (text: string) => {
-  const i = text.indexOf(' - ')
-  return i === -1 ? { subject: '', code: text } : { subject: text.slice(0, i), code: text.slice(i + 3) }
-}
+const subjectStyle = (subject: string) => subjectTone(subject).chip
 
 // Dựng danh sách dòng của MỘT NGÀY cho phiếu Word: luôn đủ 5 dòng Tiết 1 -> 5
 // (tiết nào không dạy thì để dòng trống nhưng vẫn ghi số tiết); tiết chiều (C-1, C-2...) chỉ thêm khi có dạy.
@@ -179,6 +145,24 @@ export default function ReportsPage() {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearId])
+
+  // Mở hộp thoại cắt tiết / đảo tiết cho một tiết
+  const openEditSlot = (slot: any) => {
+    setEditingSlot({
+      classId: slot.realClassId,
+      slotIdx: slot.slotOrderInWeek,
+      currentOrder: Number(slot.lessonOrder) || 1,
+      isOverridden: slot.isOverridden,
+      tIdx: slot.timelineIndex,
+    })
+    setEditMode('cut')
+    setReorderNumber('')
+    setTargetLessonOrder(Number(slot.lessonOrder) || 1)
+  }
+
+  // Đánh dấu "hôm nay" khi đang xem tuần hiện tại của năm học hiện tại
+  const todayId = (() => { const d = new Date().getDay(); return d === 0 ? 8 : d + 1 })()
+  const isCurrentWeek = year.id === current.id && selectedWeek === weekOf(year)
 
   // Logic tính tiết nằm ở src/lib/baoGiang.ts (dùng chung với trang Tiến độ)
   const calculateReportRows = () => {
@@ -597,134 +581,87 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 font-sans pb-8">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 leading-tight">Lịch Báo Giảng</h1>
-          <p className="text-xs text-slate-500">Ngày không có tiết hiển thị gọn một dòng. Phiếu Word luôn xuất đủ 5 dòng (Tiết 1–5) mỗi ngày.</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 border rounded-xl shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <select
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="font-black text-emerald-800 bg-transparent text-xs focus:outline-none cursor-pointer"
-            >
-              {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => (
-                <option key={w} value={w}>
-                  Tuần {w < 10 ? '0' + w : w}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            onClick={handleExportWord}
-            disabled={exportingWord || loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Word</span>
-          </button>
-
-          <button
-            onClick={openBookDialog}
-            disabled={loading || exportingBook}
-            title="Xuất nhiều tuần (các tuần đã dạy) vào một file Word"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Xuất sổ báo giảng</span>
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Excel</span>
-          </button>
-
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="p-2 border rounded-xl bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-4 pb-8">
+      <PageHeader
+        title="Lịch báo giảng"
+        subtitle="Bấm vào số tiết CT để cắt tiết hoặc đảo tiết. Phiếu Word luôn in đủ tiết 1–5 mỗi ngày."
+        actions={
+          <>
+            <WeekSelect value={selectedWeek} weeks={year.weeks} onChange={setSelectedWeek} current={year.id === current.id ? weekOf(year) : undefined} />
+            <button onClick={handleExportWord} disabled={exportingWord || loading} className={BTN_PRIMARY} title="Xuất phiếu báo giảng tuần này ra Word">
+              <FileText className="w-4 h-4" />
+              <span>Word</span>
+            </button>
+            <button onClick={openBookDialog} disabled={loading || exportingBook} className={BTN_SECONDARY} title="Xuất nhiều tuần (các tuần đã dạy) vào một file Word">
+              <BookOpen className="w-4 h-4" />
+              <span>Xuất sổ</span>
+            </button>
+            <button onClick={handleExportExcel} disabled={loading} className={BTN_SECONDARY} title="Xuất tuần này ra Excel">
+              <Download className="w-4 h-4" />
+              <span>Excel</span>
+            </button>
+            <button onClick={loadData} disabled={loading} title="Tải lại" className={BTN_ICON}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </>
+        }
+      />
 
       {/* TÓM TẮT TUẦN */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
-        <p className="text-sm text-emerald-900">
-          <span className="font-bold">Tuần {selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}</span>
-          <span className="ml-2 text-emerald-700">
-            {getFormattedDate(0)} – {getFormattedDate(5)}
-          </span>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
+        <p className="text-sm text-slate-700">
+          <span className="font-bold text-slate-900">Tuần {selectedWeek}</span>
+          <span className="ml-2 text-slate-500">{getFormattedDate(0)} – {getFormattedDate(5)}</span>
         </p>
-        <p className="text-xs text-slate-600">
-          Tổng <span className="mx-0.5 text-base font-bold text-emerald-800">{totalSlotsCount}</span> tiết dạy
+        <p className="text-sm text-slate-500">
+          <span className="font-bold text-slate-900 tabular-nums">{totalSlotsCount}</span> tiết dạy
         </p>
       </div>
 
-      {/* BẢNG BÁO GIẢNG */}
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+      {/* MÁY TÍNH: BẢNG BÁO GIẢNG */}
+      <div className="hidden md:block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] table-fixed border-collapse text-left">
+          <table className="w-full min-w-[820px] table-fixed border-collapse text-left">
             <colgroup>
               <col className="w-[13%]" />
-              <col className="w-[19%]" />
+              <col className="w-[17%]" />
               <col className="w-[9%]" />
-              <col className="w-[39%]" />
+              <col className="w-[41%]" />
               <col className="w-[10%]" />
               <col className="w-[10%]" />
             </colgroup>
             <thead>
-              <tr className="border-b-2 border-slate-400 bg-slate-50 text-xs font-semibold text-slate-600">
-                <th className="px-3 py-3 text-center">Thứ, ngày</th>
-                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Môn - lớp</th>
-                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Tiết TKB</th>
-                <th className={`px-4 py-3 ${COL_RULE}`}>Tên bài dạy theo PPCT</th>
-                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Tiết CT</th>
-                <th className={`px-3 py-3 text-center ${COL_RULE}`}>Ghi chú</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
+                <th className="px-3 py-2.5 text-center">Thứ, ngày</th>
+                <th className="px-3 py-2.5 border-l border-slate-200">Lớp - môn</th>
+                <th className="px-3 py-2.5 text-center border-l border-slate-200">Tiết TKB</th>
+                <th className="px-4 py-2.5 border-l border-slate-200">Tên bài dạy theo PPCT</th>
+                <th className="px-3 py-2.5 text-center border-l border-slate-200">Tiết CT</th>
+                <th className="px-3 py-2.5 text-center border-l border-slate-200">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
               {reportData.map((group) => {
                 const isDayOff = group.slots.every((s: any) => s.isEmpty)
-                const theme = DAY_THEMES[group.day.id] || DAY_THEMES[2]
+                const isToday = isCurrentWeek && group.day.id === todayId
 
-                // Ô "Thứ, ngày": thanh xanh bên trái cho ngày có tiết, xám cho ngày không có tiết
                 const dayCell = (rowSpan: number) => (
                   <td
                     rowSpan={rowSpan}
-                    className={`border-l-4 px-3 py-3 text-center align-middle ${
-                      isDayOff ? 'border-slate-200 bg-slate-50' : `${theme.bar} ${theme.cell}`
-                    }`}
+                    className={`px-3 py-2.5 text-center align-middle border-r border-slate-200 ${isToday ? 'bg-emerald-50' : 'bg-slate-50/70'}`}
                   >
-                    <span className="block text-sm font-bold text-slate-900">{group.day.name}</span>
-                    <span
-                      className={`mt-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                        isDayOff ? 'text-slate-500 ring-slate-200' : theme.pill
-                      }`}
-                    >
-                      {getFormattedDate(group.day.offset)}
+                    <span className={`block text-sm font-bold ${isDayOff ? 'text-slate-400' : 'text-slate-900'}`}>{group.day.name}</span>
+                    <span className={`block text-xs ${isToday ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
+                      {getFormattedDate(group.day.offset)}{isToday ? ' · hôm nay' : ''}
                     </span>
                   </td>
                 )
 
                 if (isDayOff) {
                   return (
-                    <tr key={`off_${group.day.id}`} className={DAY_RULE}>
+                    <tr key={`off_${group.day.id}`} className="border-t-2 border-slate-200">
                       {dayCell(1)}
-                      <td colSpan={5} className={`px-4 py-3 text-sm italic text-slate-400 ${COL_RULE}`}>
-                        Không có tiết dạy
-                      </td>
+                      <td colSpan={5} className="px-4 py-2.5 text-sm text-slate-400">Không có tiết dạy</td>
                     </tr>
                   )
                 }
@@ -741,70 +678,51 @@ export default function ReportsPage() {
                   return (
                     <tr
                       key={`${group.day.id}_p${slot.period}_${idx}`}
-                      className={`group transition-colors hover:bg-white/70 ${theme.row} ${
-                        isFirst ? theme.ruleTop : theme.ruleInner
-                      }`}
+                      className={`group hover:bg-slate-50/70 ${isFirst ? 'border-t-2 border-slate-200' : 'border-t border-slate-100'}`}
                     >
                       {isFirst && dayCell(group.slots.length)}
 
-                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
-                        <span className="inline-flex items-center gap-1.5">
+                      <td className="px-3 py-2.5">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900">{code}</span>
                           {subject && (
-                            <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${subjectStyle(subject)}`}>
+                            <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${subjectStyle(subject)}`}>
                               {subject}
                             </span>
                           )}
-                          <span className="text-sm font-bold text-slate-900">{code}</span>
                         </span>
                       </td>
 
-                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
-                        {isAfternoon ? (
-                          <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">
-                            {slot.period}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-semibold tabular-nums text-slate-600">{slot.period}</span>
-                        )}
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`text-sm tabular-nums ${isAfternoon ? 'font-semibold text-amber-700' : 'text-slate-600'}`}>
+                          {slot.period}
+                        </span>
                       </td>
 
-                      <td className={`px-4 py-2.5 align-middle ${COL_RULE}`}>
+                      <td className="px-4 py-2.5 align-middle">
                         {!slot.hasTemplate ? (
                           <Link
                             href="/dashboard/curriculum"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200 transition hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200 transition hover:bg-rose-100"
                           >
                             <AlertCircle className="h-3.5 w-3.5" />
-                            <span>Chưa có PPCT, bấm để gán ngay</span>
+                            <span>Chưa có PPCT, bấm để gán</span>
                           </Link>
                         ) : (
-                          <span title={slot.lessonName} className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">
+                          <span title={slot.lessonName} className="line-clamp-2 text-[13px] leading-snug text-slate-900">
                             {slot.lessonName}
                           </span>
                         )}
                       </td>
 
-                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                      <td className="px-3 py-2.5 text-center">
                         {slot.hasTemplate && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditingSlot({
-                                classId: slot.realClassId,
-                                slotIdx: slot.slotOrderInWeek,
-                                currentOrder: Number(slot.lessonOrder) || 1,
-                                isOverridden: slot.isOverridden,
-                                tIdx: slot.timelineIndex,
-                              })
-                              setEditMode('cut')
-                              setReorderNumber('')
-                              setTargetLessonOrder(Number(slot.lessonOrder) || 1)
-                            }}
+                            onClick={() => openEditSlot(slot)}
                             title="Bấm để cắt tiết hoặc đảo tiết"
                             className={`inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ring-1 ring-inset transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
-                              slot.isOverridden
-                                ? noteStyle
-                                : 'bg-white text-slate-900 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500'
+                              slot.isOverridden ? noteStyle : 'bg-white text-slate-900 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500'
                             }`}
                           >
                             <span>{slot.lessonOrder}</span>
@@ -813,15 +731,11 @@ export default function ReportsPage() {
                         )}
                       </td>
 
-                      <td className={`px-3 py-2.5 text-center ${COL_RULE}`}>
+                      <td className="px-3 py-2.5 text-center">
                         {!slot.hasTemplate ? (
-                          <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">
-                            Thiếu PPCT
-                          </span>
+                          <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">Thiếu PPCT</span>
                         ) : slot.noteLabel ? (
-                          <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${noteStyle}`}>
-                            {slot.noteLabel}
-                          </span>
+                          <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${noteStyle}`}>{slot.noteLabel}</span>
                         ) : null}
                       </td>
                     </tr>
@@ -833,10 +747,76 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* ĐIỆN THOẠI: TỪNG NGÀY DẠNG THẺ */}
+      <div className="md:hidden space-y-2.5">
+        {reportData.map((group) => {
+          const real = group.slots.filter((s: any) => !s.isEmpty)
+          const isToday = isCurrentWeek && group.day.id === todayId
+          if (real.length === 0) {
+            return (
+              <div key={`moff_${group.day.id}`} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/60 px-4 py-2.5">
+                <span className="text-sm font-semibold text-slate-400">{group.day.name} <span className="font-normal">{getFormattedDate(group.day.offset)}</span></span>
+                <span className="text-xs text-slate-400">Không có tiết</span>
+              </div>
+            )
+          }
+          return (
+            <div key={`m_${group.day.id}`} className={`rounded-xl border bg-white shadow-sm overflow-hidden ${isToday ? 'border-emerald-300' : 'border-slate-200'}`}>
+              <div className={`flex items-center justify-between px-4 py-2 border-b ${isToday ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                <span className="text-sm font-bold text-slate-900">{group.day.name} <span className="font-normal text-slate-500">{getFormattedDate(group.day.offset)}</span></span>
+                <span className={`text-xs ${isToday ? 'font-semibold text-emerald-700' : 'text-slate-500'}`}>{isToday ? 'Hôm nay · ' : ''}{real.length} tiết</span>
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {real.map((slot: any, idx: number) => {
+                  const { subject, code } = splitSubjectClass(slot.subjectClass || '')
+                  const tone = subjectTone(subject)
+                  const noteStyle = slot.noteLabel === 'Đảo tiết' ? 'bg-violet-50 text-violet-800 ring-violet-200' : 'bg-amber-50 text-amber-800 ring-amber-200'
+                  return (
+                    <li key={`m_${group.day.id}_${idx}`} className="relative flex items-start gap-3 pl-4 pr-3 py-2.5">
+                      <span className={`absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r ${tone.bar}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-slate-900">{code}</span>
+                          {subject && <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tone.chip}`}>{subject}</span>}
+                          <span className="text-xs text-slate-500">{periodText(slot.period)}</span>
+                          {slot.hasTemplate && slot.noteLabel && (
+                            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${noteStyle}`}>{slot.noteLabel}</span>
+                          )}
+                        </div>
+                        {slot.hasTemplate ? (
+                          <p className="mt-1 text-[13px] leading-snug text-slate-700">{slot.lessonName}</p>
+                        ) : (
+                          <Link href="/dashboard/curriculum" className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
+                            <AlertCircle className="h-3.5 w-3.5" /> Chưa có PPCT, bấm để gán
+                          </Link>
+                        )}
+                      </div>
+                      {slot.hasTemplate && (
+                        <button
+                          type="button"
+                          onClick={() => openEditSlot(slot)}
+                          title="Cắt tiết hoặc đảo tiết"
+                          className={`shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg ring-1 ring-inset ${
+                            slot.isOverridden ? noteStyle : 'bg-white text-slate-900 ring-slate-300 active:bg-emerald-50'
+                          }`}
+                        >
+                          <span className="text-[10px] font-medium opacity-60 leading-none">Tiết CT</span>
+                          <span className="text-base font-bold tabular-nums leading-tight">{slot.lessonOrder}</span>
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+
       {/* POPUP ĐIỀU CHỈNH TIẾN ĐỘ */}
       {editingSlot && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Cấu hình tiến độ tiết dạy</span>
               <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
@@ -958,11 +938,11 @@ export default function ReportsPage() {
 
       {/* HỘP THOẠI XUẤT SỔ BÁO GIẢNG */}
       {bookOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !exportingBook && setBookOpen(false)}>
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => !exportingBook && setBookOpen(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-600" /> Xuất sổ báo giảng
+                <BookOpen className="w-5 h-5 text-emerald-700" /> Xuất sổ báo giảng
               </h2>
               <button onClick={() => setBookOpen(false)} disabled={exportingBook} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X className="w-4 h-4" />
@@ -988,7 +968,7 @@ export default function ReportsPage() {
             <button
               onClick={handleExportBook}
               disabled={exportingBook}
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl cursor-pointer"
+              className={`${BTN_PRIMARY} w-full h-11 text-sm`}
             >
               {exportingBook ? 'Đang tạo file...' : 'Xuất file Word'}
             </button>

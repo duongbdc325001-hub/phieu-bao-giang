@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { CalendarPlus, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useSchoolYear } from '@/components/school-year'
+import { BTN_PRIMARY } from '@/components/ui/page'
 import { DEFAULT_WEEKS, dateOf, formatDay, parseDay, yearIdFromStart } from '@/lib/namHoc'
 
 export default function AdminNamHoc() {
@@ -56,7 +57,7 @@ export default function AdminNamHoc() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-300 shadow-xs p-5 space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
       <div>
         <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
           <CalendarPlus className="w-5 h-5 text-emerald-600" />
@@ -74,13 +75,13 @@ export default function AdminNamHoc() {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+        <table className="w-full min-w-[520px] text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300 uppercase text-[11px]">
+            <tr className="bg-slate-50 text-slate-600 font-semibold border-y border-slate-200 text-xs">
               <th className="p-2.5">Năm học</th>
-              <th className="p-2.5">Ngày bắt đầu tuần 1</th>
+              <th className="p-2.5">Tuần 1 bắt đầu</th>
               <th className="p-2.5">Số tuần</th>
-              <th className="p-2.5">Kết thúc (hết tuần cuối)</th>
+              <th className="p-2.5">Kết thúc</th>
               <th className="p-2.5 text-right"></th>
             </tr>
           </thead>
@@ -121,7 +122,7 @@ export default function AdminNamHoc() {
                       <button
                         onClick={() => saveYear(y.id)}
                         disabled={busy}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl cursor-pointer"
+                        className={BTN_PRIMARY}
                       >
                         <Save className="w-3.5 h-3.5" /> Lưu
                       </button>
@@ -141,7 +142,7 @@ export default function AdminNamHoc() {
             type="date"
             value={newStart}
             onChange={(e) => setNewStart(e.target.value)}
-            className="block mt-1 px-2 py-1.5 border rounded-lg font-medium"
+            className="block mt-1 h-9 px-2 border border-slate-300 rounded-lg font-medium"
           />
         </label>
         <label className="text-xs font-bold text-slate-600">
@@ -152,13 +153,13 @@ export default function AdminNamHoc() {
             max={60}
             value={newWeeks}
             onChange={(e) => setNewWeeks(Math.max(1, Math.min(60, Number(e.target.value) || DEFAULT_WEEKS)))}
-            className="block mt-1 w-20 px-2 py-1.5 border rounded-lg font-medium"
+            className="block mt-1 h-9 w-20 px-2 border border-slate-300 rounded-lg font-medium"
           />
         </label>
         <button
           onClick={addYear}
           disabled={busy || usingFallback || !newStart}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl cursor-pointer"
+          className={BTN_PRIMARY}
         >
           {newStart ? `Thêm năm học ${yearIdFromStart(newStart)}` : 'Thêm năm học'}
         </button>
