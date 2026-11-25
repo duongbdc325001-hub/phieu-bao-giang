@@ -70,13 +70,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .opt span{display:flex;flex-direction:column}
 .opt small{color:var(--mute);font-size:.84rem}
 
-/* Bỏ qua soát số báo danh */
-.skip{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 18px;background:var(--bg);cursor:pointer;transition:border-color .15s}
-.skip:has(input:checked){border-color:var(--acc)}
-.skip input{margin-top:4px;width:20px;height:20px;accent-color:var(--acc);flex:none}
-.skip span{display:flex;flex-direction:column;font-weight:600}
-.skip small{color:var(--mute);font-size:.84rem;font-weight:400}
-
 /* Màn hình chờ */
 #busy{position:fixed;inset:0;background:rgba(10,15,30,.5);display:flex;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px)}
 #busy .bx{background:var(--card);color:var(--ink);border-radius:14px;padding:26px 30px;text-align:center;width:min(340px,86vw);box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -177,7 +170,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <section id="out" class="card" hidden>
 <b>Đã tạo xong</b>
 <div class="files" id="files"></div>
-<label class="skip"><input id="skipSBD" type="checkbox"><span>Bỏ qua soát số báo danh khi chấm<small>Dùng khi chấm bằng điện thoại cá nhân: chỉ đọc mã đề và đáp án, không báo lỗi thiếu/trùng số báo danh</small></span></label>
 <b>Đáp án</b>
 <div class="tw" style="margin-top:10px"><table id="key"></table></div>
 </section>
@@ -188,7 +180,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<!-- ghim phiên bản cố định: "xlsx-latest" có thể đổi bất cứ lúc nào và làm hỏng trang -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<!-- tạo QR ngay trên máy: đáp án không gửi ra máy chủ bên ngoài -->
+<script src="/vendor/qrcode.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const QRE=/^\s*(?:Câu|Question)\s*\d+\s*[.:]/i,MARKG=/^\s*<#?g[0-3]>\s*$/i,SEC=/^\s*PHẦN\s+([IVX\d]+)/i,END=/^[\s\-–—]*HẾT[\s\-–—]*$/i,MARK=/^\s*<\/?#?g\d*>\s*$/i;
@@ -446,11 +441,6 @@ const getVal = (id, fallback) => {
   return el.value.trim() || el.placeholder || fallback || '';
 };
 
-// Bỏ qua soát số báo danh: nhớ lựa chọn trên máy này
-const SKIP_KEY='cham-bai:bo-qua-sbd';
-try{$('skipSBD').checked=localStorage.getItem(SKIP_KEY)==='1'}catch(e){}
-$('skipSBD').onchange=()=>{try{localStorage.setItem(SKIP_KEY,$('skipSBD').checked?'1':'0')}catch(e){}};
-
 // Màn hình chờ
 const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,20)));
 const busy=(on,t,s,pct)=>{
@@ -539,7 +529,14 @@ $('go').onclick=async()=>{
     return `${code}:${ansStr}`;
   });
   const qrText = qrTextArray.join('|'); 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrText)}`;
+  // Tạo QR ngay trên máy (trước đây gửi toàn bộ đáp án lên api.qrserver.com).
+  // Ảnh QR nhúng thẳng vào file HTML nên mở file khi không có mạng vẫn thấy.
+  let qrUrl = '';
+  try {
+    qrUrl = await QRCode.toDataURL(qrText, { width: 500, margin: 2, errorCorrectionLevel: 'L' });
+  } catch (e) {
+    console.error('Không tạo được QR:', e);
+  }
 
   const displayHtml = codes.map((code, j) => {
     const ansStr = keys[j].map(x => String(x.val).replace(/,/g, '.').trim()).join(',');
@@ -550,7 +547,7 @@ $('go').onclick=async()=>{
 
   const qrGroup = `<div style="text-align:center; border:1px solid #d5dbe6; padding:20px; border-radius:10px; width:100%; max-width:600px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin: 0 auto;">
               <h3 style="margin-top:0; color:#1b2742; font-family:sans-serif; font-size: 16px;">Tất cả mã đề: ${title}</h3>
-              <img src="${qrUrl}" alt="QR Tất cả mã đề" style="max-width:100%; height:auto; margin-bottom:15px;" />
+              ${qrUrl ? `<img src="${qrUrl}" alt="QR Tất cả mã đề" style="max-width:100%; height:auto; margin-bottom:15px;" />` : '<p style="color:#c0392b;font-family:sans-serif">Không tạo được mã QR (đáp án quá dài). Hãy dùng file Excel đáp án.</p>'}
               <p style="word-break:break-word; font-size:13px; font-family:monospace; color:#5d6b86; margin-bottom:0; text-align: left; line-height: 1.8;">${displayHtml}</p>
           </div>`;
   
@@ -589,15 +586,13 @@ $('go').onclick=async()=>{
   cb.title = 'Mở phần Chấm bài với đáp án các mã đề vừa tạo';
   cb.style.flexBasis = '100%';
   cb.onclick = () => {
-    const skipSBD = $('skipSBD').checked;
     try {
       localStorage.setItem('cham-bai:tu-dao-de', JSON.stringify({
         name, codes, at: Date.now(),
-        skipSBD,
         keys: keys.map(k => k.map(x => ({ lab: String(x.lab), val: String(x.val) })))
       }));
     } catch (e) { alert('Không chuyển được đáp án: ' + e.message); return; }
-    (window.top || window).location.href = '/dashboard/cham-bai' + (skipSBD ? '?boQuaSBD=1' : '');
+    (window.top || window).location.href = '/dashboard/cham-bai';
   };
   za.after(cb);
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');

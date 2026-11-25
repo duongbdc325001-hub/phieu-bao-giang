@@ -68,13 +68,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Lấy thông tin user và kiểm tra hạn bản quyền (đã loại bỏ hoàn toàn việc chặn pending)
   useEffect(() => {
     const checkUserAccess = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      // getSession() đọc phiên đã lưu trên máy nên chạy được cả khi mất mạng
+      // (getUser() phải hỏi máy chủ, mất mạng sẽ bị đẩy ra trang đăng nhập).
+      // Quyền đọc/ghi dữ liệu vẫn do RLS trên Supabase kiểm soát.
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) {
+        // Mất mạng mà phiên chưa làm mới được: vẫn cho vào phần Chấm bài (dữ liệu nằm trên máy)
+        const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+        if (offline && window.location.pathname.startsWith('/dashboard/cham-bai')) {
+          setUserInfo({ fullName: 'Đang ngoại tuyến', roleOrSubject: 'Chấm bài offline', initial: 'G' })
+          setCheckingAuth(false)
+          return
+        }
         router.push('/login')
         return
       }
 
       setUserEmail(user.email || '')
+      const fallbackName = user.email?.split('@')[0] || 'Giáo viên'
+      setUserInfo({ fullName: fallbackName, roleOrSubject: 'Giáo viên', initial: fallbackName.charAt(0).toUpperCase() })
 
       // Lấy thông tin từ bảng profiles
       const { data: profile } = await supabase
@@ -158,6 +171,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     )
   }
+
+  // Trang quản trị chỉ dành cho admin (trước đây ai gõ thẳng URL cũng vào được)
+  const isAdminRoute = pathname === '/dashboard/admin' || pathname.startsWith('/dashboard/admin/')
+  const pageContent =
+    isAdminRoute && userRole !== 'admin' ? (
+      <div className="max-w-md mx-auto mt-16 bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-sm">
+        <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
+        <h1 className="text-lg font-black text-slate-900">Không có quyền truy cập</h1>
+        <p className="text-xs text-slate-500">Trang này chỉ dành cho quản trị viên.</p>
+        <Link href="/dashboard/reports" className="inline-block mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl">
+          Về Lịch báo giảng
+        </Link>
+      </div>
+    ) : (
+      children
+    )
 
   const renderLink = (item: NavItem, nested = false, big = false) => {
     const Icon = item.icon
@@ -335,7 +364,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* VÙNG NỘI DUNG TRANG */}
         <main className="flex-1 p-3 sm:p-6 overflow-y-auto">
-          {children}
+          {pageContent}
         </main>
       </div>
     </div>

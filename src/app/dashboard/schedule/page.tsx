@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { START_DATE_WEEK_1 } from '@/lib/baoGiang'
 import * as XLSX from 'xlsx'
 import { Upload, RefreshCw, Calendar, Plus, Trash2, X, ArrowRightLeft } from 'lucide-react'
 
@@ -75,7 +76,7 @@ const guessGrade = (classCode: string): number => {
 
 // Hàm tự động tính tuần hiện tại theo thời gian thực (Tuần 1 bắt đầu từ 07/09/2026)
 const getCurrentWeekNumber = () => {
-  const startDate = new Date(2026, 8, 7) // Tháng 9 là 8 trong JavaScript (0-indexed)
+  const startDate = new Date(START_DATE_WEEK_1)
   const today = new Date()
 
   startDate.setHours(0, 0, 0, 0)
@@ -141,19 +142,26 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Tuần chưa sửa riêng thì HIỂN THỊ theo tuần gần nhất trước đó đã có TKB (giống Lịch báo giảng),
+  // nhưng KHÔNG ghi gì xuống DB khi chỉ mở xem. Chỉ khi giáo viên sửa một ô của tuần này
+  // thì mới chép cả tuần xuống DB (materializeInheritedWeek) rồi sửa.
+  // Trước đây mở tuần là tự chép ngay -> sửa TKB tuần trước không lan sang các tuần đã từng mở,
+  // và mở 2 lần liền (đổi tuần nhanh) có thể chép trùng.
+  const [inheritedFrom, setInheritedFrom] = useState<number | null>(null)
+  const [inheritedRows, setInheritedRows] = useState<{ day_of_week: number; period_number: number; class_id: string | null }[]>([])
+  const loadSeq = useRef(0)
+  const materializing = useRef(false)
+
   const loadScheduleAndSuggestions = async () => {
+    const mySeq = ++loadSeq.current
+    const week = selectedWeek
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    // Kiểm tra xem tuần hiện tại đã có dữ liệu trong DB chưa
-    const { data: sData } = await supabase
-      .from('schedule_entries')
-      .select(`
+      const selectCols = `
         id,
         week_number,
         day_of_week,
@@ -163,71 +171,94 @@ export default function SchedulePage() {
           code,
           subject
         )
-      `)
-      .eq('week_number', selectedWeek)
-      .eq('user_id', user.id)
+      `
 
-    if (sData && sData.length > 0) {
-      const formattedEntries = sData.map((item: any) => ({
-        id: item.id,
+      const { data: sData } = await supabase
+        .from('schedule_entries')
+        .select(selectCols)
+        .eq('week_number', week)
+        .eq('user_id', user.id)
+
+      if (mySeq !== loadSeq.current) return // người dùng đã chuyển sang tuần khác
+
+      const format = (item: any, idPrefix = ''): ScheduleItem => ({
+        id: `${idPrefix}${item.id}`,
         day_of_week: item.day_of_week,
         period_number: item.period_number,
         class_id: item.class_id,
-        week_number: item.week_number,
+        week_number: week,
         sub_class_code: item.classes?.code || '',
         sub_subject: item.classes?.subject || ''
-      }))
-      setSchedule(formattedEntries)
-    } else {
-      // --- TỰ ĐỘNG CLONE THẬT XUỐNG DB TỪ TUẦN LIỀN KỀ TRƯỚC ĐÓ KHI SANG TUẦN MỚI CHƯA CÓ DỮ LIỆU ---
-      if (selectedWeek > 1) {
-        const { data: prevWeekData } = await supabase
-          .from('schedule_entries')
-          .select(`
-            id,
-            day_of_week,
-            period_number,
-            class_id,
-            classes (
-              code,
-              subject
-            )
-          `)
-          .eq('week_number', selectedWeek - 1)
-          .eq('user_id', user.id)
+      })
 
-        if (prevWeekData && prevWeekData.length > 0) {
-          const clones = prevWeekData.map(item => ({
-            week_number: selectedWeek,
-            day_of_week: item.day_of_week,
-            period_number: item.period_number,
-            class_id: item.class_id,
-            user_id: user.id,
-          }))
-
-          // Ghi thật xuống database cho tuần mới này luôn
-          await supabase.from('schedule_entries').insert(clones)
-
-          // Gán trực tiếp lên state giao diện luôn mà không gọi lại hàm đệ quy tránh lỗi lặp
-          const formattedClones = prevWeekData.map((item: any) => ({
-            id: `cloned_${item.id}`,
-            day_of_week: item.day_of_week,
-            period_number: item.period_number,
-            class_id: item.class_id,
-            week_number: selectedWeek,
-            sub_class_code: item.classes?.code || '',
-            sub_subject: item.classes?.subject || ''
-          }))
-          setSchedule(formattedClones)
-        } else {
-          setSchedule([])
-        }
-      } else {
-        setSchedule([])
+      if (sData && sData.length > 0) {
+        setSchedule(sData.map((item: any) => format(item)))
+        setInheritedFrom(null)
+        setInheritedRows([])
+        return
       }
-    }
 
-    setLoading(false)
+      // Tuần chưa có dữ liệu: tìm tuần gần nhất trước đó đã có TKB
+      let srcWeek: number | null = null
+      if (week > 1) {
+        const { data: prev } = await supabase
+          .from('schedule_entries')
+          .select('week_number')
+          .eq('user_id', user.id)
+          .gte('week_number', 1)
+          .lt('week_number', week)
+          .order('week_number', { ascending: false })
+          .limit(1)
+        srcWeek = prev && prev.length > 0 ? Number(prev[0].week_number) : null
+      }
+
+      if (srcWeek == null) {
+        if (mySeq !== loadSeq.current) return
+        setSchedule([])
+        setInheritedFrom(null)
+        setInheritedRows([])
+        return
+      }
+
+      const { data: srcData } = await supabase
+        .from('schedule_entries')
+        .select(selectCols)
+        .eq('week_number', srcWeek)
+        .eq('user_id', user.id)
+
+      if (mySeq !== loadSeq.current) return
+      const rows = srcData || []
+      setSchedule(rows.map((item: any) => format(item, 'inherited_')))
+      setInheritedFrom(rows.length > 0 ? srcWeek : null)
+      setInheritedRows(rows.map((r: any) => ({ day_of_week: r.day_of_week, period_number: r.period_number, class_id: r.class_id })))
+    } finally {
+      if (mySeq === loadSeq.current) setLoading(false)
+    }
+  }
+
+  // Trước khi sửa một tuần đang "mượn" TKB tuần trước: chép cả tuần đó xuống DB cho tuần hiện tại
+  const materializeInheritedWeek = async (userId: string) => {
+    if (inheritedFrom == null || inheritedRows.length === 0 || materializing.current) return
+    materializing.current = true
+    try {
+      // Kiểm tra lại: có thể tuần này vừa được ghi ở tab khác
+      const { data: existing } = await supabase
+        .from('schedule_entries')
+        .select('id')
+        .eq('week_number', selectedWeek)
+        .eq('user_id', userId)
+        .limit(1)
+      if (!existing || existing.length === 0) {
+        const { error } = await supabase.from('schedule_entries').insert(
+          inheritedRows.map((r) => ({ ...r, week_number: selectedWeek, user_id: userId }))
+        )
+        if (error) throw error
+      }
+      setInheritedFrom(null)
+      setInheritedRows([])
+    } finally {
+      materializing.current = false
+    }
   }
 
   useEffect(() => {
@@ -320,21 +351,28 @@ export default function SchedulePage() {
 
       if (!classId) throw new Error('Không thể tạo hoặc tìm thấy lớp học tương ứng.')
 
-      const { data: currentEntry } = await supabase
+      await materializeInheritedWeek(user.id)
+
+      // Lấy tất cả (không dùng maybeSingle: nếu lỡ có bản trùng thì maybeSingle báo lỗi -> lại chèn thêm bản nữa)
+      const { data: currentEntries, error: findErr } = await supabase
         .from('schedule_entries')
         .select('id')
         .eq('week_number', selectedWeek)
         .eq('day_of_week', targetDayId)
         .eq('period_number', targetPeriod)
         .eq('user_id', user.id)
-        .maybeSingle()
+      if (findErr) throw findErr
 
-      if (currentEntry) {
+      if (currentEntries && currentEntries.length > 0) {
+        const [keep, ...dups] = currentEntries
         const { error: updateErr } = await supabase
           .from('schedule_entries')
           .update({ class_id: classId })
-          .eq('id', currentEntry.id)
+          .eq('id', keep.id)
         if (updateErr) throw updateErr
+        if (dups.length > 0) {
+          await supabase.from('schedule_entries').delete().in('id', dups.map((d) => d.id))
+        }
       } else {
         const { error: insertErr } = await supabase.from('schedule_entries').insert({
           week_number: selectedWeek,
@@ -369,13 +407,16 @@ export default function SchedulePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      await supabase
+      await materializeInheritedWeek(user.id)
+
+      const { error: delErr } = await supabase
         .from('schedule_entries')
         .delete()
         .eq('week_number', selectedWeek)
         .eq('day_of_week', editingCell.dayId)
         .eq('period_number', editingCell.period)
         .eq('user_id', user.id)
+      if (delErr) throw delErr
 
       setEditingCell(null)
       await loadScheduleAndSuggestions()
@@ -661,6 +702,12 @@ export default function SchedulePage() {
           </button>
         </div>
       </div>
+
+      {inheritedFrom != null && (
+        <div className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+          Tuần {selectedWeek} chưa có TKB riêng nên đang dùng TKB của Tuần {inheritedFrom}. Sửa bất kỳ ô nào thì tuần này sẽ được lưu thành TKB riêng.
+        </div>
+      )}
 
       {/* LƯỚI THỜI KHÓA BIỂU */}
       <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">

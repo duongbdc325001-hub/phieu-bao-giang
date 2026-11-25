@@ -38,8 +38,15 @@ const parseMetadataFromTitle = (title: string, knownSubjects: string[]) => {
   } else if (titleLower.includes('hdtn')) {
     subject = 'HĐTN'
   } else {
-    const tokens = titleLower.split(/[^a-z0-9à-ỹ]+/).filter(Boolean)
-    const hit = knownSubjects.find((s) => s.length >= 2 && tokens.includes(s.toLowerCase()))
+    // So khớp theo CỤM từ để nhận được cả môn nhiều chữ ("Vật lí", "Ngữ văn", "Tiếng Anh"...).
+    // Trước đây tách từng chữ đơn nên môn 2 chữ không bao giờ khớp và bị gán thành "Toán".
+    const toWords = (x: string) =>
+      x.normalize('NFC').toLowerCase().split(/[^a-z0-9à-ỹđ]+/).filter(Boolean).join(' ')
+    const titleWords = ` ${toWords(title)} `
+    const hit = [...knownSubjects]
+      .filter((s) => s.trim().length >= 2)
+      .sort((a, b) => b.length - a.length) // ưu tiên tên dài hơn ("Tin học" trước "Tin")
+      .find((s) => titleWords.includes(` ${toWords(s)} `))
     if (hit) subject = hit
   }
 
@@ -50,6 +57,23 @@ const parseMetadataFromTitle = (title: string, knownSubjects: string[]) => {
   else if (mLow) grade = parseInt(mLow[1], 10)
 
   return { subject, grade }
+}
+
+// Đọc ô "Tiết theo PPCT": "5" -> [5]; "1-3" -> [1,2,3]; "1, 5" -> [1,5]; "1-2, 4" -> [1,2,4].
+// Bỏ qua giá trị vô lý (số năm, dải quá dài) để không sinh ra hàng nghìn tiết.
+const MAX_LESSON = 400
+const MAX_SPAN = 60
+const parseLessonRange = (raw: string): number[] => {
+  const out = new Set<number>()
+  for (const part of raw.split(',')) {
+    const nums = part.match(/\d+/g)
+    if (!nums) continue
+    const a = parseInt(nums[0], 10)
+    const b = parseInt(nums[nums.length - 1], 10)
+    if (a < 1 || b > MAX_LESSON || b < a || b - a > MAX_SPAN) continue
+    for (let n = a; n <= b; n++) out.add(n)
+  }
+  return [...out].sort((x, y) => x - y)
 }
 
 export default function CurriculumPage() {
@@ -153,6 +177,7 @@ export default function CurriculumPage() {
     setLoading(true)
     try {
       let successCount = 0
+      const failed: string[] = []
 
       // Các môn đã có (kể cả môn người dùng tự đặt) để đoán môn từ tên file
       const knownSubjects = Array.from(new Set(classes.map((c) => c.subject)))
@@ -182,7 +207,8 @@ export default function CurriculumPage() {
             if (!cellVal) continue
 
             if (/^[\d,\-\s–]+$/.test(cellVal)) {
-              rangeRaw = cellVal
+              // Chỉ nhận là "dải tiết" nếu đọc ra được số tiết hợp lý (loại số năm "2026", ô trống...)
+              if (parseLessonRange(cellVal).length > 0) rangeRaw = cellVal
             } else {
               const upper = cellVal.toUpperCase()
               if (
@@ -206,15 +232,9 @@ export default function CurriculumPage() {
             continue
           }
 
-          const parts = rangeRaw.match(/\d+/g)
-          if (parts && parts.length > 0) {
-            const start = parseInt(parts[0], 10)
-            const end = parseInt(parts[parts.length - 1], 10)
-
-            for (let pNum = start; pNum <= end; pNum++) {
-              if (pNum > maxLessonOrder) maxLessonOrder = pNum
-              itemsMap.set(pNum, lessonName)
-            }
+          for (const pNum of parseLessonRange(rangeRaw)) {
+            if (pNum > maxLessonOrder) maxLessonOrder = pNum
+            itemsMap.set(pNum, lessonName)
           }
         }
 
@@ -231,70 +251,78 @@ export default function CurriculumPage() {
         finalItems.sort((a, b) => a.lesson_order - b.lesson_order)
         const totalLessons = maxLessonOrder > 0 ? maxLessonOrder : finalItems.length
 
-        // Xóa template cũ và items cũ sạch sẽ trong DB
-        const { data: existingTpl } = await supabase
+        const { subject, grade } = parseMetadataFromTitle(title, knownSubjects)
+
+        // Khung trùng tên đã có thì CẬP NHẬT TẠI CHỖ (giữ nguyên id -> các lớp đang gán vẫn giữ),
+        // thay vì xóa trước rồi tạo lại như cũ: nếu lỗi giữa chừng thì khung cũ không bị mất.
+        const { data: existingRows } = await supabase
           .from('curriculum_templates')
           .select('id')
           .eq('title', title)
-          .maybeSingle()
+          .limit(1)
+        const existingTpl = existingRows && existingRows.length > 0 ? existingRows[0] : null
 
-        // Ghi nhớ các lớp đang gán khung cũ để gán lại cho khung mới
-        // (class_curriculums.template_id là text, không có khóa ngoại nên không tự xóa theo)
-        let previousClassIds: string[] = []
+        let templateId: string
         if (existingTpl) {
-          const { data: oldMaps } = await supabase
-            .from('class_curriculums')
-            .select('class_id')
-            .eq('template_id', existingTpl.id)
-          previousClassIds = (oldMaps || []).map((m: any) => m.class_id)
+          const { error: updErr } = await supabase
+            .from('curriculum_templates')
+            .update({ subject, grade, total_lessons: totalLessons })
+            .eq('id', existingTpl.id)
+          if (updErr) {
+            failed.push(`${file.name}: ${updErr.message}`)
+            continue
+          }
+          templateId = existingTpl.id
+        } else {
+          const { data: newTpl, error: tplErr } = await supabase
+            .from('curriculum_templates')
+            .insert({
+              title,
+              subject,
+              grade,
+              total_lessons: totalLessons,
+            })
+            .select('id')
+            .single()
 
-          await supabase.from('class_curriculums').delete().eq('template_id', existingTpl.id)
-          await supabase.from('curriculum_items').delete().eq('template_id', existingTpl.id)
-          await supabase.from('curriculum_templates').delete().eq('id', existingTpl.id)
+          if (tplErr || !newTpl) {
+            failed.push(`${file.name}: ${tplErr?.message || 'không tạo được khung'}`)
+            continue
+          }
+          templateId = newTpl.id
         }
 
-        const { subject, grade } = parseMetadataFromTitle(title, knownSubjects)
-
-        const { data: newTpl, error: tplErr } = await supabase
-          .from('curriculum_templates')
-          .insert({
-            title,
-            subject,
-            grade,
-            total_lessons: totalLessons,
-          })
-          .select('id')
-          .single()
-
-        if (tplErr || !newTpl) continue
-
         const itemsWithId = finalItems.map((item) => ({
-          template_id: newTpl.id,
+          template_id: templateId,
           lesson_order: item.lesson_order,
           lesson_name: item.lesson_name,
         }))
 
-        if (itemsWithId.length > 0) {
-          // Sử dụng upsert với onConflict để tránh hoàn toàn lỗi vi phạm khóa duy nhất (unique constraint)
-          const { error: insertErr } = await supabase
-            .from('curriculum_items')
-            .upsert(itemsWithId, { onConflict: 'template_id, lesson_order' })
+        const { error: insertErr } = await supabase
+          .from('curriculum_items')
+          .upsert(itemsWithId, { onConflict: 'template_id, lesson_order' })
 
-          if (insertErr) {
-            console.error('Lỗi upsert curriculum_items:', insertErr.message)
-          }
+        if (insertErr) {
+          failed.push(`${file.name}: ${insertErr.message}`)
+          continue
         }
 
-        if (previousClassIds.length > 0) {
-          await supabase.from('class_curriculums').insert(
-            previousClassIds.map((class_id) => ({ class_id, template_id: newTpl.id }))
-          )
+        // Bỏ các tiết cũ không còn trong file mới (chỉ làm sau khi đã ghi xong bản mới)
+        if (existingTpl) {
+          const keepOrders = itemsWithId.map((i) => i.lesson_order)
+          await supabase
+            .from('curriculum_items')
+            .delete()
+            .eq('template_id', templateId)
+            .not('lesson_order', 'in', `(${keepOrders.join(',')})`)
         }
 
         successCount++
       }
 
-      alert(`Đã tải lên thành công ${successCount} / ${files.length} khung PPCT với tên bài chuẩn xác tuyệt đối!`)
+      let msg = `Đã tải lên thành công ${successCount} / ${files.length} khung PPCT.`
+      if (failed.length > 0) msg += `\n\nKhông lưu được:\n${failed.join('\n')}`
+      alert(msg)
       loadData()
     } catch (err: any) {
       alert('Lỗi tải file PPCT: ' + err.message)

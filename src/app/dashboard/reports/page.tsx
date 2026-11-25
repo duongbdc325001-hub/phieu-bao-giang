@@ -3,6 +3,16 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import {
+  START_DATE_WEEK_1,
+  MAX_WEEK,
+  DAYS,
+  formatPeriodLabel,
+  type TimelineSlot,
+  buildLessonPlan,
+  buildWeekRows,
+  fetchAllRows,
+} from '@/lib/baoGiang'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import {
@@ -21,19 +31,8 @@ import {
 } from 'docx'
 import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
 
-const START_DATE_WEEK_1 = new Date(2026, 8, 7, 0, 0, 0) // 07/09/2026
-
-const DAYS = [
-  { id: 2, name: 'Thứ Hai', offset: 0 },
-  { id: 3, name: 'Thứ Ba', offset: 1 },
-  { id: 4, name: 'Thứ Tư', offset: 2 },
-  { id: 5, name: 'Thứ Năm', offset: 3 },
-  { id: 6, name: 'Thứ Sáu', offset: 4 },
-  { id: 7, name: 'Thứ Bảy', offset: 5 },
-]
-
 const getCurrentWeekNumber = () => {
-  const startDate = new Date(2026, 8, 7)
+  const startDate = new Date(START_DATE_WEEK_1)
   const today = new Date()
 
   startDate.setHours(0, 0, 0, 0)
@@ -45,19 +44,6 @@ const getCurrentWeekNumber = () => {
   if (diffDays < 0) return 1
   const currentWeek = Math.floor(diffDays / 7) + 1
   return Math.min(Math.max(currentWeek, 1), 35)
-}
-
-const formatPeriodLabel = (periodVal: any) => {
-  if (periodVal === undefined || periodVal === null) return '1'
-  const str = String(periodVal).trim()
-  if (str.toUpperCase().startsWith('C-') || str.toUpperCase().startsWith('S-')) {
-    return str.toUpperCase()
-  }
-  const num = Number(str)
-  if (!isNaN(num) && num > 5) {
-    return `C-${num - 5}`
-  }
-  return str
 }
 
 // Màu nhãn môn học: mỗi môn luôn ra cùng một màu để quét mắt theo môn cho nhanh
@@ -124,19 +110,6 @@ const buildExportSlots = (slots: any[]): any[] => {
   return rows
 }
 
-const MAX_WEEK = 35
-
-// Một tiết của một lớp trên "dòng thời gian" (tuần 1 -> 35), kèm số tiết CT đang được gán
-interface TimelineSlot {
-  week: number
-  idx: number // thứ tự tiết của lớp này trong tuần (khóa lưu vào lesson_overrides)
-  day: number
-  period: any
-  assigned: number // số tiết CT đang hiển thị cho tiết này
-  ovrValue: number | null // giá trị lưu trong lesson_overrides (nếu có)
-  ovrType: string | null // 'cut' | 'swap' | 'anchor' | null
-}
-
 // Đảo tiết: nhấc tiết ở vị trí `from` ra, đặt vào vị trí `to`, các tiết ở giữa tự dồn.
 // Ví dụ dãy 2,3,4: đưa tiết 4 (vị trí 2) lên vị trí đầu (0) -> 4,2,3
 const computeReorder = (timeline: TimelineSlot[], from: number, to: number) => {
@@ -182,24 +155,7 @@ export default function ReportsPage() {
 
   // Supabase mặc định chỉ trả tối đa 1000 dòng mỗi lần. Đọc theo từng trang để không bị cắt mất dữ liệu
   // (ví dụ nhiều khung PPCT x ~105 tiết, hoặc TKB nhiều tuần).
-  const fetchAll = async (table: string): Promise<any[]> => {
-    const pageSize = 1000
-    let from = 0
-    const all: any[] = []
-    while (true) {
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, from + pageSize - 1)
-      if (error) throw error
-      if (!data || data.length === 0) break
-      all.push(...data)
-      if (data.length < pageSize) break
-      from += pageSize
-    }
-    return all
-  }
+  const fetchAll = (table: string) => fetchAllRows(supabase, table)
 
   const loadData = async () => {
     setLoading(true)
@@ -228,194 +184,10 @@ export default function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Logic tính tiết nằm ở src/lib/baoGiang.ts (dùng chung với trang Tiến độ)
   const calculateReportRows = () => {
-    const weekRows: { day: typeof DAYS[0]; slots: any[] }[] = []
-    const timelines = new Map<string, TimelineSlot[]>()
-    if (schedule.length === 0 || classes.length === 0) return { weekRows, timelines }
-
-    // Dựng TKB từng tuần từ 1 đến 35.
-    // Tuần chưa có dữ liệu thì lấy theo tuần liền trước (cùng quy tắc với trang Thời khóa biểu).
-    const weekSlotsMap = new Map<number, any[]>()
-    let prevSlots: any[] = []
-    for (let w = 1; w <= MAX_WEEK; w++) {
-      let wSlots = schedule.filter((s) => Number(s.week_number || 1) === w && !s.is_substitute)
-      if (wSlots.length === 0 && prevSlots.length > 0) {
-        wSlots = prevSlots.map((slot) => ({ ...slot, week_number: w }))
-      }
-      wSlots = [...wSlots].sort((a, b) => {
-        const d1 = Number(a.day_of_week || 2)
-        const d2 = Number(b.day_of_week || 2)
-        if (d1 !== d2) return d1 - d2
-        return Number(a.period_number || 1) - Number(b.period_number || 1)
-      })
-      weekSlotsMap.set(w, wSlots)
-      prevSlots = wSlots
-    }
-
-    const allActiveWeeksSlots: any[] = []
-    weekSlotsMap.forEach((wSlots) => {
-      allActiveWeeksSlots.push(...wSlots)
-    })
-
-    const classSlotsMap = new Map<string, any[]>()
-    allActiveWeeksSlots.forEach((slot) => {
-      const clsId = slot.class_id
-      if (clsId) {
-        if (!classSlotsMap.has(clsId)) classSlotsMap.set(clsId, [])
-        classSlotsMap.get(clsId)!.push(slot)
-      }
-    })
-
-    // Các khung PPCT thực sự có bài (để bỏ qua bản gán cũ trỏ vào khung đã bị xóa)
-    const templatesWithItems = new Set<string>(curriculumItems.map((i) => String(i.template_id)))
-
-    const lessonMapping = new Map<
-      string,
-      { order: number; name: string; isOverridden: boolean; ovrType: string | null; slotIdx: number; hasTemplate: boolean; timelineIndex: number }
-    >()
-
-    classSlotsMap.forEach((slots, classId) => {
-      let templateId: string | null = null
-      const relations = classCurriculums.filter((cc) => cc.class_id === classId)
-      const matchedRel = relations.find((cc) => templatesWithItems.has(String(cc.template_id))) || relations[0]
-      if (matchedRel) {
-        templateId = String(matchedRel.template_id)
-      } else {
-        const cls = classes.find((c) => c.id === classId)
-        if (cls?.template_id) templateId = String(cls.template_id)
-      }
-
-      let lessons: any[] = []
-      if (templateId) {
-        lessons = curriculumItems.filter((item) => String(item.template_id) === templateId)
-      }
-
-      const hasTemplate = !!templateId && lessons.length > 0
-      lessons.sort((a, b) => Number(a.lesson_order || 1) - Number(b.lesson_order || 1))
-
-      const slotsByWeek = new Map<number, any[]>()
-      slots.forEach((slot) => {
-        const wNum = Number(slot.week_number || 1)
-        if (!slotsByWeek.has(wNum)) slotsByWeek.set(wNum, [])
-        slotsByWeek.get(wNum)!.push(slot)
-      })
-
-      // Dòng thời gian của lớp: toàn bộ các tiết từ tuần 1 đến 35, theo đúng thứ tự dạy
-      const timeline: TimelineSlot[] = []
-      let globalPointer = 1
-
-      for (let w = 1; w <= MAX_WEEK; w++) {
-        const wSlots = slotsByWeek.get(w) || []
-
-        wSlots.forEach((slot, weekSlotIdx) => {
-          const day = Number(slot.day_of_week || 2)
-          const period = slot.period_number
-
-          const ovr = hasTemplate
-            ? overrides.find(
-                (o) => o.class_id === classId && Number(o.week_number) === w && Number(o.slot_order_in_week) === weekSlotIdx
-              )
-            : undefined
-
-          let assignedOrder = globalPointer
-          let ovrValue: number | null = null
-          let ovrType: string | null = null
-
-          if (ovr && ovr.override_lesson_order) {
-            assignedOrder = Number(ovr.override_lesson_order)
-            ovrValue = assignedOrder
-            ovrType = ovr.override_type || 'cut'
-          }
-
-          timeline.push({ week: w, idx: weekSlotIdx, day, period, assigned: assignedOrder, ovrValue, ovrType })
-
-          if (w === selectedWeek) {
-            const foundLesson = lessons.find((l) => Number(l.lesson_order) === assignedOrder) || lessons[assignedOrder - 1]
-            const mapKey = `${w}_${day}_${period}_${classId}`
-            lessonMapping.set(mapKey, {
-              order: !hasTemplate ? 0 : assignedOrder,
-              name: !hasTemplate ? '' : (foundLesson ? foundLesson.lesson_name : `Tiết học số ${assignedOrder}`),
-              // 'anchor' là mốc nối kỹ thuật sau khi đảo tiết, không hiện nhãn "Cắt tiết"
-              isOverridden: ovrType !== null && ovrType !== 'anchor',
-              ovrType,
-              slotIdx: weekSlotIdx,
-              hasTemplate: hasTemplate,
-              timelineIndex: timeline.length - 1,
-            })
-          }
-
-          globalPointer = assignedOrder + 1
-        })
-      }
-
-      timelines.set(classId, timeline)
-    })
-
-    const currentWeekSlots = weekSlotsMap.get(Number(selectedWeek)) || []
-
-    DAYS.forEach((day) => {
-      const dayMatchedSlots = currentWeekSlots.filter((s) => Number(s.day_of_week) === day.id)
-      dayMatchedSlots.sort((a, b) => {
-        const p1 = String(a.period_number || '1')
-        const p2 = String(b.period_number || '1')
-        return p1.localeCompare(p2, undefined, { numeric: true })
-      })
-
-      const daySlots: any[] = []
-
-      if (dayMatchedSlots.length > 0) {
-        dayMatchedSlots.forEach((matchedSlot) => {
-          if (matchedSlot && matchedSlot.class_id) {
-            const p = matchedSlot.period_number
-            const cls = classes.find((c) => c.id === matchedSlot.class_id)
-            const classCode = cls ? cls.code : (matchedSlot.sub_class_code || 'Lớp')
-            const subjectName = cls ? cls.subject : (matchedSlot.sub_subject || 'Toán')
-
-            const activeWeek = Number(selectedWeek)
-            const mapKey = `${activeWeek}_${day.id}_${p}_${matchedSlot.class_id}`
-            const lessonInfo = lessonMapping.get(mapKey) || {
-              order: 1, name: '', isOverridden: false, ovrType: null, slotIdx: 0, hasTemplate: false, timelineIndex: -1,
-            }
-
-            daySlots.push({
-              isEmpty: false,
-              entry: matchedSlot,
-              day: day.id,
-              period: formatPeriodLabel(p),
-              realClassId: matchedSlot.class_id,
-              subjectClass: `${subjectName} - ${classCode}`,
-              lessonOrder: lessonInfo.order,
-              lessonName: lessonInfo.name,
-              isSubstitute: matchedSlot.is_substitute || false,
-              isOverridden: lessonInfo.isOverridden,
-              noteLabel: lessonInfo.ovrType === 'swap' ? 'Đảo tiết' : (lessonInfo.isOverridden ? 'Cắt tiết' : ''),
-              slotOrderInWeek: lessonInfo.slotIdx,
-              timelineIndex: lessonInfo.timelineIndex,
-              hasTemplate: lessonInfo.hasTemplate,
-            })
-          }
-        })
-      } else {
-        for (let i = 1; i <= 4; i++) {
-          daySlots.push({
-            isEmpty: true,
-            day: day.id,
-            period: String(i),
-            subjectClass: '',
-            lessonOrder: '',
-            lessonName: '',
-            noteLabel: '',
-            hasTemplate: true,
-          })
-        }
-      }
-
-      if (daySlots.length > 0) {
-        weekRows.push({ day, slots: daySlots })
-      }
-    })
-
-    return { weekRows, timelines }
+    const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides)
+    return { weekRows: buildWeekRows(selectedWeek, plan, classes), timelines: plan.timelines }
   }
 
   const { weekRows: reportData, timelines } = calculateReportRows()
