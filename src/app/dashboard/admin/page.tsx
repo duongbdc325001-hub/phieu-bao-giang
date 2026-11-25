@@ -136,7 +136,9 @@ export default function AdminPage() {
       lau_khong_dung: (a, b) => daysSince(lastActive(b)) - daysSince(lastActive(a)),
       ten: (a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '', 'vi'),
     }
-    return [...list].sort(by[sortKey])
+    // Tài khoản bị khoá luôn xếp xuống cuối danh sách, trong mỗi nhóm vẫn sắp theo lựa chọn
+    const locked = (u: UserProfile) => (u.status === 'locked' ? 1 : 0)
+    return [...list].sort((a, b) => locked(a) - locked(b) || by[sortKey](a, b))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, usage, query, sortKey])
 
@@ -351,7 +353,7 @@ export default function AdminPage() {
                     const us = usage[u.id]
                     const idle = daysSince(lastActive(u)) > 30
                     return (
-                      <tr key={u.id} className="hover:bg-slate-50/60">
+                      <tr key={u.id} className={`hover:bg-slate-50/60 ${u.status === 'locked' ? 'bg-slate-50 text-slate-400 opacity-75' : ''}`}>
                         <td className="px-5 py-3">
                           <p className="font-semibold text-slate-900">{u.full_name || '–'}</p>
                           <p className="text-xs text-slate-500">{u.email || 'Chưa có email'}</p>
@@ -383,7 +385,7 @@ export default function AdminPage() {
               {shownUsers.map((u) => {
                 const us = usage[u.id]
                 return (
-                  <li key={u.id} className="px-4 py-3 space-y-2">
+                  <li key={u.id} className={`px-4 py-3 space-y-2 ${u.status === 'locked' ? 'bg-slate-50 opacity-75' : ''}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{u.full_name || u.email}</p>
