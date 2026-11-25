@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSchoolYear } from '@/components/school-year'
 import { weekOf } from '@/lib/namHoc'
+import { buildLessonPlan, fetchAllRows } from '@/lib/baoGiang'
 import * as XLSX from 'xlsx'
 import { Upload, RefreshCw, Plus, Trash2, X, ArrowRightLeft, Sun, Moon } from 'lucide-react'
 import { PageHeader, WeekSelect, BTN_PRIMARY, BTN_DANGER, BTN_ICON, BTN_SECONDARY } from '@/components/ui/page'
@@ -151,7 +152,35 @@ export default function SchedulePage() {
   const loadSeq = useRef(0)
   const materializing = useRef(false)
 
+  // Dữ liệu cả năm để tính SỐ TIẾT CT của từng ô (dùng chung hàm với Lịch báo giảng nên luôn khớp)
+  const [planData, setPlanData] = useState<{ sched: any[]; classes: any[]; cc: any[]; items: any[]; ovr: any[] } | null>(null)
+  const planSeq = useRef(0)
+  const loadPlan = async () => {
+    const my = ++planSeq.current
+    try {
+      const [sched, classes, cc, items, ovr] = await Promise.all([
+        fetchAllRows(supabase, 'schedule_entries', { school_year: yearId }),
+        fetchAllRows(supabase, 'classes'),
+        fetchAllRows(supabase, 'class_curriculums', { school_year: yearId }),
+        fetchAllRows(supabase, 'curriculum_items'),
+        fetchAllRows(supabase, 'lesson_overrides', { school_year: yearId }),
+      ])
+      if (my === planSeq.current) setPlanData({ sched, classes, cc, items, ovr })
+    } catch {
+      /* không tính được số tiết thì ô TKB chỉ không hiện số, vẫn dùng bình thường */
+    }
+  }
+  const lessonPlan = useMemo(
+    () => (planData ? buildLessonPlan(planData.sched, planData.classes, planData.cc, planData.items, planData.ovr, year.weeks) : null),
+    [planData, year.weeks]
+  )
+  const lessonOf = (item?: ScheduleItem) =>
+    item?.class_id && lessonPlan
+      ? lessonPlan.lessonMapping.get(`${selectedWeek}_${item.day_of_week}_${item.period_number}_${item.class_id}`)
+      : undefined
+
   const loadScheduleAndSuggestions = async () => {
+    loadPlan()
     const mySeq = ++loadSeq.current
     const week = selectedWeek
     setLoading(true)
@@ -809,6 +838,7 @@ export default function SchedulePage() {
                     const isMovingHere = movingSlot && !item
                     const tone = item ? subjectTone(item.sub_subject || '') : null
                     const skip = skipOf(item)
+                    const lesson = lessonOf(item)
 
                     return (
                       <td
@@ -828,12 +858,25 @@ export default function SchedulePage() {
                               setMovingSlot({ subject: item.sub_subject || '', classCode: item.sub_class_code || '' })
                             }}
                             className={`relative h-full rounded-lg border ${skip ? 'bg-slate-50 border-dashed border-slate-300 text-slate-500' : tone.cell} pl-3 pr-2 py-1.5 flex flex-col justify-center cursor-grab active:cursor-grabbing overflow-hidden`}
-                            title={skip ? `Nghỉ tiết${skip.notes ? `: ${skip.notes}` : ''} (không tính PPCT)` : undefined}
+                            title={
+                              skip
+                                ? `Nghỉ tiết${skip.notes ? `: ${skip.notes}` : ''} (không tính PPCT)`
+                                : lesson?.hasTemplate
+                                  ? `Tiết CT ${lesson.order}: ${lesson.name}`
+                                  : 'Lớp chưa được gán khung PPCT'
+                            }
                           >
                             <span className={`absolute left-0 top-0 bottom-0 w-1 ${skip ? 'bg-slate-300' : tone.bar}`} />
-                            <span className={`text-sm font-bold leading-tight truncate ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
+                            <span className="flex items-baseline justify-between gap-1">
+                              <span className={`text-sm font-bold leading-tight truncate ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
+                              {!skip && lesson?.hasTemplate && (
+                                <span className="shrink-0 text-[11px] font-semibold tabular-nums opacity-80 pr-5 group-hover:pr-5">
+                                  Tiết {lesson.order}
+                                </span>
+                              )}
+                            </span>
                             <span className="text-[11px] font-medium opacity-75 truncate">
-                              {skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : item.sub_subject}
+                              {skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : lesson?.hasTemplate ? `${item.sub_subject} · ${lesson.name}` : item.sub_subject}
                             </span>
                             <button
                               title="Di chuyển tiết học này sang ô khác"
@@ -894,6 +937,7 @@ export default function SchedulePage() {
             const item = itemAt(mobileDay, pConfig.periodNum)
             const tone = item ? subjectTone(item.sub_subject || '') : null
             const skip = skipOf(item)
+            const lesson = lessonOf(item)
             return (
               <React.Fragment key={`m-${pConfig.periodNum}`}>
                 {pConfig.periodNum === 1 && (
@@ -910,8 +954,18 @@ export default function SchedulePage() {
                   {item && tone ? (
                     <span className={`relative flex-1 min-h-11 rounded-lg border ${skip ? 'bg-slate-50 border-dashed border-slate-300 text-slate-500' : tone.cell} pl-3.5 pr-3 py-2 flex items-center justify-between overflow-hidden`}>
                       <span className={`absolute left-0 top-0 bottom-0 w-1 ${skip ? 'bg-slate-300' : tone.bar}`} />
-                      <span className={`text-sm font-bold ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
-                      <span className="text-xs font-medium opacity-75">{skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : item.sub_subject}</span>
+                      <span className="min-w-0">
+                        <span className={`block text-sm font-bold ${skip ? 'line-through decoration-slate-400' : ''}`}>{item.sub_class_code}</span>
+                        {!skip && lesson?.hasTemplate && <span className="block text-[11px] opacity-75 truncate">{lesson.name}</span>}
+                      </span>
+                      <span className="shrink-0 text-right text-xs font-medium opacity-80">
+                        {skip ? `Nghỉ${skip.notes ? ` · ${skip.notes}` : ''}` : (
+                          <>
+                            {item.sub_subject}
+                            {lesson?.hasTemplate && <span className="block text-sm font-bold tabular-nums">Tiết {lesson.order}</span>}
+                          </>
+                        )}
+                      </span>
                     </span>
                   ) : (
                     <span className={`flex-1 min-h-11 rounded-lg border border-dashed flex items-center px-3 text-xs ${
