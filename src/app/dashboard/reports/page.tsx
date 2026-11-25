@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useSchoolYear } from '@/components/school-year'
-import { weekOf, dateOf } from '@/lib/namHoc'
+import { weekOf, dateOf, formatDay, isFinished } from '@/lib/namHoc'
 import {
   DAYS,
   formatPeriodLabel,
@@ -29,7 +29,7 @@ import {
   BorderStyle,
   HeightRule,
 } from 'docx'
-import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Calendar, RefreshCw, ArrowLeftRight, X, FileText, Download, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react'
 
 // Màu nhãn môn học: mỗi môn luôn ra cùng một màu để quét mắt theo môn cho nhanh
 const SUBJECT_STYLES = [
@@ -109,7 +109,7 @@ const computeReorder = (timeline: TimelineSlot[], from: number, to: number) => {
 
 export default function ReportsPage() {
   const supabase = createClient()
-  const { year } = useSchoolYear()
+  const { year, current } = useSchoolYear()
   const yearId = year.id
   const [selectedWeek, setSelectedWeek] = useState(() => weekOf(year))
   // Đổi năm học -> về tuần hiện tại (hoặc tuần 1) của năm đó
@@ -327,6 +327,159 @@ export default function ReportsPage() {
   // =========================================================================
   // XUẤT FILE WORD (CÓ CHỮ KÝ TỔ TRƯỞNG CHUYÊN MÔN GÓC PHẢI)
   // =========================================================================
+  // ===== XUẤT WORD =====
+  // Độ rộng cột cố định (DXA) để Word, WPS, LibreOffice và trình xem trên điện thoại hiển thị giống nhau.
+  // Tổng = 9026 = bề rộng nội dung khổ A4 với lề 2,54 cm.
+  const COL_W = [1264, 1625, 1083, 3249, 903, 902]
+  const TABLE_W = COL_W.reduce((sum, w) => sum + w, 0)
+
+  // Ngày dd/mm của một ngày trong tuần bất kỳ của năm học đang chọn
+  const formatDateOfWeek = (week: number, offset: number) => {
+    const d = dateOf(year, week, offset)
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  // Tiêu đề Sở / Trường + Quốc hiệu (dùng cho từng phiếu tuần và trang bìa sổ)
+  const buildDocHeaderTable = () => {
+    const invisibleBorder = { style: BorderStyle.NIL, size: 0, color: 'auto' }
+    const noBorders = { top: invisibleBorder, bottom: invisibleBorder, left: invisibleBorder, right: invisibleBorder }
+    const noTableBorders = { ...noBorders, insideHorizontal: invisibleBorder, insideVertical: invisibleBorder }
+    return (
+      new Table({
+        width: { size: TABLE_W, type: WidthType.DXA },
+        columnWidths: [4550, 4476],
+        borders: noTableBorders,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 4550, type: WidthType.DXA },
+                borders: noBorders,
+                margins: { left: 60, right: 60 },
+                verticalAlign: VerticalAlign.CENTER,
+                children: [
+                  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', bold: true, size: 20 })] }),
+                  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ', bold: true, size: 20 })] }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 4476, type: WidthType.DXA },
+                borders: noBorders,
+                margins: { left: 60, right: 60 },
+                verticalAlign: VerticalAlign.CENTER,
+                children: [
+                  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 20 })] }),
+                  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 21 })] }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      })
+    )
+  }
+
+  // Nội dung Word của MỘT tuần (phiếu 1 tuần và sổ báo giảng nhiều tuần dùng chung)
+  const buildWeekDocChildren = (week: number, weekRows: { day: any; slots: any[] }[]) => {
+    const MIN_ROW_H = 240 // chiều cao tối thiểu mỗi dòng (~0,42 cm) để các dòng trống đều với dòng có chữ
+
+    const makeCell = (
+      text: string,
+      colIdx: number,
+      opts: { bold?: boolean; italics?: boolean; size?: number; align?: any } = {}
+    ) =>
+      new TableCell({
+        width: { size: COL_W[colIdx], type: WidthType.DXA },
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+          new Paragraph({
+            alignment: opts.align ?? AlignmentType.CENTER,
+            children: [new TextRun({ text, bold: opts.bold, italics: opts.italics, size: opts.size ?? 20 })],
+          }),
+        ],
+      })
+
+    const headerTexts = ['Thứ, ngày', 'Môn - Lớp', 'Tiết TKB', 'Tên bài dạy', 'Tiết CT', 'Ghi chú']
+    const tableRows: TableRow[] = [
+      new TableRow({
+        tableHeader: true, // lặp lại dòng tiêu đề nếu bảng sang trang 2
+        children: headerTexts.map((t, i) => makeCell(t, i, { bold: true, size: 21 })),
+      }),
+    ]
+
+    weekRows.forEach((group) => {
+      const dayName = group.day.name
+      const dayDate = formatDateOfWeek(week, group.day.offset)
+      const exportSlots = buildExportSlots(group.slots)
+
+      exportSlots.forEach((slot, sIdx) => {
+        const rowCells: TableCell[] = []
+
+        if (sIdx === 0) {
+          rowCells.push(
+            new TableCell({
+              width: { size: COL_W[0], type: WidthType.DXA },
+              rowSpan: exportSlots.length,
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: dayName, bold: true, size: 21 })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: dayDate, italics: true, size: 19 })] }),
+              ],
+            })
+          )
+        }
+
+        const subjectClassText = slot.isEmpty ? '' : slot.subjectClass
+        const periodText = String(slot.period)
+        const lessonDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
+        const orderDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : String(slot.lessonOrder))
+        const noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : slot.noteLabel)
+
+        rowCells.push(
+          makeCell(subjectClassText, 1),
+          makeCell(periodText, 2),
+          makeCell(lessonDisplay, 3, { align: AlignmentType.LEFT }),
+          makeCell(orderDisplay, 4),
+          makeCell(noteText, 5, { italics: true, size: 18 })
+        )
+
+        tableRows.push(
+          new TableRow({
+            height: { value: MIN_ROW_H, rule: HeightRule.ATLEAST },
+            cantSplit: true,
+            children: rowCells,
+          })
+        )
+      })
+    })
+
+    return [
+      buildDocHeaderTable(),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 240, after: 60 },
+        children: [new TextRun({ text: `PHIẾU BÁO GIẢNG TUẦN ${week < 10 ? '0' + week : week}`, bold: true, size: 26 })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240 },
+        children: [new TextRun({ text: `(Tuần học thứ ${week} của năm học ${yearId})`, italics: true, size: 20 })],
+      }),
+      new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: COL_W, rows: tableRows }),
+      // CHỮ KÝ TỔ TRƯỞNG CHUYÊN MÔN CĂN PHẢI (KHÔNG DÙNG BẢNG PHỤ)
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 360 },
+        children: [new TextRun({ text: 'Tổ trưởng chuyên môn', bold: true, size: 22 })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 80, after: 120 },
+        children: [new TextRun({ text: '(Ký, ghi rõ họ tên)', italics: true, size: 19 })],
+      }),
+    ]
+  }
+
   const handleExportWord = async () => {
     if (reportData.length === 0) {
       alert('Tuần này chưa có dữ liệu để xuất!')
@@ -335,148 +488,7 @@ export default function ReportsPage() {
 
     setExportingWord(true)
     try {
-      // Độ rộng cột cố định (DXA) để Word, WPS, LibreOffice và trình xem trên điện thoại hiển thị giống nhau.
-      // Tổng = 9026 = bề rộng nội dung khổ A4 với lề 2,54 cm.
-      const COL_W = [1264, 1625, 1083, 3249, 903, 902]
-      const TABLE_W = COL_W.reduce((sum, w) => sum + w, 0)
-      const MIN_ROW_H = 240 // chiều cao tối thiểu mỗi dòng (~0,42 cm) để các dòng trống đều với dòng có chữ
-
-      const makeCell = (
-        text: string,
-        colIdx: number,
-        opts: { bold?: boolean; italics?: boolean; size?: number; align?: any } = {}
-      ) =>
-        new TableCell({
-          width: { size: COL_W[colIdx], type: WidthType.DXA },
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: opts.align ?? AlignmentType.CENTER,
-              children: [new TextRun({ text, bold: opts.bold, italics: opts.italics, size: opts.size ?? 20 })],
-            }),
-          ],
-        })
-
-      const headerTexts = ['Thứ, ngày', 'Môn - Lớp', 'Tiết TKB', 'Tên bài dạy', 'Tiết CT', 'Ghi chú']
-      const tableRows: TableRow[] = [
-        new TableRow({
-          tableHeader: true, // lặp lại dòng tiêu đề nếu bảng sang trang 2
-          children: headerTexts.map((t, i) => makeCell(t, i, { bold: true, size: 21 })),
-        }),
-      ]
-
-      reportData.forEach((group) => {
-        const dayName = group.day.name
-        const dayDate = getFormattedDate(group.day.offset)
-        const exportSlots = buildExportSlots(group.slots)
-
-        exportSlots.forEach((slot, sIdx) => {
-          const rowCells: TableCell[] = []
-
-          if (sIdx === 0) {
-            rowCells.push(
-              new TableCell({
-                width: { size: COL_W[0], type: WidthType.DXA },
-                rowSpan: exportSlots.length,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: dayName, bold: true, size: 21 })] }),
-                  new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: dayDate, italics: true, size: 19 })] }),
-                ],
-              })
-            )
-          }
-
-          const subjectClassText = slot.isEmpty ? '' : slot.subjectClass
-          const periodText = String(slot.period)
-          const lessonDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '(Chưa có PPCT)' : (slot.lessonName || ''))
-          const orderDisplay = slot.isEmpty ? '' : (!slot.hasTemplate ? '—' : String(slot.lessonOrder))
-          const noteText = slot.isEmpty ? '' : (!slot.hasTemplate ? 'Chưa có PPCT' : slot.noteLabel)
-
-          rowCells.push(
-            makeCell(subjectClassText, 1),
-            makeCell(periodText, 2),
-            makeCell(lessonDisplay, 3, { align: AlignmentType.LEFT }),
-            makeCell(orderDisplay, 4),
-            makeCell(noteText, 5, { italics: true, size: 18 })
-          )
-
-          tableRows.push(
-            new TableRow({
-              height: { value: MIN_ROW_H, rule: HeightRule.ATLEAST },
-              cantSplit: true,
-              children: rowCells,
-            })
-          )
-        })
-      })
-
-      const invisibleBorder = { style: BorderStyle.NIL, size: 0, color: 'auto' }
-      const noBorders = { top: invisibleBorder, bottom: invisibleBorder, left: invisibleBorder, right: invisibleBorder }
-      const noTableBorders = { ...noBorders, insideHorizontal: invisibleBorder, insideVertical: invisibleBorder }
-
-      const doc = new Document({
-        sections: [
-          {
-            children: [
-              new Table({
-                width: { size: TABLE_W, type: WidthType.DXA },
-                columnWidths: [4550, 4476],
-                borders: noTableBorders,
-                rows: [
-                  new TableRow({
-                    children: [
-                      new TableCell({
-                        width: { size: 4550, type: WidthType.DXA },
-                        borders: noBorders,
-                        margins: { left: 60, right: 60 },
-                        verticalAlign: VerticalAlign.CENTER,
-                        children: [
-                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SỞ GD&ĐT PHÚ THỌ', bold: true, size: 20 })] }),
-                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'TRƯỜNG THPT CHUYÊN HOÀNG VĂN THỤ', bold: true, size: 20 })] }),
-                        ],
-                      }),
-                      new TableCell({
-                        width: { size: 4476, type: WidthType.DXA },
-                        borders: noBorders,
-                        margins: { left: 60, right: 60 },
-                        verticalAlign: VerticalAlign.CENTER,
-                        children: [
-                          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', bold: true, size: 20 })] }),
-                          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new TextRun({ text: 'Độc lập - Tự do - Hạnh phúc', bold: true, size: 21 })] }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 240, after: 60 },
-                children: [new TextRun({ text: `PHIẾU BÁO GIẢNG TUẦN ${selectedWeek < 10 ? '0' + selectedWeek : selectedWeek}`, bold: true, size: 26 })],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 240 },
-                children: [new TextRun({ text: `(Tuần học thứ ${selectedWeek} của năm học ${yearId})`, italics: true, size: 20 })],
-              }),
-              new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: COL_W, rows: tableRows }),
-              // CHỮ KÝ TỔ TRƯỞNG CHUYÊN MÔN CĂN PHẢI (KHÔNG DÙNG BẢNG PHỤ)
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                spacing: { before: 360 },
-                children: [new TextRun({ text: 'Tổ trưởng chuyên môn', bold: true, size: 22 })],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                spacing: { before: 80, after: 120 },
-                children: [new TextRun({ text: '(Ký, ghi rõ họ tên)', italics: true, size: 19 })],
-              }),
-            ],
-          },
-        ],
-      })
-
+      const doc = new Document({ sections: [{ children: buildWeekDocChildren(selectedWeek, reportData) }] })
       const blob = await Packer.toBlob(doc)
       saveAs(blob, `Phieu_Bao_Giang_Tuan_${selectedWeek}.docx`)
     } catch (err: any) {
@@ -486,9 +498,79 @@ export default function ReportsPage() {
     }
   }
 
-  // =========================================================================
-  // XUẤT FILE EXCEL
-  // =========================================================================
+  // ===== XUẤT SỔ BÁO GIẢNG: nhiều tuần trong một file Word (trang bìa + mỗi tuần một trang) =====
+  const [bookOpen, setBookOpen] = useState(false)
+  const [bookFrom, setBookFrom] = useState(1)
+  const [bookTo, setBookTo] = useState(1)
+  const [exportingBook, setExportingBook] = useState(false)
+
+  // Mặc định: từ tuần 1 đến tuần hiện tại (năm học đã kết thúc thì lấy hết các tuần)
+  const openBookDialog = () => {
+    const lastDone = year.id === current.id && !isFinished(year) ? weekOf(year) : year.weeks
+    setBookFrom(1)
+    setBookTo(Math.max(1, lastDone))
+    setBookOpen(true)
+  }
+
+  const handleExportBook = async () => {
+    const from = Math.min(bookFrom, bookTo)
+    const to = Math.max(bookFrom, bookTo)
+    setExportingBook(true)
+    try {
+      const plan = buildLessonPlan(schedule, classes, classCurriculums, curriculumItems, overrides, year.weeks)
+      const weekSections: { children: any[] }[] = []
+      for (let w = from; w <= to; w++) {
+        const rows = buildWeekRows(w, plan, classes)
+        // bỏ qua tuần không có tiết nào
+        if (!rows.some((g) => g.slots.some((sl: any) => !sl.isEmpty))) continue
+        weekSections.push({ children: buildWeekDocChildren(w, rows) })
+      }
+      if (weekSections.length === 0) {
+        alert(`Từ tuần ${from} đến tuần ${to} chưa có tiết dạy nào để xuất.`)
+        return
+      }
+
+      // Tên giáo viên cho trang bìa
+      let teacherName = ''
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const user = session?.user
+        if (user) {
+          const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+          teacherName = prof?.full_name || user.email?.split('@')[0] || ''
+        }
+      } catch { /* không lấy được tên thì để trống dòng chấm */ }
+
+      const fullDate = (w: number, offset: number) => formatDay(dateOf(year, w, offset))
+      const line = (text: string, opts: { size?: number; bold?: boolean; italics?: boolean; before?: number; after?: number } = {}) =>
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: opts.before ?? 0, after: opts.after ?? 120 },
+          children: [new TextRun({ text, bold: opts.bold, italics: opts.italics, size: opts.size ?? 24 })],
+        })
+
+      const cover = {
+        children: [
+          buildDocHeaderTable(),
+          line('SỔ BÁO GIẢNG', { size: 56, bold: true, before: 3000, after: 240 }),
+          line(`NĂM HỌC ${yearId}`, { size: 32, bold: true, after: 1200 }),
+          line(`Giáo viên: ${teacherName || '.............................................'}`, { size: 28, after: 240 }),
+          line(`Từ tuần ${from} (${fullDate(from, 0)}) đến tuần ${to} (${fullDate(to, 5)})`, { size: 24, italics: true, after: 120 }),
+          line(`Gồm ${weekSections.length} phiếu báo giảng tuần`, { size: 24, italics: true }),
+        ],
+      }
+
+      const doc = new Document({ sections: [cover, ...weekSections] })
+      const blob = await Packer.toBlob(doc)
+      saveAs(blob, `So_Bao_Giang_${yearId}_Tuan_${from}-${to}.docx`)
+      setBookOpen(false)
+    } catch (err: any) {
+      alert('Lỗi xuất sổ báo giảng: ' + err.message)
+    } finally {
+      setExportingBook(false)
+    }
+  }
+
   const handleExportExcel = () => {
     if (reportData.length === 0) {
       alert('Tuần này chưa có dữ liệu để xuất!')
@@ -546,6 +628,16 @@ export default function ReportsPage() {
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Word</span>
+          </button>
+
+          <button
+            onClick={openBookDialog}
+            disabled={loading || exportingBook}
+            title="Xuất nhiều tuần (các tuần đã dạy) vào một file Word"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Xuất sổ báo giảng</span>
           </button>
 
           <button
@@ -860,6 +952,46 @@ export default function ReportsPage() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* HỘP THOẠI XUẤT SỔ BÁO GIẢNG */}
+      {bookOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !exportingBook && setBookOpen(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-600" /> Xuất sổ báo giảng
+              </h2>
+              <button onClick={() => setBookOpen(false)} disabled={exportingBook} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Năm học <span className="font-bold text-slate-700">{yearId}</span>. Một file Word gồm trang bìa và mỗi tuần một phiếu
+              (cùng mẫu với nút Word). Tuần không có tiết dạy sẽ được bỏ qua.
+            </p>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <span>Từ tuần</span>
+              <select value={bookFrom} onChange={(e) => setBookFrom(Number(e.target.value))} className="px-2 py-1.5 border rounded-lg">
+                {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => <option key={w} value={w}>{w}</option>)}
+              </select>
+              <span>đến tuần</span>
+              <select value={bookTo} onChange={(e) => setBookTo(Number(e.target.value))} className="px-2 py-1.5 border rounded-lg">
+                {Array.from({ length: year.weeks }, (_, i) => i + 1).map((w) => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {formatDay(dateOf(year, Math.min(bookFrom, bookTo), 0))} – {formatDay(dateOf(year, Math.max(bookFrom, bookTo), 5))}
+            </p>
+            <button
+              onClick={handleExportBook}
+              disabled={exportingBook}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl cursor-pointer"
+            >
+              {exportingBook ? 'Đang tạo file...' : 'Xuất file Word'}
+            </button>
           </div>
         </div>
       )}
