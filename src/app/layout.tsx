@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Sổ Báo Giảng",
-  description: "Sổ báo giảng - Trường THPT Chuyên Hoàng Văn Thụ",
+  description: "Sổ báo giảng điện tử",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
