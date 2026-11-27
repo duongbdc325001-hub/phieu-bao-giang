@@ -77,6 +77,7 @@ export function SessionList() {
         {[
           ["phieu_40_8_6_cuc_qlcl.pdf", "40 câu Cục QLCL"],
           ["phieu_toan_12_4_6.pdf", "Toán 12-4-6"],
+          ["phieu_qm_2025.pdf", "QM 2025"],
           ["phieu_40_8_6_den_trang.pdf", "40-8-6"],
           ["phieu_32_6_12_v2_den_trang.pdf", "32-6-12"],
         ].map(([f, t], i) => (
