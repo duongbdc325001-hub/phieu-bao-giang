@@ -11,7 +11,7 @@ export interface DetectResult {
 
 const BASE = "/omr/";
 // Mẫu phiếu tự nhận khi chấm. Thêm mẫu: đặt file *_toado.json vào public/omr/templates/ rồi thêm tên vào đây (và sw.js).
-export const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_toan_12_4_6", "phieu_50_10_12"];
+export const TEMPLATES = ["phieu_32_6_12_v2", "phieu_40_8_6", "phieu_40_8_6_gt", "phieu_toan_12_4_6", "phieu_50_10_12", "phieu_qm_2025"];
 /** Mã mẫu (trường "template" trong *_toado.json, lõi trả về ở template_id) và tên hiển thị – dùng cho ô "Mẫu phiếu". */
 export const TEMPLATE_INFO: { id: string; name: string }[] = [
   { id: "PTN-40-8-6-GT", name: "Phiếu 40 câu Cục QLCL (40-8-6, có ô giám thị)" },

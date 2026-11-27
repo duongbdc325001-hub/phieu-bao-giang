@@ -37,6 +37,7 @@ Chấm phiếu trắc nghiệm bằng camera điện thoại, ngay trong web. D�
 - Lõi C++ 1.7.2 (đã gắn phần tăng tốc, kết quả trùng khít lõi app trên 61 ảnh): tìm ô mốc bị máy scan làm rỗ hạt,
   phiếu mất 1 góc, SBD / mã đề tô nhạt. Đọc thêm được 4 ảnh scan mà lõi cũ không đọc được.
 - Mẫu phiếu **50-10-12** (`phieu_50_10_12`): SBD 8 số, mã đề 4 số.
+- Mẫu phiếu **QM 2025 – A4** (`phieu_qm_2025`): 40-8-6, SBD 6 số, mã đề 3 số. In bằng `public/omr/print/phieu_qm_2025.pdf`.
 - ① Đáp án → **Mẫu phiếu**: tự nhận ở phiếu đầu rồi khoá (mặc định) / chỉ 1 mẫu / thử tất cả. Phiếu khác mẫu đang khoá
   tự được đọc lại với mọi mẫu (web không giữ ảnh gốc nên không có nút "Đọc lại" như app).
 - ① Đáp án → **Mức soát** Nhanh / Vừa / Kỹ (như app 1.6). Bài chấm mới dùng mức chọn gần nhất.
